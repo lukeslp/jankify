@@ -1,0 +1,2160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jankify</title>
+<meta name="description" content="Screw up your photos, without AI.">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="Jankify">
+<meta property="og:description" content="Screw up your photos, without AI.">
+<meta property="og:image" content="https://dr.eamer.dev/jankify/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Jankify wordmark beside a warm polygon mosaic; tagline reads &quot;Screw up your photos, without AI.&quot;">
+<meta property="og:url" content="https://dr.eamer.dev/jankify/">
+<meta property="og:site_name" content="lukesteuber.com">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Jankify">
+<meta name="twitter:description" content="Screw up your photos, without AI.">
+<meta name="twitter:image" content="https://dr.eamer.dev/jankify/og.png">
+<meta name="twitter:image:alt" content="Jankify wordmark beside a warm polygon mosaic; tagline reads &quot;Screw up your photos, without AI.&quot;">
+
+<link rel="canonical" href="https://dr.eamer.dev/jankify/">
+<!--
+================================================================================
+  jankify.html - Image to Geometric / Mosaic / Text / Pixel Art
+================================================================================
+  File Purpose
+    Browser-based image transformation tool. Five rendering modes share a
+    common pipeline. Each mode supports one or more export formats.
+
+  Modes
+    polygon   Delaunay triangulation with edge-aware point placement.
+    voronoi   Voronoi cells — dual graph of the same Delaunay output.
+    emoji     Emoji mosaic via LAB color matching with rejection tolerance.
+    ascii     Character density mapping; brightness ramp, optional color.
+    pixel     Pixel-art rendering with optional median-cut quantization.
+              Exports: CSS box-shadow, SVG rect grid, HTML <table>, Unicode
+              blocks (colored or mono), JSON 2D array, plain text grid.
+
+  Primary Functions
+    sobel, generatePoints, delaunay, voronoiCells       Geometry
+    rgbToLab, deltaE94                                  Color science
+    buildEmojiPalette                                   Emoji probing
+    avgRgbRect, avgBrightRect, avgRgbaRect              Area sampling
+    medianCutPalette                                    Color quantization
+    formatPixelsAs<Format>                              7 pixel exporters
+    runPipeline                                         Orchestrator
+
+  Inputs
+    Any browser-decodable image (JPEG, PNG, WebP, GIF, …)
+    Controls vary by mode — see sidebar.
+
+  Outputs
+    Inline canvas. Per-mode downloads (PNG always; SVG / TXT / CSS / HTML
+    / JSON depending on mode). Clipboard copy for text outputs.
+
+  Run: open in any modern browser. No build, no server, no network at runtime.
+================================================================================
+-->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  --bg:        #fafaf7;
+  --surface:   #ffffff;
+  --fg:        #1a1a1a;
+  --fg-muted:  #6b6862;
+  --border:    #e4e1d8;
+  --accent:    #c1502e;
+  --accent-fg: #ffffff;
+  --focus:     #2d6cdf;
+  --shadow:    0 1px 2px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.04);
+  --radius:    6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:       #16140f;
+    --surface:  #1f1c16;
+    --fg:       #f0ebe0;
+    --fg-muted: #9b958a;
+    --border:   #2e2a22;
+    --accent:   #e07a52;
+    --focus:    #6ea1ff;
+    --shadow:   0 1px 2px rgba(0,0,0,0.3), 0 2px 8px rgba(0,0,0,0.2);
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; }
+body {
+  font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+  font-size: 14px;
+  line-height: 1.45;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 100vh;
+}
+
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+header h1 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+header h1 .accent { color: var(--accent); }
+header .spacer { flex: 1; }
+
+.mode-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.mode-select label {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fg-muted);
+}
+.mode-select select {
+  font: inherit;
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  color: var(--fg);
+  padding: 2px 4px;
+  cursor: pointer;
+}
+.mode-select select:focus { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+}
+.btn:hover { background: var(--bg); border-color: var(--fg-muted); }
+.btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+}
+.btn-primary:hover { background: var(--accent); filter: brightness(1.08); }
+.btn i { font-size: 12px; }
+.btn.copy-flash { background: var(--accent); color: var(--accent-fg); }
+
+main {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  min-height: 0;
+}
+@media (max-width: 800px) {
+  main { grid-template-columns: 1fr; grid-template-rows: auto auto; }
+  /* Canvas first on mobile — controls follow */
+  .canvas-area { order: 1; min-height: 60vh; }
+  aside {
+    order: 2;
+    border-right: none !important;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+  }
+  /* Hide the redundant header Upload button on mobile while no image is loaded —
+     the placeholder is now the primary affordance. JS re-shows it after upload. */
+  header label[for="file-input"].hide-mobile-empty { display: none; }
+}
+
+aside {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 20px;
+  overflow-y: auto;
+}
+.control { margin-bottom: 18px; }
+.control:last-child { margin-bottom: 0; }
+.control label.field-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fg);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.control label.field-label .value {
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 500;
+  color: var(--accent);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 13px;
+}
+.control .hint {
+  font-size: 11px;
+  color: var(--fg-muted);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.mode-section[hidden] { display: none; }
+.mode-section h3 {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-muted);
+  margin: 0 0 12px 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+input[type=range] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 24px;
+  background: transparent; cursor: pointer; margin: 0;
+}
+input[type=range]:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+input[type=range]::-webkit-slider-runnable-track { height: 3px; background: var(--border); border-radius: 2px; }
+input[type=range]::-moz-range-track { height: 3px; background: var(--border); border-radius: 2px; }
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 16px; height: 16px;
+  background: var(--accent);
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  margin-top: -7px;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+input[type=range]::-moz-range-thumb {
+  width: 16px; height: 16px;
+  background: var(--accent);
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+
+.radio-group, .checkbox-group {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.radio-group label, .checkbox-group label {
+  display: flex; align-items: center; gap: 8px;
+  cursor: pointer; font-size: 13px; padding: 4px 0;
+}
+.radio-group input, .checkbox-group input {
+  accent-color: var(--accent);
+  width: 16px; height: 16px; cursor: pointer;
+}
+.radio-group input:focus-visible, .checkbox-group input:focus-visible {
+  outline: 2px solid var(--focus); outline-offset: 2px;
+}
+
+.row { display: flex; gap: 10px; align-items: center; }
+.row input[type=color] {
+  width: 32px; height: 32px; padding: 0;
+  border: 1px solid var(--border); border-radius: 4px;
+  cursor: pointer; background: transparent;
+}
+
+.control select, .control input[type=text] {
+  font: inherit; font-size: 13px;
+  width: 100%; padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg); color: var(--fg);
+}
+.control select:focus, .control input[type=text]:focus {
+  outline: 2px solid var(--focus); outline-offset: 1px;
+}
+.control input[type=text].mono {
+  font-family: "IBM Plex Mono", monospace;
+  letter-spacing: 0.02em;
+}
+
+.divider { height: 1px; background: var(--border); margin: 18px 0; border: 0; }
+
+.canvas-area {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    repeating-conic-gradient(var(--border) 0% 25%, transparent 0% 50%) 0 0 / 16px 16px;
+  background-color: var(--bg);
+  min-height: 400px;
+  overflow: auto;
+}
+.canvas-area canvas {
+  max-width: 100%;
+  max-height: calc(100vh - 140px);
+  display: block;
+  box-shadow: var(--shadow);
+  background: #000;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--fg-muted);
+  padding: 48px 28px;
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  width: min(520px, 92%);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.06s ease-out;
+  -webkit-tap-highlight-color: transparent;
+}
+.placeholder:hover {
+  border-color: var(--accent);
+  color: var(--fg);
+}
+.placeholder:active { transform: scale(0.995); }
+.placeholder:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
+.placeholder.drag-over {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+  transform: scale(1.005);
+}
+.placeholder .icon {
+  font-size: 36px;
+  color: var(--accent);
+  margin-bottom: 14px;
+  line-height: 1;
+}
+.placeholder h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 6px 0;
+  color: var(--fg);
+  letter-spacing: -0.01em;
+}
+.placeholder .cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-radius: var(--radius);
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  margin: 14px 0 8px;
+  pointer-events: none; /* clicks bubble to the label */
+}
+.placeholder .cta i { font-size: 13px; }
+.placeholder .hint-line { margin: 6px 0 0; font-size: 12px; color: var(--fg-muted); }
+.placeholder .hint-line kbd {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: var(--fg);
+}
+.placeholder .modes-line {
+  margin-top: 18px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  white-space: normal;
+  word-spacing: 2px;
+}
+.placeholder .modes-line .dot { color: var(--accent); padding: 0 3px; }
+@media (max-width: 800px) {
+  .placeholder { padding: 32px 18px; }
+  .placeholder .hint-desktop { display: none; }
+  .placeholder .hint-mobile { display: block; }
+  .placeholder .modes-line { font-size: 10px; letter-spacing: 0.06em; }
+}
+@media (min-width: 801px) {
+  .placeholder .hint-mobile { display: none; }
+}
+
+.loading {
+  position: absolute; inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  display: none;
+  align-items: center; justify-content: center;
+  flex-direction: column; gap: 12px;
+  z-index: 5;
+}
+.loading.active { display: flex; }
+.loading .label { font-size: 14px; font-weight: 500; }
+.loading .progress-bar {
+  width: 220px; height: 3px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 2px; overflow: hidden;
+}
+.loading .progress-bar-fill {
+  height: 100%; background: var(--accent); width: 0%;
+  transition: width 0.15s ease-out;
+}
+
+.status {
+  padding: 8px 20px;
+  font-size: 12px;
+  color: var(--fg-muted);
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  font-family: "IBM Plex Mono", monospace;
+  white-space: nowrap; overflow-x: auto;
+}
+
+input[type=file] {
+  position: absolute; width: 1px; height: 1px;
+  opacity: 0; pointer-events: none;
+}
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span class="accent">▲</span> Jankify</h1>
+
+  <div class="mode-select">
+    <label for="mode">Mode</label>
+    <select id="mode" aria-label="Rendering mode">
+      <option value="polygon" selected>Polygon</option>
+      <option value="voronoi">Voronoi</option>
+      <option value="emoji">Emoji</option>
+      <option value="ascii">ASCII</option>
+      <option value="pixel">Pixel</option>
+    </select>
+  </div>
+
+  <div class="spacer"></div>
+
+  <label for="file-input" class="btn btn-primary hide-mobile-empty" id="upload-btn">
+    <i class="fa-solid fa-upload" aria-hidden="true"></i>
+    <span id="upload-btn-label">Upload</span>
+  </label>
+  <input type="file" id="file-input" accept="image/*" aria-label="Choose an image">
+
+  <button class="btn" id="reseed-btn" disabled title="Re-randomize">
+    <i class="fa-solid fa-shuffle" aria-hidden="true"></i>
+    Reseed
+  </button>
+
+  <button class="btn" id="download-png" disabled>
+    <i class="fa-solid fa-image" aria-hidden="true"></i>
+    PNG
+  </button>
+
+  <button class="btn" id="download-vector" disabled>
+    <i class="fa-solid fa-bezier-curve" aria-hidden="true"></i>
+    <span id="download-vector-label">SVG</span>
+  </button>
+
+  <button class="btn" id="copy-output" disabled hidden>
+    <i class="fa-solid fa-clipboard" aria-hidden="true"></i>
+    Copy
+  </button>
+</header>
+
+<main>
+  <aside aria-label="Controls">
+
+    <!-- POLYGON / VORONOI -->
+    <div class="mode-section" data-modes="polygon voronoi">
+      <h3>Geometry</h3>
+
+      <div class="control">
+        <label class="field-label" for="cell-size">
+          <span>Cell size</span>
+          <span class="value" id="cell-size-value">30</span>
+        </label>
+        <input type="range" id="cell-size" min="8" max="120" value="30" step="1">
+        <div class="hint">Base grid spacing in pixels. Smaller = more detail.</div>
+      </div>
+
+      <div class="control">
+        <label class="field-label" for="edge-sensitivity">
+          <span>Edge sensitivity</span>
+          <span class="value" id="edge-sensitivity-value">60</span>
+        </label>
+        <input type="range" id="edge-sensitivity" min="0" max="200" value="60" step="5">
+        <div class="hint">Extra points on detected edges, as % of grid count.</div>
+      </div>
+
+      <div class="control">
+        <span class="field-label" style="display:block">Color sampling</span>
+        <div class="radio-group" role="radiogroup">
+          <label><input type="radio" name="color-mode" value="centroid" checked>Centroid <span style="color:var(--fg-muted);font-size:12px">— fast</span></label>
+          <label><input type="radio" name="color-mode" value="average">Average <span style="color:var(--fg-muted);font-size:12px">— smoother</span></label>
+        </div>
+      </div>
+
+      <div class="control">
+        <div class="checkbox-group">
+          <label><input type="checkbox" id="show-stroke">Show cell edges</label>
+        </div>
+        <div class="row" style="margin-top:8px" id="stroke-controls" hidden>
+          <input type="color" id="stroke-color" value="#000000" aria-label="Stroke color">
+          <input type="range" id="stroke-opacity" min="0" max="100" value="40" aria-label="Stroke opacity">
+          <span class="value" id="stroke-opacity-value" style="font-family:'IBM Plex Mono',monospace;font-size:12px;min-width:36px">40%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- EMOJI -->
+    <div class="mode-section" data-modes="emoji" hidden>
+      <h3>Emoji</h3>
+
+      <div class="control">
+        <label class="field-label" for="emoji-window">
+          <span>Analysis window</span>
+          <span class="value" id="emoji-window-value">7px</span>
+        </label>
+        <input type="range" id="emoji-window" min="1" max="50" value="7" step="1">
+        <div class="hint">Source pixel block per emoji. Smaller = more detail, slower.</div>
+      </div>
+
+      <div class="control">
+        <label class="field-label" for="emoji-scale">
+          <span>Output cell size</span>
+          <span class="value" id="emoji-scale-value">14px</span>
+        </label>
+        <input type="range" id="emoji-scale" min="4" max="40" value="14" step="1">
+        <div class="hint">Size of each rendered emoji.</div>
+      </div>
+
+      <div class="control">
+        <label class="field-label" for="emoji-tolerance">
+          <span>Match tolerance</span>
+          <span class="value" id="emoji-tolerance-value">8</span>
+        </label>
+        <input type="range" id="emoji-tolerance" min="1" max="30" value="8" step="1">
+        <div class="hint">Lower = more accurate color, less variety.</div>
+      </div>
+
+      <div class="control">
+        <label class="field-label" for="emoji-empty">
+          <span>Allowed empty space</span>
+          <span class="value" id="emoji-empty-value">70%</span>
+        </label>
+        <input type="range" id="emoji-empty" min="40" max="100" value="70" step="2">
+        <div class="hint">Higher = include sparse glyphs (❗) alongside solid (🟥).</div>
+      </div>
+
+      <div class="control">
+        <div class="checkbox-group">
+          <label><input type="checkbox" id="emoji-hide-black">Hide black/transparent regions</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- ASCII -->
+    <div class="mode-section" data-modes="ascii" hidden>
+      <h3>ASCII</h3>
+
+      <div class="control">
+        <label class="field-label" for="ascii-cell">
+          <span>Cell size</span>
+          <span class="value" id="ascii-cell-value">10px</span>
+        </label>
+        <input type="range" id="ascii-cell" min="4" max="30" value="10" step="1">
+        <div class="hint">Pixel block per character.</div>
+      </div>
+
+      <div class="control">
+        <label class="field-label" for="ascii-ramp">
+          <span>Character ramp</span>
+        </label>
+        <select id="ascii-ramp">
+          <option value=" .:-=+*#%@" selected>Standard (10 levels)</option>
+          <option value=" .'`,^:;Il!i&gt;&lt;~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&amp;8%B@$">Extended (70 levels)</option>
+          <option value=" ░▒▓█">Blocks (5 levels)</option>
+          <option value=" .oO@">Minimal (5 levels)</option>
+          <option value=" ·•◦●">Dots (5 levels)</option>
+        </select>
+        <div class="hint">Light to dark.</div>
+      </div>
+
+      <div class="control">
+        <label class="field-label" for="ascii-ramp-custom">
+          <span>Custom ramp</span>
+        </label>
+        <input type="text" id="ascii-ramp-custom" class="mono" placeholder="(or type your own, light → dark)">
+      </div>
+
+      <div class="control">
+        <span class="field-label" style="display:block">Color</span>
+        <div class="radio-group" role="radiogroup">
+          <label><input type="radio" name="ascii-color" value="mono" checked>Monochrome</label>
+          <label><input type="radio" name="ascii-color" value="source">Source colors</label>
+        </div>
+      </div>
+
+      <div class="row">
+        <input type="color" id="ascii-fg" value="#f0ebe0" aria-label="ASCII foreground color">
+        <span style="font-size:12px;color:var(--fg-muted)">Foreground (mono only)</span>
+      </div>
+    </div>
+
+    <!-- PIXEL -->
+    <div class="mode-section" data-modes="pixel" hidden>
+      <h3>Pixel Art</h3>
+
+      <div class="control">
+        <label class="field-label" for="pixel-grid">
+          <span>Grid resolution</span>
+          <span class="value" id="pixel-grid-value">64</span>
+        </label>
+        <input type="range" id="pixel-grid" min="8" max="256" value="64" step="1">
+        <div class="hint">Wider dimension of the output grid. Aspect ratio preserved.</div>
+      </div>
+
+      <div class="control">
+        <label class="field-label" for="pixel-display">
+          <span>Display size</span>
+          <span class="value" id="pixel-display-value">8px</span>
+        </label>
+        <input type="range" id="pixel-display" min="1" max="40" value="8" step="1">
+        <div class="hint">Rendered size of each pixel in preview.</div>
+      </div>
+
+      <div class="control">
+        <label class="field-label" for="pixel-quantize">
+          <span>Palette size</span>
+          <span class="value" id="pixel-quantize-value">unlimited</span>
+        </label>
+        <input type="range" id="pixel-quantize" min="0" max="256" value="0" step="1">
+        <div class="hint">0 = no quantization. Median-cut reduces unique colors → smaller output.</div>
+      </div>
+
+      <div class="control">
+        <label class="field-label" for="pixel-format">
+          <span>Output format</span>
+        </label>
+        <select id="pixel-format">
+          <option value="css" selected>CSS box-shadow</option>
+          <option value="svg">SVG &lt;rect&gt; grid</option>
+          <option value="html">HTML &lt;table&gt;</option>
+          <option value="blocks-html">Unicode blocks (HTML, colored)</option>
+          <option value="blocks-ansi">Unicode blocks (ANSI terminal)</option>
+          <option value="blocks-mono">Unicode blocks (mono)</option>
+          <option value="json">JSON 2D array</option>
+          <option value="text">Plain text (coords)</option>
+        </select>
+        <div class="hint">Download / Copy uses this format. Canvas preview always available as PNG.</div>
+      </div>
+
+      <div class="control">
+        <div class="checkbox-group">
+          <label><input type="checkbox" id="pixel-grid-lines">Show grid lines</label>
+          <label><input type="checkbox" id="pixel-skip-alpha" checked>Skip transparent pixels</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- BACKGROUND (emoji + ascii + pixel) -->
+    <div class="mode-section" data-modes="emoji ascii pixel" hidden>
+      <hr class="divider">
+      <div class="control">
+        <div class="row">
+          <input type="checkbox" id="bg-enabled" checked>
+          <label for="bg-color" style="font-size:13px">Background</label>
+          <input type="color" id="bg-color" value="#16140f" aria-label="Background color">
+        </div>
+      </div>
+    </div>
+
+    <!-- UNIVERSAL -->
+    <hr class="divider">
+    <div class="control">
+      <label class="field-label" for="max-dim">
+        <span>Max working size</span>
+        <span class="value" id="max-dim-value">1400px</span>
+      </label>
+      <input type="range" id="max-dim" min="400" max="2400" value="1400" step="100">
+      <div class="hint">Large images are downscaled before processing.</div>
+    </div>
+
+  </aside>
+
+  <div class="canvas-area" id="canvas-area">
+    <label class="placeholder" id="placeholder" for="file-input">
+      <span class="icon" aria-hidden="true"><i class="fa-solid fa-cloud-arrow-up"></i></span>
+      <h2>Add an image to jankify</h2>
+      <span class="cta">
+        <i class="fa-solid fa-image" aria-hidden="true"></i>
+        Choose an image
+      </span>
+      <p class="hint-line hint-desktop">or drop one anywhere here · paste with <kbd>⌘ V</kbd></p>
+      <p class="hint-line hint-mobile">photos, screenshots, or take one with your camera</p>
+      <p class="modes-line">
+        Polygon<span class="dot">·</span>Voronoi<span class="dot">·</span>Emoji<span class="dot">·</span>ASCII<span class="dot">·</span>Pixel
+      </p>
+    </label>
+    <div class="loading" id="loading" role="status" aria-live="polite">
+      <div class="label" id="loading-label">Processing…</div>
+      <div class="progress-bar"><div class="progress-bar-fill" id="progress-fill"></div></div>
+    </div>
+  </div>
+</main>
+
+<div class="status" id="status" aria-live="polite">Ready. No image loaded.</div>
+
+<script>
+// =============================================================================
+// polygonize.html — script
+// =============================================================================
+"use strict";
+
+const state = {
+  mode: "polygon",
+  imageData: null,
+  width: 0, height: 0,
+
+  points: null, triangles: null, triColors: null,
+  voronoi: null,
+  edgeMap: null,
+
+  emojiPalette: null, emojiGrid: null, emojiFontPx: null,
+
+  asciiGrid: null, asciiFontPx: null, asciiCols: 0, asciiRows: 0,
+
+  pixelGrid: null, pixelCols: 0, pixelRows: 0, pixelDisplay: 0,
+
+  seed: Date.now(),
+  renderPending: false,
+};
+
+let sourceImage = null;
+const $ = id => document.getElementById(id);
+
+// -----------------------------------------------------------------------------
+// PRNG
+// -----------------------------------------------------------------------------
+function makeRng(seed) {
+  let a = seed | 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// -----------------------------------------------------------------------------
+// Color space: sRGB → CIE L*a*b* (D65, 2° observer)
+// -----------------------------------------------------------------------------
+function srgbToLinear(c) {
+  c = c / 255;
+  return c > 0.04045 ? Math.pow((c + 0.055) / 1.055, 2.4) : c / 12.92;
+}
+function rgbToXyz(r, g, b) {
+  const rl = srgbToLinear(r) * 100;
+  const gl = srgbToLinear(g) * 100;
+  const bl = srgbToLinear(b) * 100;
+  return [
+    rl * 0.4124 + gl * 0.3576 + bl * 0.1805,
+    rl * 0.2126 + gl * 0.7152 + bl * 0.0722,
+    rl * 0.0193 + gl * 0.1192 + bl * 0.9505,
+  ];
+}
+function xyzToLab(x, y, z) {
+  const refX = 95.047, refY = 100, refZ = 108.883;
+  const f = t => t > 0.008856 ? Math.pow(t, 1/3) : (7.787 * t) + (16/116);
+  const fx = f(x / refX), fy = f(y / refY), fz = f(z / refZ);
+  return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+}
+function rgbToLab(r, g, b) {
+  const xyz = rgbToXyz(r, g, b);
+  return xyzToLab(xyz[0], xyz[1], xyz[2]);
+}
+function deltaE94(a, b) {
+  const dL = a[0] - b[0];
+  const dA = a[1] - b[1];
+  const dB = a[2] - b[2];
+  const c1 = Math.sqrt(a[1]*a[1] + a[2]*a[2]);
+  const c2 = Math.sqrt(b[1]*b[1] + b[2]*b[2]);
+  const dC = c1 - c2;
+  let dH = dA*dA + dB*dB - dC*dC;
+  dH = dH < 0 ? 0 : Math.sqrt(dH);
+  const sc = 1 + 0.045 * c1, sh = 1 + 0.015 * c1;
+  const ti = dL*dL + (dC/sc)**2 + (dH/sh)**2;
+  return ti < 0 ? 0 : Math.sqrt(ti);
+}
+
+// -----------------------------------------------------------------------------
+// Area samplers
+// -----------------------------------------------------------------------------
+function avgRgbRect(data, w, x0, y0, x1, y1) {
+  let r = 0, g = 0, b = 0, count = 0;
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      const i = (y * w + x) * 4;
+      r += data[i] * data[i];
+      g += data[i + 1] * data[i + 1];
+      b += data[i + 2] * data[i + 2];
+      count++;
+    }
+  }
+  if (!count) return [0, 0, 0];
+  return [Math.sqrt(r/count), Math.sqrt(g/count), Math.sqrt(b/count)];
+}
+function avgRgbaRect(data, w, x0, y0, x1, y1) {
+  let r = 0, g = 0, b = 0, a = 0, count = 0;
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      const i = (y * w + x) * 4;
+      r += data[i] * data[i];
+      g += data[i + 1] * data[i + 1];
+      b += data[i + 2] * data[i + 2];
+      a += data[i + 3];
+      count++;
+    }
+  }
+  if (!count) return [0, 0, 0, 0];
+  return [Math.sqrt(r/count), Math.sqrt(g/count), Math.sqrt(b/count), a/count];
+}
+function avgBrightRect(data, w, x0, y0, x1, y1) {
+  let s = 0, count = 0;
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      const i = (y * w + x) * 4;
+      s += 0.299*data[i] + 0.587*data[i+1] + 0.114*data[i+2];
+      count++;
+    }
+  }
+  return count ? s/count : 0;
+}
+function sampleCentroid(A, B, C, data, w, h) {
+  const cx = Math.max(0, Math.min(w-1, Math.floor((A[0]+B[0]+C[0])/3)));
+  const cy = Math.max(0, Math.min(h-1, Math.floor((A[1]+B[1]+C[1])/3)));
+  const idx = (cy*w + cx) * 4;
+  return [data[idx], data[idx+1], data[idx+2]];
+}
+function sampleAverage(A, B, C, data, w, h) {
+  const minX = Math.max(0, Math.floor(Math.min(A[0], B[0], C[0])));
+  const maxX = Math.min(w-1, Math.ceil(Math.max(A[0], B[0], C[0])));
+  const minY = Math.max(0, Math.floor(Math.min(A[1], B[1], C[1])));
+  const maxY = Math.min(h-1, Math.ceil(Math.max(A[1], B[1], C[1])));
+  let r = 0, g = 0, b = 0, count = 0;
+  for (let y = minY; y <= maxY; y++) {
+    for (let x = minX; x <= maxX; x++) {
+      if (pointInTriangle(x, y, A, B, C)) {
+        const idx = (y*w + x) * 4;
+        r += data[idx]; g += data[idx+1]; b += data[idx+2];
+        count++;
+      }
+    }
+  }
+  if (!count) return sampleCentroid(A, B, C, data, w, h);
+  return [r/count, g/count, b/count];
+}
+function pointInTriangle(px, py, A, B, C) {
+  const d1 = (px-B[0])*(A[1]-B[1]) - (A[0]-B[0])*(py-B[1]);
+  const d2 = (px-C[0])*(B[1]-C[1]) - (B[0]-C[0])*(py-C[1]);
+  const d3 = (px-A[0])*(C[1]-A[1]) - (C[0]-A[0])*(py-A[1]);
+  const hasNeg = d1 < 0 || d2 < 0 || d3 < 0;
+  const hasPos = d1 > 0 || d2 > 0 || d3 > 0;
+  return !(hasNeg && hasPos);
+}
+
+// -----------------------------------------------------------------------------
+// Sobel + point generation + Delaunay (Bowyer-Watson)
+// -----------------------------------------------------------------------------
+function sobel(imageData) {
+  const { data, width: w, height: h } = imageData;
+  const gray = new Float32Array(w * h);
+  for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+    gray[j] = 0.299*data[i] + 0.587*data[i+1] + 0.114*data[i+2];
+  }
+  const out = new Float32Array(w * h);
+  let max = 0;
+  for (let y = 1; y < h-1; y++) {
+    for (let x = 1; x < w-1; x++) {
+      const i = y*w + x;
+      const tl = gray[i-w-1], tc = gray[i-w], tr = gray[i-w+1];
+      const ml = gray[i-1],                   mr = gray[i+1];
+      const bl = gray[i+w-1], bc = gray[i+w], br = gray[i+w+1];
+      const gx = -tl + tr - 2*ml + 2*mr - bl + br;
+      const gy = -tl - 2*tc - tr + bl + 2*bc + br;
+      const m = Math.sqrt(gx*gx + gy*gy);
+      out[i] = m;
+      if (m > max) max = m;
+    }
+  }
+  if (max > 0) for (let i = 0; i < out.length; i++) out[i] /= max;
+  return out;
+}
+
+function generatePoints(w, h, cellSize, edgeMap, edgeRatio, rng, addGhosts) {
+  const pts = [];
+  pts.push([0,0], [w-1,0], [0,h-1], [w-1,h-1]);
+  const edgeJitter = cellSize * 0.35;
+  for (let x = cellSize; x < w - cellSize/2; x += cellSize) {
+    pts.push([x + (rng()-0.5)*edgeJitter, 0]);
+    pts.push([x + (rng()-0.5)*edgeJitter, h-1]);
+  }
+  for (let y = cellSize; y < h - cellSize/2; y += cellSize) {
+    pts.push([0,   y + (rng()-0.5)*edgeJitter]);
+    pts.push([w-1, y + (rng()-0.5)*edgeJitter]);
+  }
+  const j = cellSize * 0.7;
+  for (let y = cellSize; y < h - cellSize/2; y += cellSize) {
+    for (let x = cellSize; x < w - cellSize/2; x += cellSize) {
+      pts.push([x + (rng()-0.5)*j, y + (rng()-0.5)*j]);
+    }
+  }
+  const baseCount = Math.floor((w/cellSize) * (h/cellSize));
+  const extra = Math.floor(baseCount * edgeRatio);
+  if (extra > 0 && edgeMap) {
+    const minDistSq = (cellSize * 0.35) ** 2;
+    let added = 0, attempts = 0;
+    const maxAttempts = extra * 80;
+    while (added < extra && attempts < maxAttempts) {
+      attempts++;
+      const px = Math.floor(rng() * w);
+      const py = Math.floor(rng() * h);
+      const mag = edgeMap[py*w + px];
+      if (rng() < mag * mag) {
+        const tail = Math.min(pts.length, 30);
+        let tooClose = false;
+        for (let k = pts.length - tail; k < pts.length; k++) {
+          const dx = pts[k][0] - px, dy = pts[k][1] - py;
+          if (dx*dx + dy*dy < minDistSq) { tooClose = true; break; }
+        }
+        if (!tooClose) {
+          pts.push([px + (rng()-0.5), py + (rng()-0.5)]);
+          added++;
+        }
+      }
+    }
+  }
+  const realCount = pts.length;
+  if (addGhosts) pts.push([-w,-h], [2*w,-h], [-w,2*h], [2*w,2*h]);
+  return { pts, realCount };
+}
+
+function delaunay(pts) {
+  const n = pts.length;
+  if (n < 3) return [];
+  let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+  for (const [x,y] of pts) {
+    if (x<minX) minX=x; if (x>maxX) maxX=x;
+    if (y<minY) minY=y; if (y>maxY) maxY=y;
+  }
+  const deltaMax = Math.max(maxX-minX, maxY-minY) * 20 + 1;
+  const midX = (minX+maxX)/2, midY = (minY+maxY)/2;
+  const work = pts.slice();
+  work.push([midX-deltaMax, midY-deltaMax]);
+  work.push([midX,           midY+deltaMax]);
+  work.push([midX+deltaMax, midY-deltaMax]);
+  let triangles = [makeTri(n, n+1, n+2, work)];
+  for (let p = 0; p < n; p++) {
+    const [px, py] = work[p];
+    const bad = [];
+    for (let t = 0; t < triangles.length; t++) {
+      const tri = triangles[t];
+      const dx = px - tri.cx, dy = py - tri.cy;
+      if (dx*dx + dy*dy < tri.rSq) bad.push(tri);
+    }
+    const edgeCount = new Map();
+    for (const tri of bad) {
+      addEdge(edgeCount, tri.a, tri.b);
+      addEdge(edgeCount, tri.b, tri.c);
+      addEdge(edgeCount, tri.c, tri.a);
+    }
+    const badSet = new Set(bad);
+    triangles = triangles.filter(t => !badSet.has(t));
+    for (const [key, count] of edgeCount) {
+      if (count === 1) {
+        const [u, v] = key.split(",").map(Number);
+        triangles.push(makeTri(u, v, p, work));
+      }
+    }
+  }
+  const result = [];
+  for (const tri of triangles) {
+    if (tri.a < n && tri.b < n && tri.c < n) result.push([tri.a, tri.b, tri.c]);
+  }
+  return result;
+}
+function addEdge(map, u, v) {
+  const key = u < v ? `${u},${v}` : `${v},${u}`;
+  map.set(key, (map.get(key) || 0) + 1);
+}
+function makeTri(a, b, c, pts) {
+  const [ax,ay] = pts[a], [bx,by] = pts[b], [cx,cy] = pts[c];
+  const d = 2 * (ax*(by-cy) + bx*(cy-ay) + cx*(ay-by));
+  if (Math.abs(d) < 1e-10) return { a, b, c, cx: ax, cy: ay, rSq: 0 };
+  const ax2 = ax*ax + ay*ay;
+  const bx2 = bx*bx + by*by;
+  const cx2 = cx*cx + cy*cy;
+  const ux = (ax2*(by-cy) + bx2*(cy-ay) + cx2*(ay-by)) / d;
+  const uy = (ax2*(cx-bx) + bx2*(ax-cx) + cx2*(bx-ax)) / d;
+  const dxu = ax-ux, dyu = ay-uy;
+  return { a, b, c, cx: ux, cy: uy, rSq: dxu*dxu + dyu*dyu };
+}
+
+// -----------------------------------------------------------------------------
+// Voronoi from Delaunay
+// -----------------------------------------------------------------------------
+function voronoiCells(pts, triangles, w, h, realCount) {
+  const incident = new Array(pts.length);
+  for (let i = 0; i < pts.length; i++) incident[i] = [];
+  const tCenters = new Array(triangles.length);
+  for (let t = 0; t < triangles.length; t++) {
+    const [a, b, c] = triangles[t];
+    tCenters[t] = circumcenter(pts[a], pts[b], pts[c]);
+    incident[a].push(t); incident[b].push(t); incident[c].push(t);
+  }
+  const cells = [];
+  const rect = [[0,0], [w,0], [w,h], [0,h]];
+  for (let p = 0; p < realCount; p++) {
+    const tris = incident[p];
+    if (tris.length < 2) continue;
+    const center = pts[p];
+    const verts = tris.map(t => tCenters[t]);
+    verts.sort((u, v) =>
+      Math.atan2(u[1]-center[1], u[0]-center[0]) -
+      Math.atan2(v[1]-center[1], v[0]-center[0])
+    );
+    const clipped = clipPolygon(verts, rect);
+    if (clipped.length >= 3) cells.push({ idx: p, polygon: clipped });
+  }
+  return cells;
+}
+function circumcenter(A, B, C) {
+  const ax=A[0], ay=A[1], bx=B[0], by=B[1], cx=C[0], cy=C[1];
+  const d = 2 * (ax*(by-cy) + bx*(cy-ay) + cx*(ay-by));
+  if (Math.abs(d) < 1e-10) return [(ax+bx+cx)/3, (ay+by+cy)/3];
+  const ax2 = ax*ax + ay*ay;
+  const bx2 = bx*bx + by*by;
+  const cx2 = cx*cx + cy*cy;
+  return [
+    (ax2*(by-cy) + bx2*(cy-ay) + cx2*(ay-by)) / d,
+    (ax2*(cx-bx) + bx2*(ax-cx) + cx2*(bx-ax)) / d,
+  ];
+}
+function clipPolygon(subject, clip) {
+  let output = subject;
+  for (let i = 0; i < clip.length; i++) {
+    if (output.length === 0) break;
+    const input = output; output = [];
+    const A = clip[i], B = clip[(i+1) % clip.length];
+    for (let j = 0; j < input.length; j++) {
+      const cur = input[j];
+      const prev = input[(j-1+input.length) % input.length];
+      const curIn = isInside(cur, A, B);
+      const prevIn = isInside(prev, A, B);
+      if (curIn) {
+        if (!prevIn) output.push(lineIntersect(prev, cur, A, B));
+        output.push(cur);
+      } else if (prevIn) {
+        output.push(lineIntersect(prev, cur, A, B));
+      }
+    }
+  }
+  return output;
+}
+function isInside(p, A, B) {
+  return (B[0]-A[0])*(p[1]-A[1]) - (B[1]-A[1])*(p[0]-A[0]) >= 0;
+}
+function lineIntersect(p, q, A, B) {
+  const x1=p[0], y1=p[1], x2=q[0], y2=q[1], x3=A[0], y3=A[1], x4=B[0], y4=B[1];
+  const denom = (x1-x2)*(y3-y4) - (y1-y2)*(x3-x4);
+  if (Math.abs(denom) < 1e-10) return p;
+  const t = ((x1-x3)*(y3-y4) - (y1-y3)*(x3-x4)) / denom;
+  return [x1 + t*(x2-x1), y1 + t*(y2-y1)];
+}
+function pointInPolygon(x, y, poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i][0], yi = poly[i][1];
+    const xj = poly[j][0], yj = poly[j][1];
+    const intersect = ((yi > y) !== (yj > y)) &&
+                      (x < (xj-xi)*(y-yi)/(yj-yi+1e-12) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+function averagePolygonColor(poly, data, w, h) {
+  let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+  for (const p of poly) {
+    if (p[0]<minX) minX=p[0]; if (p[0]>maxX) maxX=p[0];
+    if (p[1]<minY) minY=p[1]; if (p[1]>maxY) maxY=p[1];
+  }
+  minX = Math.max(0, Math.floor(minX)); minY = Math.max(0, Math.floor(minY));
+  maxX = Math.min(w-1, Math.ceil(maxX)); maxY = Math.min(h-1, Math.ceil(maxY));
+  let r=0, g=0, b=0, count=0;
+  for (let y=minY; y<=maxY; y++) {
+    for (let x=minX; x<=maxX; x++) {
+      if (pointInPolygon(x+0.5, y+0.5, poly)) {
+        const idx = (y*w + x) * 4;
+        r += data[idx]; g += data[idx+1]; b += data[idx+2];
+        count++;
+      }
+    }
+  }
+  if (!count) {
+    const cx = Math.max(0, Math.min(w-1, Math.round((minX+maxX)/2)));
+    const cy = Math.max(0, Math.min(h-1, Math.round((minY+maxY)/2)));
+    const idx = (cy*w + cx) * 4;
+    return [data[idx], data[idx+1], data[idx+2]];
+  }
+  return [r/count, g/count, b/count];
+}
+
+// -----------------------------------------------------------------------------
+// Median-cut color quantization. Mutates grid in place — each cell's rgb is
+// snapped to its bucket's average color.
+// -----------------------------------------------------------------------------
+function medianCutPalette(cells, targetCount) {
+  if (targetCount < 1 || cells.length <= targetCount) return cells.length;
+  let buckets = [cells.slice()];
+  while (buckets.length < targetCount) {
+    let bestI = -1, bestRange = 0, bestAxis = 0;
+    for (let i = 0; i < buckets.length; i++) {
+      const b = buckets[i];
+      if (b.length < 2) continue;
+      let minR=255, maxR=0, minG=255, maxG=0, minB=255, maxB=0;
+      for (const p of b) {
+        const [r,g,bl] = p.rgb;
+        if (r<minR) minR=r; if (r>maxR) maxR=r;
+        if (g<minG) minG=g; if (g>maxG) maxG=g;
+        if (bl<minB) minB=bl; if (bl>maxB) maxB=bl;
+      }
+      const rR = maxR-minR, rG = maxG-minG, rB = maxB-minB;
+      const range = Math.max(rR, rG, rB);
+      if (range > bestRange) {
+        bestRange = range;
+        bestI = i;
+        bestAxis = rR >= rG && rR >= rB ? 0 : (rG >= rB ? 1 : 2);
+      }
+    }
+    if (bestI === -1 || bestRange === 0) break;
+    const bucket = buckets[bestI];
+    bucket.sort((a, b) => a.rgb[bestAxis] - b.rgb[bestAxis]);
+    const mid = bucket.length >> 1;
+    buckets[bestI] = bucket.slice(0, mid);
+    buckets.push(bucket.slice(mid));
+  }
+  let palette = 0;
+  for (const bucket of buckets) {
+    if (bucket.length === 0) continue;
+    let r=0, g=0, b=0;
+    for (const p of bucket) { r += p.rgb[0]; g += p.rgb[1]; b += p.rgb[2]; }
+    const avg = [Math.round(r/bucket.length), Math.round(g/bucket.length), Math.round(b/bucket.length)];
+    for (const p of bucket) p.rgb = avg;
+    palette++;
+  }
+  return palette;
+}
+
+// -----------------------------------------------------------------------------
+// Emoji palette (lazy, cached)
+// -----------------------------------------------------------------------------
+let _emojiPaletteCache = null;
+function buildEmojiPalette() {
+  if (_emojiPaletteCache) return _emojiPaletteCache;
+  const list = EMOJI_SOURCE.split(",").map(s => s.trim()).filter(Boolean);
+  const fontPx = 20;
+  const probe = document.createElement("canvas");
+  probe.width = probe.height = fontPx * 2;
+  const pctx = probe.getContext("2d");
+  pctx.font = `${fontPx}px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji","Segoe UI Symbol",sans-serif`;
+  pctx.textBaseline = "top";
+  const palette = [];
+  for (const key of list) {
+    pctx.clearRect(0, 0, probe.width, probe.height);
+    pctx.fillText(key, 0, 0);
+    const m = pctx.measureText(key);
+    if (m.width > fontPx * 1.5) continue;
+    const img = pctx.getImageData(0, 0, probe.width, probe.height);
+    const stats = imageStats(img.data, probe.width, probe.height);
+    if (stats.totalPixels === 0) continue;
+    // Empty ratio is measured against the glyph's own bounding box so it means
+    // "how sparse is this glyph" rather than "how much padding around it".
+    const emptyRatio = stats.bboxEmpty;
+    if (emptyRatio > 0.95) continue;
+    if (stats.r === 0 && stats.g === 0 && stats.b === 0) continue;
+    palette.push({
+      key,
+      rgb: [stats.r, stats.g, stats.b],
+      lab: rgbToLab(stats.r, stats.g, stats.b),
+      emptyRatio,
+      width: m.width,
+    });
+  }
+  _emojiPaletteCache = palette;
+  return palette;
+}
+function imageStats(data, w, h) {
+  let sR=0, sG=0, sB=0, total=0, transparent=0;
+  let minX = w, minY = h, maxX = -1, maxY = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      if (data[i+3] === 0) { transparent++; continue; }
+      sR += data[i]*data[i];
+      sG += data[i+1]*data[i+1];
+      sB += data[i+2]*data[i+2];
+      total++;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+  }
+  if (!total) return { r:0, g:0, b:0, totalPixels:0, transparent, bboxEmpty: 1 };
+  const bboxArea = (maxX - minX + 1) * (maxY - minY + 1);
+  const bboxEmpty = Math.max(0, (bboxArea - total) / bboxArea);
+  return {
+    r: Math.round(Math.sqrt(sR/total)),
+    g: Math.round(Math.sqrt(sG/total)),
+    b: Math.round(Math.sqrt(sB/total)),
+    totalPixels: total,
+    transparent,
+    bboxEmpty,
+  };
+}
+
+// -----------------------------------------------------------------------------
+// Renderers
+// -----------------------------------------------------------------------------
+function renderPolygon(canvas, tris, pts, colors, opts) {
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  for (let i = 0; i < tris.length; i++) {
+    const [a, b, c] = tris[i];
+    const A = pts[a], B = pts[b], C = pts[c];
+    const [r, g, bl] = colors[i];
+    ctx.fillStyle = `rgb(${r|0},${g|0},${bl|0})`;
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.lineTo(C[0], C[1]);
+    ctx.closePath(); ctx.fill();
+    if (opts.stroke) {
+      ctx.strokeStyle = opts.stroke.color;
+      ctx.globalAlpha = opts.stroke.opacity;
+      ctx.lineWidth = opts.stroke.width;
+      ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+function renderVoronoi(canvas, cells, opts) {
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  for (const cell of cells) {
+    const poly = cell.polygon;
+    const [r, g, bl] = cell.color;
+    ctx.fillStyle = `rgb(${r|0},${g|0},${bl|0})`;
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.moveTo(poly[0][0], poly[0][1]);
+    for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i][0], poly[i][1]);
+    ctx.closePath(); ctx.fill();
+    if (opts.stroke) {
+      ctx.strokeStyle = opts.stroke.color;
+      ctx.globalAlpha = opts.stroke.opacity;
+      ctx.lineWidth = opts.stroke.width;
+      ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+function renderEmoji(canvas, grid, scale, font, bg) {
+  const ctx = canvas.getContext("2d");
+  if (bg) { ctx.fillStyle = bg; ctx.fillRect(0, 0, canvas.width, canvas.height); }
+  else ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.font = font;
+  ctx.textBaseline = "top";
+  for (const cell of grid) {
+    if (cell.skip) continue;
+    ctx.fillText(cell.key, cell.x, cell.y);
+  }
+}
+function renderAscii(canvas, grid, cellSize, fg, bg, useColor) {
+  const ctx = canvas.getContext("2d");
+  if (bg) { ctx.fillStyle = bg; ctx.fillRect(0, 0, canvas.width, canvas.height); }
+  else ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.font = `${cellSize}px "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace`;
+  ctx.textBaseline = "top";
+  ctx.textAlign = "left";
+  for (const cell of grid) {
+    if (useColor) {
+      const [r,g,b] = cell.color;
+      ctx.fillStyle = `rgb(${r|0},${g|0},${b|0})`;
+    } else ctx.fillStyle = fg;
+    ctx.fillText(cell.char, cell.x, cell.y);
+  }
+}
+function renderPixel(canvas, grid, displayPx, bg, gridLines, skipAlpha) {
+  const ctx = canvas.getContext("2d");
+  if (bg) { ctx.fillStyle = bg; ctx.fillRect(0, 0, canvas.width, canvas.height); }
+  else ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (const cell of grid) {
+    if (skipAlpha && cell.alpha < 128) continue;
+    ctx.fillStyle = `rgb(${cell.rgb[0]|0},${cell.rgb[1]|0},${cell.rgb[2]|0})`;
+    ctx.fillRect(cell.col * displayPx, cell.row * displayPx, displayPx, displayPx);
+  }
+  if (gridLines && displayPx >= 3) {
+    ctx.strokeStyle = "rgba(0,0,0,0.15)";
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= canvas.width; x += displayPx) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+    }
+    for (let y = 0; y <= canvas.height; y += displayPx) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Image loading
+// -----------------------------------------------------------------------------
+function loadImageFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("File read failed"));
+    reader.onload = e => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("Image decode failed"));
+      img.onload = () => resolve(img);
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+function imageToImageData(img, maxDim) {
+  const scale = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight));
+  const w = Math.max(1, Math.round(img.naturalWidth * scale));
+  const h = Math.max(1, Math.round(img.naturalHeight * scale));
+  const c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  const cx = c.getContext("2d");
+  cx.drawImage(img, 0, 0, w, h);
+  return cx.getImageData(0, 0, w, h);
+}
+
+// -----------------------------------------------------------------------------
+// Pipeline
+// -----------------------------------------------------------------------------
+async function runPipeline() {
+  if (!sourceImage) return;
+  if (state.renderPending) return;
+  state.renderPending = true;
+  try {
+    showLoading(true, "Preparing image…", 0);
+    await nextFrame();
+    const maxDim = parseInt($("max-dim").value, 10);
+    state.imageData = imageToImageData(sourceImage, maxDim);
+    state.width = state.imageData.width;
+    state.height = state.imageData.height;
+    if (state.mode === "polygon")  await pipelinePolygon();
+    else if (state.mode === "voronoi") await pipelineVoronoi();
+    else if (state.mode === "emoji")   await pipelineEmoji();
+    else if (state.mode === "ascii")   await pipelineAscii();
+    else if (state.mode === "pixel")   await pipelinePixel();
+    updateStatus();
+    enableExports(true);
+  } catch (err) {
+    console.error(err);
+    alert("Pipeline failed: " + err.message);
+  } finally {
+    showLoading(false);
+    state.renderPending = false;
+  }
+}
+
+async function pipelinePolygon() {
+  showLoading(true, "Detecting edges…", 15); await nextFrame();
+  state.edgeMap = sobel(state.imageData);
+  showLoading(true, "Placing points…", 35); await nextFrame();
+  const cellSize = parseInt($("cell-size").value, 10);
+  const edgeRatio = parseInt($("edge-sensitivity").value, 10) / 100;
+  const rng = makeRng(state.seed);
+  const gen = generatePoints(state.width, state.height, cellSize, state.edgeMap, edgeRatio, rng, false);
+  state.points = gen.pts;
+  showLoading(true, `Triangulating ${state.points.length.toLocaleString()} points…`, 55); await nextFrame();
+  state.triangles = delaunay(state.points);
+  showLoading(true, `Sampling ${state.triangles.length.toLocaleString()} triangles…`, 80); await nextFrame();
+  const mode = document.querySelector('input[name="color-mode"]:checked').value;
+  const sampler = mode === "average" ? sampleAverage : sampleCentroid;
+  const colors = new Array(state.triangles.length);
+  const data = state.imageData.data;
+  for (let i = 0; i < state.triangles.length; i++) {
+    const [a,b,c] = state.triangles[i];
+    colors[i] = sampler(state.points[a], state.points[b], state.points[c], data, state.width, state.height);
+  }
+  state.triColors = colors;
+  showLoading(true, "Rendering…", 95); await nextFrame();
+  const canvas = ensureCanvas(state.width, state.height);
+  renderPolygon(canvas, state.triangles, state.points, state.triColors, { stroke: getStrokeOpts() });
+}
+
+async function pipelineVoronoi() {
+  showLoading(true, "Detecting edges…", 12); await nextFrame();
+  state.edgeMap = sobel(state.imageData);
+  showLoading(true, "Placing points…", 28); await nextFrame();
+  const cellSize = parseInt($("cell-size").value, 10);
+  const edgeRatio = parseInt($("edge-sensitivity").value, 10) / 100;
+  const rng = makeRng(state.seed);
+  const gen = generatePoints(state.width, state.height, cellSize, state.edgeMap, edgeRatio, rng, true);
+  state.points = gen.pts;
+  showLoading(true, `Triangulating ${state.points.length.toLocaleString()} points…`, 50); await nextFrame();
+  state.triangles = delaunay(state.points);
+  showLoading(true, "Computing cells…", 72); await nextFrame();
+  const cells = voronoiCells(state.points, state.triangles, state.width, state.height, gen.realCount);
+  showLoading(true, `Sampling ${cells.length.toLocaleString()} cells…`, 88); await nextFrame();
+  const cmode = document.querySelector('input[name="color-mode"]:checked').value;
+  const data = state.imageData.data;
+  for (const cell of cells) {
+    const seed = state.points[cell.idx];
+    if (cmode === "centroid") {
+      const cx = Math.max(0, Math.min(state.width-1, Math.round(seed[0])));
+      const cy = Math.max(0, Math.min(state.height-1, Math.round(seed[1])));
+      const idx = (cy*state.width + cx) * 4;
+      cell.color = [data[idx], data[idx+1], data[idx+2]];
+    } else {
+      cell.color = averagePolygonColor(cell.polygon, data, state.width, state.height);
+    }
+  }
+  state.voronoi = cells;
+  showLoading(true, "Rendering…", 96); await nextFrame();
+  const canvas = ensureCanvas(state.width, state.height);
+  renderVoronoi(canvas, cells, { stroke: getStrokeOpts() });
+}
+
+async function pipelineEmoji() {
+  showLoading(true, "Building emoji palette…", 8); await nextFrame();
+  const palette = buildEmojiPalette();
+  if (palette.length === 0) throw new Error("Emoji font produced no usable glyphs.");
+  const allowEmpty = parseInt($("emoji-empty").value, 10) / 100;
+  const filtered = palette.filter(e => e.emptyRatio < allowEmpty);
+  if (filtered.length === 0) throw new Error("No emojis match the empty-space filter.");
+  showLoading(true, "Sampling source…", 35); await nextFrame();
+  const win = parseInt($("emoji-window").value, 10);
+  const scale = parseInt($("emoji-scale").value, 10);
+  const tolerance = parseInt($("emoji-tolerance").value, 10);
+  const hideBlack = $("emoji-hide-black").checked;
+  const data = state.imageData.data;
+  const W = state.width, H = state.height;
+  const cols = Math.max(1, Math.floor(W / win));
+  const rows = Math.max(1, Math.floor(H / win));
+  const candidateCache = new Map();
+  const rng = makeRng(state.seed);
+  const grid = [];
+  for (let r = 0; r < rows; r++) {
+    for (let cIdx = 0; cIdx < cols; cIdx++) {
+      const x0 = cIdx * win, y0 = r * win;
+      const [rr, gg, bb] = avgRgbRect(data, W, x0, y0, x0 + win, y0 + win);
+      const isBlack = rr < 4 && gg < 4 && bb < 4;
+      const lab = rgbToLab(rr, gg, bb);
+      const key = `${Math.round(lab[0]/6)},${Math.round(lab[1]/6)},${Math.round(lab[2]/6)}`;
+      let cands = candidateCache.get(key);
+      if (!cands) {
+        let bound = 0;
+        while (true) {
+          bound += tolerance;
+          cands = filtered.filter(e => deltaE94(e.lab, lab) < bound);
+          if (cands.length > 0 || bound > 200) break;
+        }
+        candidateCache.set(key, cands);
+      }
+      const pick = cands[Math.floor(rng() * cands.length)];
+      grid.push({
+        x: cIdx * scale, y: r * scale,
+        key: pick ? pick.key : "·",
+        color: [rr, gg, bb],
+        isBlack,
+        skip: hideBlack && isBlack,
+      });
+    }
+    if (r % 8 === 0) {
+      showLoading(true, `Matching row ${r+1}/${rows}…`, 35 + 55*(r/rows));
+      await nextFrame();
+    }
+  }
+  state.emojiGrid = grid;
+  state.emojiFontPx = scale;
+  showLoading(true, "Rendering…", 94); await nextFrame();
+  const outW = cols * scale, outH = rows * scale;
+  const canvas = ensureCanvas(outW, outH);
+  const font = `${Math.round(scale * 1.05)}px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji","Segoe UI Symbol",sans-serif`;
+  const bg = $("bg-enabled").checked ? $("bg-color").value : null;
+  renderEmoji(canvas, grid, scale, font, bg);
+}
+
+async function pipelineAscii() {
+  showLoading(true, "Sampling brightness…", 20); await nextFrame();
+  const cell = parseInt($("ascii-cell").value, 10);
+  const useColor = document.querySelector('input[name="ascii-color"]:checked').value === "source";
+  const custom = $("ascii-ramp-custom").value;
+  const ramp = custom.length > 0 ? custom : $("ascii-ramp").value;
+  const fg = $("ascii-fg").value;
+  const bg = $("bg-enabled").checked ? $("bg-color").value : null;
+  const data = state.imageData.data;
+  const W = state.width, H = state.height;
+  const cols = Math.max(1, Math.floor(W / cell));
+  const rows = Math.max(1, Math.floor(H / cell));
+  const grid = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const x0 = c*cell, y0 = r*cell;
+      const bright = avgBrightRect(data, W, x0, y0, x0+cell, y0+cell);
+      const idx = Math.min(ramp.length - 1, Math.floor((bright/255) * ramp.length));
+      const ch = ramp[idx];
+      let color = [255, 255, 255];
+      if (useColor) color = avgRgbRect(data, W, x0, y0, x0+cell, y0+cell);
+      grid.push({ x: c*cell, y: r*cell, char: ch, color, col: c, row: r });
+    }
+    if (r % 16 === 0) {
+      showLoading(true, `Sampling row ${r+1}/${rows}…`, 20 + 60*(r/rows));
+      await nextFrame();
+    }
+  }
+  state.asciiGrid = grid;
+  state.asciiFontPx = cell;
+  state.asciiCols = cols;
+  state.asciiRows = rows;
+  showLoading(true, "Rendering…", 92); await nextFrame();
+  const canvas = ensureCanvas(cols*cell, rows*cell);
+  renderAscii(canvas, grid, cell, fg, bg, useColor);
+}
+
+async function pipelinePixel() {
+  showLoading(true, "Downsampling…", 25); await nextFrame();
+  const gridSize = parseInt($("pixel-grid").value, 10);
+  const displayPx = parseInt($("pixel-display").value, 10);
+  const quantize = parseInt($("pixel-quantize").value, 10);
+  const skipAlpha = $("pixel-skip-alpha").checked;
+  const gridLines = $("pixel-grid-lines").checked;
+  const bg = $("bg-enabled").checked ? $("bg-color").value : null;
+
+  const aspect = state.width / state.height;
+  let cols, rows;
+  if (aspect >= 1) { cols = gridSize; rows = Math.max(1, Math.round(gridSize / aspect)); }
+  else             { rows = gridSize; cols = Math.max(1, Math.round(gridSize * aspect)); }
+
+  const data = state.imageData.data;
+  const W = state.width, H = state.height;
+  const cellW = W / cols, cellH = H / rows;
+  const grid = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const x0 = Math.floor(c * cellW);
+      const y0 = Math.floor(r * cellH);
+      const x1 = Math.min(W, Math.floor((c+1) * cellW));
+      const y1 = Math.min(H, Math.floor((r+1) * cellH));
+      const [rr, gg, bb, aa] = avgRgbaRect(data, W, x0, y0, x1, y1);
+      grid.push({ col: c, row: r, rgb: [rr, gg, bb], alpha: aa });
+    }
+  }
+
+  let paletteCount = grid.length;
+  if (quantize > 0) {
+    showLoading(true, `Quantizing to ${quantize} colors…`, 70); await nextFrame();
+    paletteCount = medianCutPalette(grid, quantize);
+  }
+
+  state.pixelGrid = grid;
+  state.pixelCols = cols;
+  state.pixelRows = rows;
+  state.pixelDisplay = displayPx;
+  state.pixelPaletteCount = paletteCount;
+
+  showLoading(true, "Rendering…", 92); await nextFrame();
+  const canvas = ensureCanvas(cols * displayPx, rows * displayPx);
+  renderPixel(canvas, grid, displayPx, bg, gridLines, skipAlpha);
+}
+
+// -----------------------------------------------------------------------------
+// Helpers
+// -----------------------------------------------------------------------------
+function ensureCanvas(w, h) {
+  const area = $("canvas-area");
+  let canvas = area.querySelector("canvas");
+  if (!canvas) {
+    canvas = document.createElement("canvas");
+    area.appendChild(canvas);
+    const ph = $("placeholder");
+    if (ph) ph.remove();
+    const btn = $("upload-btn");
+    if (btn) {
+      btn.classList.remove("hide-mobile-empty");
+      const lbl = $("upload-btn-label");
+      if (lbl) lbl.textContent = "Change";
+    }
+  }
+  canvas.width = w;
+  canvas.height = h;
+  return canvas;
+}
+function getStrokeOpts() {
+  if (!$("show-stroke").checked) return null;
+  return {
+    color: $("stroke-color").value,
+    opacity: parseInt($("stroke-opacity").value, 10) / 100,
+    width: 0.5,
+  };
+}
+function updateStatus() {
+  let msg = `${state.width}×${state.height}px  ·  mode ${state.mode}`;
+  if (state.mode === "polygon") {
+    msg += `  ·  ${state.points.length.toLocaleString()} pts  ·  ${state.triangles.length.toLocaleString()} tris`;
+  } else if (state.mode === "voronoi") {
+    msg += `  ·  ${state.voronoi.length.toLocaleString()} cells`;
+  } else if (state.mode === "emoji") {
+    msg += `  ·  ${state.emojiGrid.length.toLocaleString()} cells  ·  palette ${(_emojiPaletteCache?.length || 0).toLocaleString()}`;
+  } else if (state.mode === "ascii") {
+    msg += `  ·  ${state.asciiCols}×${state.asciiRows} chars`;
+  } else if (state.mode === "pixel") {
+    msg += `  ·  ${state.pixelCols}×${state.pixelRows}  ·  ${state.pixelPaletteCount.toLocaleString()} colors`;
+    msg += `  ·  format ${$("pixel-format").value}`;
+  }
+  msg += `  ·  seed ${state.seed}`;
+  $("status").textContent = msg;
+}
+function showLoading(active, label, progress) {
+  const el = $("loading");
+  el.classList.toggle("active", !!active);
+  if (label != null) $("loading-label").textContent = label;
+  if (progress != null) $("progress-fill").style.width = progress + "%";
+}
+function nextFrame() { return new Promise(r => requestAnimationFrame(() => r())); }
+
+function enableExports(yes) {
+  $("download-png").disabled = !yes;
+  $("download-vector").disabled = !yes;
+  $("copy-output").disabled = !yes;
+  $("reseed-btn").disabled = !yes;
+}
+function updateModeVisibility() {
+  document.querySelectorAll(".mode-section").forEach(section => {
+    const modes = section.dataset.modes.split(/\s+/);
+    section.hidden = !modes.includes(state.mode);
+  });
+  // Vector button label + copy button visibility
+  const labelMap = { polygon: "SVG", voronoi: "SVG", emoji: "SVG", ascii: "TXT", pixel: "File" };
+  $("download-vector-label").textContent = labelMap[state.mode] || "File";
+  // Copy button only useful where there's a text payload
+  $("copy-output").hidden = !(state.mode === "ascii" || state.mode === "pixel" || state.mode === "emoji");
+}
+
+// -----------------------------------------------------------------------------
+// Output format generators
+// -----------------------------------------------------------------------------
+function rgbToHex(r, g, b) {
+  r = Math.max(0, Math.min(255, Math.round(r)));
+  g = Math.max(0, Math.min(255, Math.round(g)));
+  b = Math.max(0, Math.min(255, Math.round(b)));
+  const hex = ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+  // Short form when each component is a repeated digit
+  if (hex[0] === hex[1] && hex[2] === hex[3] && hex[4] === hex[5]) {
+    return "#" + hex[0] + hex[2] + hex[4];
+  }
+  return "#" + hex;
+}
+
+function svgPolygon() {
+  const out = [
+    `<?xml version="1.0" encoding="UTF-8"?>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${state.width} ${state.height}" width="${state.width}" height="${state.height}" shape-rendering="geometricPrecision">`,
+    `<rect width="${state.width}" height="${state.height}" fill="#000"/>`,
+  ];
+  const stroke = getStrokeOpts();
+  const sA = stroke ? ` stroke="${stroke.color}" stroke-opacity="${stroke.opacity}" stroke-width="${stroke.width}" stroke-linejoin="round"` : "";
+  for (let i = 0; i < state.triangles.length; i++) {
+    const [a, b, c] = state.triangles[i];
+    const A = state.points[a], B = state.points[b], C = state.points[c];
+    const [r, g, bl] = state.triColors[i];
+    const pts = `${A[0].toFixed(1)},${A[1].toFixed(1)} ${B[0].toFixed(1)},${B[1].toFixed(1)} ${C[0].toFixed(1)},${C[1].toFixed(1)}`;
+    out.push(`<polygon points="${pts}" fill="rgb(${r|0},${g|0},${bl|0})"${sA}/>`);
+  }
+  out.push(`</svg>`);
+  return out.join("\n");
+}
+
+function svgVoronoi() {
+  const out = [
+    `<?xml version="1.0" encoding="UTF-8"?>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${state.width} ${state.height}" width="${state.width}" height="${state.height}" shape-rendering="geometricPrecision">`,
+    `<rect width="${state.width}" height="${state.height}" fill="#000"/>`,
+  ];
+  const stroke = getStrokeOpts();
+  const sA = stroke ? ` stroke="${stroke.color}" stroke-opacity="${stroke.opacity}" stroke-width="${stroke.width}" stroke-linejoin="round"` : "";
+  for (const cell of state.voronoi) {
+    const pts = cell.polygon.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
+    const [r, g, b] = cell.color;
+    out.push(`<polygon points="${pts}" fill="rgb(${r|0},${g|0},${b|0})"${sA}/>`);
+  }
+  out.push(`</svg>`);
+  return out.join("\n");
+}
+
+function svgEmoji() {
+  const scale = state.emojiFontPx;
+  let maxX = 0, maxY = 0;
+  for (const c of state.emojiGrid) {
+    if (c.x + scale > maxX) maxX = c.x + scale;
+    if (c.y + scale > maxY) maxY = c.y + scale;
+  }
+  const w = maxX, h = maxY;
+  const bg = $("bg-enabled").checked ? $("bg-color").value : "none";
+  const out = [
+    `<?xml version="1.0" encoding="UTF-8"?>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">`,
+  ];
+  if (bg !== "none") out.push(`<rect width="${w}" height="${h}" fill="${bg}"/>`);
+  out.push(`<style>text { font-family: "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji","Segoe UI Symbol",sans-serif; font-size: ${Math.round(scale * 1.05)}px; dominant-baseline: hanging; }</style>`);
+  for (const c of state.emojiGrid) {
+    if (c.skip) continue;
+    const esc = c.key.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    out.push(`<text x="${c.x}" y="${c.y}">${esc}</text>`);
+  }
+  out.push(`</svg>`);
+  return out.join("\n");
+}
+
+function asciiText() {
+  const lines = [];
+  let curRow = 0, line = "";
+  for (const c of state.asciiGrid) {
+    if (c.row !== curRow) { lines.push(line); line = ""; curRow = c.row; }
+    line += c.char;
+  }
+  if (line) lines.push(line);
+  return lines.join("\n");
+}
+
+// -----------------------------------------------------------------------------
+// Pixel format generators
+// -----------------------------------------------------------------------------
+function pixelGridAs2D() {
+  // Convert flat grid to [rows][cols] 2D
+  const out = [];
+  for (let r = 0; r < state.pixelRows; r++) {
+    out.push(state.pixelGrid.slice(r * state.pixelCols, (r + 1) * state.pixelCols));
+  }
+  return out;
+}
+
+function formatPixelsAsCss() {
+  const skipAlpha = $("pixel-skip-alpha").checked;
+  const scale = state.pixelDisplay;
+  const cols = state.pixelCols, rows = state.pixelRows;
+  let bgColor = null;
+  const shadows = [];
+  for (const cell of state.pixelGrid) {
+    if (skipAlpha && cell.alpha < 128) continue;
+    const hex = rgbToHex(cell.rgb[0], cell.rgb[1], cell.rgb[2]);
+    if (cell.col === 0 && cell.row === 0 && bgColor === null) {
+      bgColor = hex;
+      continue;
+    }
+    const x = (cell.col * scale) + (cell.col === 0 ? "" : "px");
+    const y = (cell.row * scale) + (cell.row === 0 ? "" : "px");
+    shadows.push(`${x} ${y} ${hex}`);
+  }
+  const marginLeft = (cols - 1) * scale;
+  const marginBottom = (rows - 1) * scale;
+  return `.pixel-art {
+  display: inline-block;
+  width: ${scale}px;
+  height: ${scale}px;
+  margin: 0 ${marginLeft}px ${marginBottom}px 0;${bgColor ? `\n  background-color: ${bgColor};` : ""}
+  box-shadow:
+    ${shadows.join(",\n    ")};
+}`;
+}
+
+function formatPixelsAsSvg() {
+  const skipAlpha = $("pixel-skip-alpha").checked;
+  const cols = state.pixelCols, rows = state.pixelRows;
+  const bg = $("bg-enabled").checked ? $("bg-color").value : null;
+  const out = [
+    `<?xml version="1.0" encoding="UTF-8"?>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${cols} ${rows}" width="${cols}" height="${rows}" shape-rendering="crispEdges">`,
+  ];
+  if (bg) out.push(`<rect width="${cols}" height="${rows}" fill="${bg}"/>`);
+  // Group identical colors into single paths for compactness
+  const byColor = new Map();
+  for (const cell of state.pixelGrid) {
+    if (skipAlpha && cell.alpha < 128) continue;
+    const hex = rgbToHex(cell.rgb[0], cell.rgb[1], cell.rgb[2]);
+    if (!byColor.has(hex)) byColor.set(hex, []);
+    byColor.get(hex).push(`M${cell.col},${cell.row}h1v1h-1z`);
+  }
+  for (const [hex, paths] of byColor) {
+    out.push(`<path fill="${hex}" d="${paths.join("")}"/>`);
+  }
+  out.push(`</svg>`);
+  return out.join("\n");
+}
+
+function formatPixelsAsHtml() {
+  const skipAlpha = $("pixel-skip-alpha").checked;
+  const scale = state.pixelDisplay;
+  const cols = state.pixelCols, rows = state.pixelRows;
+  const lines = [`<table style="border-collapse:collapse;line-height:0">`];
+  for (let r = 0; r < rows; r++) {
+    lines.push("  <tr>");
+    for (let c = 0; c < cols; c++) {
+      const cell = state.pixelGrid[r * cols + c];
+      const hex = skipAlpha && cell.alpha < 128 ? "transparent" : rgbToHex(cell.rgb[0], cell.rgb[1], cell.rgb[2]);
+      lines.push(`    <td style="background:${hex};width:${scale}px;height:${scale}px;padding:0"></td>`);
+    }
+    lines.push("  </tr>");
+  }
+  lines.push("</table>");
+  return lines.join("\n");
+}
+
+function formatPixelsAsBlocksHtml() {
+  const skipAlpha = $("pixel-skip-alpha").checked;
+  const cols = state.pixelCols, rows = state.pixelRows;
+  const lines = [`<pre style="font-family:monospace;line-height:1;letter-spacing:0;font-size:14px;background:#000;padding:8px">`];
+  for (let r = 0; r < rows; r++) {
+    let line = "";
+    for (let c = 0; c < cols; c++) {
+      const cell = state.pixelGrid[r * cols + c];
+      if (skipAlpha && cell.alpha < 128) { line += "  "; continue; }
+      const hex = rgbToHex(cell.rgb[0], cell.rgb[1], cell.rgb[2]);
+      line += `<span style="color:${hex}">██</span>`;
+    }
+    lines.push(line);
+  }
+  lines.push("</pre>");
+  return lines.join("\n");
+}
+
+function formatPixelsAsBlocksAnsi() {
+  // 24-bit truecolor escape sequences. Render in any modern terminal.
+  const skipAlpha = $("pixel-skip-alpha").checked;
+  const cols = state.pixelCols, rows = state.pixelRows;
+  const reset = "[0m";
+  const lines = [];
+  for (let r = 0; r < rows; r++) {
+    let line = "";
+    for (let c = 0; c < cols; c++) {
+      const cell = state.pixelGrid[r * cols + c];
+      if (skipAlpha && cell.alpha < 128) { line += "  "; continue; }
+      const [rr, gg, bb] = cell.rgb;
+      line += `[38;2;${rr|0};${gg|0};${bb|0}m██`;
+    }
+    line += reset;
+    lines.push(line);
+  }
+  return lines.join("\n");
+}
+
+function formatPixelsAsBlocksMono() {
+  // Brightness → ▓▒░  block characters.
+  const ramp = " ░▒▓█";
+  const skipAlpha = $("pixel-skip-alpha").checked;
+  const cols = state.pixelCols, rows = state.pixelRows;
+  const lines = [];
+  for (let r = 0; r < rows; r++) {
+    let line = "";
+    for (let c = 0; c < cols; c++) {
+      const cell = state.pixelGrid[r * cols + c];
+      if (skipAlpha && cell.alpha < 128) { line += " "; continue; }
+      const bright = 0.299*cell.rgb[0] + 0.587*cell.rgb[1] + 0.114*cell.rgb[2];
+      const idx = Math.min(ramp.length - 1, Math.floor((bright / 255) * ramp.length));
+      line += ramp[idx];
+    }
+    lines.push(line);
+  }
+  return lines.join("\n");
+}
+
+function formatPixelsAsJson() {
+  const skipAlpha = $("pixel-skip-alpha").checked;
+  const cols = state.pixelCols, rows = state.pixelRows;
+  const arr = [];
+  for (let r = 0; r < rows; r++) {
+    const row = [];
+    for (let c = 0; c < cols; c++) {
+      const cell = state.pixelGrid[r * cols + c];
+      if (skipAlpha && cell.alpha < 128) row.push(null);
+      else row.push(rgbToHex(cell.rgb[0], cell.rgb[1], cell.rgb[2]));
+    }
+    arr.push(row);
+  }
+  return JSON.stringify(arr, null, 2);
+}
+
+function formatPixelsAsText() {
+  const skipAlpha = $("pixel-skip-alpha").checked;
+  const lines = [];
+  for (const cell of state.pixelGrid) {
+    if (skipAlpha && cell.alpha < 128) continue;
+    lines.push(`${cell.col} ${cell.row} ${rgbToHex(cell.rgb[0], cell.rgb[1], cell.rgb[2])}`);
+  }
+  return lines.join("\n");
+}
+
+function getPixelOutput() {
+  const fmt = $("pixel-format").value;
+  switch (fmt) {
+    case "css":          return { text: formatPixelsAsCss(), ext: "css", mime: "text/css" };
+    case "svg":          return { text: formatPixelsAsSvg(), ext: "svg", mime: "image/svg+xml" };
+    case "html":         return { text: formatPixelsAsHtml(), ext: "html", mime: "text/html" };
+    case "blocks-html":  return { text: formatPixelsAsBlocksHtml(), ext: "html", mime: "text/html" };
+    case "blocks-ansi":  return { text: formatPixelsAsBlocksAnsi(), ext: "ans", mime: "text/plain" };
+    case "blocks-mono":  return { text: formatPixelsAsBlocksMono(), ext: "txt", mime: "text/plain" };
+    case "json":         return { text: formatPixelsAsJson(), ext: "json", mime: "application/json" };
+    case "text":         return { text: formatPixelsAsText(), ext: "txt", mime: "text/plain" };
+    default:             return { text: formatPixelsAsCss(), ext: "css", mime: "text/css" };
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Wiring
+// -----------------------------------------------------------------------------
+$("mode").addEventListener("change", e => {
+  state.mode = e.target.value;
+  updateModeVisibility();
+  if (sourceImage) scheduleRun();
+});
+
+async function handleIncomingFile(file) {
+  if (!file || !file.type.startsWith("image/")) return;
+  try {
+    sourceImage = await loadImageFile(file);
+    state.seed = Date.now();
+    await runPipeline();
+  } catch (err) {
+    console.error(err);
+    alert("Could not load: " + err.message);
+  }
+}
+
+$("file-input").addEventListener("change", async e => {
+  await handleIncomingFile(e.target.files[0]);
+  e.target.value = "";
+});
+
+// Drag-and-drop accepts files anywhere on the canvas region.
+const area = $("canvas-area");
+["dragenter", "dragover"].forEach(evt => {
+  area.addEventListener(evt, e => {
+    e.preventDefault();
+    const ph = $("placeholder");
+    if (ph) ph.classList.add("drag-over");
+  });
+});
+["dragleave", "drop"].forEach(evt => {
+  area.addEventListener(evt, e => {
+    e.preventDefault();
+    const ph = $("placeholder");
+    if (ph) ph.classList.remove("drag-over");
+  });
+});
+area.addEventListener("drop", async e => {
+  await handleIncomingFile(e.dataTransfer.files[0]);
+});
+
+// Paste an image from the clipboard (⌘/Ctrl+V) anywhere on the page.
+document.addEventListener("paste", async e => {
+  const items = e.clipboardData && e.clipboardData.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.kind === "file" && item.type.startsWith("image/")) {
+      e.preventDefault();
+      await handleIncomingFile(item.getAsFile());
+      return;
+    }
+  }
+});
+
+function bindSlider(id, valueId, suffix) {
+  const el = $(id), val = $(valueId);
+  if (!el) return;
+  el.addEventListener("input", e => {
+    val.textContent = e.target.value + (suffix || "");
+    scheduleRun();
+  });
+}
+bindSlider("cell-size", "cell-size-value");
+bindSlider("edge-sensitivity", "edge-sensitivity-value");
+bindSlider("max-dim", "max-dim-value", "px");
+bindSlider("emoji-window", "emoji-window-value", "px");
+bindSlider("emoji-scale", "emoji-scale-value", "px");
+bindSlider("emoji-tolerance", "emoji-tolerance-value");
+bindSlider("ascii-cell", "ascii-cell-value", "px");
+bindSlider("pixel-grid", "pixel-grid-value");
+bindSlider("pixel-display", "pixel-display-value", "px");
+
+// Pixel quantize: display "unlimited" when 0
+$("pixel-quantize").addEventListener("input", e => {
+  const v = parseInt(e.target.value, 10);
+  $("pixel-quantize-value").textContent = v === 0 ? "unlimited" : v.toString();
+  scheduleRun();
+});
+
+$("emoji-empty").addEventListener("input", e => {
+  $("emoji-empty-value").textContent = e.target.value + "%";
+  scheduleRun();
+});
+$("stroke-opacity").addEventListener("input", e => {
+  $("stroke-opacity-value").textContent = e.target.value + "%";
+  rerenderOnly();
+});
+
+document.querySelectorAll('input[name="color-mode"]').forEach(r =>
+  r.addEventListener("change", scheduleRun));
+document.querySelectorAll('input[name="ascii-color"]').forEach(r =>
+  r.addEventListener("change", scheduleRun));
+
+$("show-stroke").addEventListener("change", e => {
+  $("stroke-controls").hidden = !e.target.checked;
+  rerenderOnly();
+});
+$("stroke-color").addEventListener("input", rerenderOnly);
+
+$("ascii-ramp").addEventListener("change", scheduleRun);
+$("ascii-ramp-custom").addEventListener("input", scheduleRun);
+$("ascii-fg").addEventListener("input", scheduleRun);
+$("emoji-hide-black").addEventListener("change", scheduleRun);
+$("bg-enabled").addEventListener("change", scheduleRun);
+$("bg-color").addEventListener("input", scheduleRun);
+
+$("pixel-format").addEventListener("change", () => {
+  // Format change just rewrites status — no pipeline recompute needed
+  if (state.pixelGrid) updateStatus();
+});
+$("pixel-skip-alpha").addEventListener("change", scheduleRun);
+$("pixel-grid-lines").addEventListener("change", scheduleRun);
+
+$("reseed-btn").addEventListener("click", () => {
+  state.seed = Date.now();
+  runPipeline();
+});
+
+$("download-png").addEventListener("click", () => {
+  const canvas = $("canvas-area").querySelector("canvas");
+  if (!canvas) return;
+  const a = document.createElement("a");
+  a.download = `polygonize-${state.mode}-${state.seed}.png`;
+  a.href = canvas.toDataURL("image/png");
+  a.click();
+});
+
+$("download-vector").addEventListener("click", () => {
+  let text, ext, mime;
+  if (state.mode === "polygon" && state.triangles) {
+    text = svgPolygon(); ext = "svg"; mime = "image/svg+xml";
+  } else if (state.mode === "voronoi" && state.voronoi) {
+    text = svgVoronoi(); ext = "svg"; mime = "image/svg+xml";
+  } else if (state.mode === "emoji" && state.emojiGrid) {
+    text = svgEmoji(); ext = "svg"; mime = "image/svg+xml";
+  } else if (state.mode === "ascii" && state.asciiGrid) {
+    text = asciiText(); ext = "txt"; mime = "text/plain;charset=utf-8";
+  } else if (state.mode === "pixel" && state.pixelGrid) {
+    const r = getPixelOutput(); text = r.text; ext = r.ext; mime = r.mime + ";charset=utf-8";
+  } else return;
+  const blob = new Blob([text], { type: mime });
+  const a = document.createElement("a");
+  a.download = `polygonize-${state.mode}-${state.seed}.${ext}`;
+  a.href = URL.createObjectURL(blob);
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+
+$("copy-output").addEventListener("click", async () => {
+  let text = null;
+  if (state.mode === "ascii" && state.asciiGrid) text = asciiText();
+  else if (state.mode === "pixel" && state.pixelGrid) text = getPixelOutput().text;
+  else if (state.mode === "emoji" && state.emojiGrid) text = svgEmoji();
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    const btn = $("copy-output");
+    btn.classList.add("copy-flash");
+    const original = btn.innerHTML;
+    btn.innerHTML = `<i class="fa-solid fa-check"></i> Copied!`;
+    setTimeout(() => { btn.classList.remove("copy-flash"); btn.innerHTML = original; }, 1200);
+  } catch (err) {
+    alert("Clipboard write failed: " + err.message);
+  }
+});
+
+let debounceTimer = null;
+function scheduleRun() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(runPipeline, 120);
+}
+function rerenderOnly() {
+  if (!sourceImage) return;
+  const canvas = $("canvas-area").querySelector("canvas");
+  if (!canvas) return;
+  if (state.mode === "polygon" && state.triangles) {
+    renderPolygon(canvas, state.triangles, state.points, state.triColors, { stroke: getStrokeOpts() });
+  } else if (state.mode === "voronoi" && state.voronoi) {
+    renderVoronoi(canvas, state.voronoi, { stroke: getStrokeOpts() });
+  }
+}
+
+$("stroke-controls").hidden = !$("show-stroke").checked;
+updateModeVisibility();
+
+// =============================================================================
+// EMOJI SOURCE  (~3000 glyphs; June 2024 list)
+// =============================================================================
+const EMOJI_SOURCE = "🧑🏻‍❤️‍💋‍🧑🏼,🧑🏻‍❤️‍💋‍🧑🏽,🧑🏻‍❤️‍💋‍🧑🏾,🧑🏻‍❤️‍💋‍🧑🏿,🧑🏼‍❤️‍💋‍🧑🏻,🧑🏼‍❤️‍💋‍🧑🏽,🧑🏼‍❤️‍💋‍🧑🏾,🧑🏼‍❤️‍💋‍🧑🏿,🧑🏽‍❤️‍💋‍🧑🏻,🧑🏽‍❤️‍💋‍🧑🏼,🧑🏽‍❤️‍💋‍🧑🏾,🧑🏽‍❤️‍💋‍🧑🏿,🧑🏾‍❤️‍💋‍🧑🏻,🧑🏾‍❤️‍💋‍🧑🏼,🧑🏾‍❤️‍💋‍🧑🏽,🧑🏾‍❤️‍💋‍🧑🏿,🧑🏿‍❤️‍💋‍🧑🏻,🧑🏿‍❤️‍💋‍🧑🏼,🧑🏿‍❤️‍💋‍🧑🏽,🧑🏿‍❤️‍💋‍🧑🏾,👩🏻‍❤️‍💋‍👨🏻,👩🏼‍❤️‍💋‍👨🏼,👩🏽‍❤️‍💋‍👨🏽,👩🏾‍❤️‍💋‍👨🏾,👩🏿‍❤️‍💋‍👨🏿,👨🏻‍❤️‍💋‍👨🏻,👨🏼‍❤️‍💋‍👨🏼,👨🏽‍❤️‍💋‍👨🏽,👨🏾‍❤️‍💋‍👨🏾,👨🏿‍❤️‍💋‍👨🏿,👩🏻‍❤️‍💋‍👩🏻,👩🏼‍❤️‍💋‍👩🏼,👩🏽‍❤️‍💋‍👩🏽,👩🏾‍❤️‍💋‍👩🏾,👩🏿‍❤️‍💋‍👩🏿,🧑🏻‍🤝‍🧑🏻,🧑🏼‍🤝‍🧑🏼,🧑🏽‍🤝‍🧑🏽,🧑🏾‍🤝‍🧑🏾,🧑🏿‍🤝‍🧑🏿,👩‍❤️‍💋‍👨,👨‍❤️‍💋‍👨,👩‍❤️‍💋‍👩,👨‍👩‍👧‍👦,👨‍👩‍👦‍👦,👨‍👩‍👧‍👧,👨‍👨‍👧‍👦,👨‍👨‍👦‍👦,👨‍👨‍👧‍👧,👩‍👩‍👧‍👦,👩‍👩‍👦‍👦,👩‍👩‍👧‍👧,🧑‍🧑‍🧒‍🧒,🚶‍♀️‍➡️,🚶‍♂️‍➡️,🧎‍♀️‍➡️,🧎‍♂️‍➡️,🧑‍🦯‍➡️,👨‍🦯‍➡️,👩‍🦯‍➡️,🧑‍🦼‍➡️,👨‍🦼‍➡️,👩‍🦼‍➡️,🧑‍🦽‍➡️,👨‍🦽‍➡️,👩‍🦽‍➡️,🏃‍♀️‍➡️,🏃‍♂️‍➡️,🧑‍🤝‍🧑,👩‍❤️‍👨,👨‍❤️‍👨,👩‍❤️‍👩,👨‍👩‍👦,👨‍👩‍👧,👨‍👨‍👦,👨‍👨‍👧,👩‍👩‍👦,👩‍👩‍👧,👨‍👦‍👦,👨‍👧‍👦,👨‍👧‍👧,👩‍👦‍👦,👩‍👧‍👦,👩‍👧‍👧,🧑‍🧑‍🧒,🧑‍🧒‍🧒,👁️‍🗨️,🧔‍♂️,🧔‍♀️,👨‍🦰,👨‍🦱,👨‍🦳,👨‍🦲,👩‍🦰,🧑‍🦰,👩‍🦱,🧑‍🦱,👩‍🦳,🧑‍🦳,👩‍🦲,🧑‍🦲,👱‍♀️,👱‍♂️,🙍‍♂️,🙍‍♀️,🙎‍♂️,🙎‍♀️,🙅‍♂️,🙅‍♀️,🙆‍♂️,🙆‍♀️,💁‍♂️,💁‍♀️,🙋‍♂️,🙋‍♀️,🧏‍♂️,🧏‍♀️,🙇‍♂️,🙇‍♀️,🤦‍♂️,🤦‍♀️,🤷‍♂️,🤷‍♀️,🧑‍⚕️,👨‍⚕️,👩‍⚕️,🧑‍🎓,👨‍🎓,👩‍🎓,🧑‍🏫,👨‍🏫,👩‍🏫,🧑‍⚖️,👨‍⚖️,👩‍⚖️,🧑‍🌾,👨‍🌾,👩‍🌾,🧑‍🍳,👨‍🍳,👩‍🍳,🧑‍🔧,👨‍🔧,👩‍🔧,🧑‍🏭,👨‍🏭,👩‍🏭,🧑‍💼,👨‍💼,👩‍💼,🧑‍🔬,👨‍🔬,👩‍🔬,🧑‍💻,👨‍💻,👩‍💻,🧑‍🎤,👨‍🎤,👩‍🎤,🧑‍🎨,👨‍🎨,👩‍🎨,🧑‍✈️,👨‍✈️,👩‍✈️,🧑‍🚀,👨‍🚀,👩‍🚀,🧑‍🚒,👨‍🚒,👩‍🚒,👮‍♂️,👮‍♀️,💂‍♂️,💂‍♀️,👷‍♂️,👷‍♀️,👳‍♂️,👳‍♀️,🤵‍♂️,🤵‍♀️,👰‍♂️,👰‍♀️,👩‍🍼,👨‍🍼,🧑‍🍼,🧑‍🎄,🦸‍♂️,🦸‍♀️,🦹‍♂️,🦹‍♀️,🧙‍♂️,🧙‍♀️,🧚‍♂️,🧚‍♀️,🧛‍♂️,🧛‍♀️,🧜‍♂️,🧜‍♀️,🧝‍♂️,🧝‍♀️,🧞‍♂️,🧞‍♀️,🧟‍♂️,🧟‍♀️,💆‍♂️,💆‍♀️,💇‍♂️,💇‍♀️,🚶‍♂️,🚶‍♀️,🧍‍♂️,🧍‍♀️,🧎‍♂️,🧎‍♀️,🧑‍🦯,👨‍🦯,👩‍🦯,🧑‍🦼,👨‍🦼,👩‍🦼,🧑‍🦽,👨‍🦽,👩‍🦽,🏃‍♂️,🏃‍♀️,👯‍♂️,👯‍♀️,🧖‍♂️,🧖‍♀️,🧗‍♂️,🧗‍♀️,🏄‍♂️,🏄‍♀️,🚣‍♂️,🚣‍♀️,🏊‍♂️,🏊‍♀️,⛹️‍♂️,⛹️‍♀️,🚴‍♂️,🚴‍♀️,🚵‍♂️,🚵‍♀️,🤸‍♂️,🤸‍♀️,🤼‍♂️,🤼‍♀️,🤽‍♂️,🤽‍♀️,🤾‍♂️,🤾‍♀️,🤹‍♂️,🤹‍♀️,🧘‍♂️,🧘‍♀️,👨‍👦,👨‍👧,👩‍👦,👩‍👧,🧑‍🧒,🐕‍🦺,🐻‍❄️,🐦‍🔥,🍋‍🟩,🍄‍🟫,⛓️‍💥,🏴‍☠️,🐈‍⬛,🐦‍⬛,😶‍🌫️,🕵️‍♂️,🕵️‍♀️,🏌️‍♂️,🏌️‍♀️,🏋️‍♂️,🏋️‍♀️,🏳️‍🌈,🏳️‍⚧️,😮‍💨,🙂‍↔️,🙂‍↕️,😵‍💫,❤️‍🔥,❤️‍🩹,😀,😃,😄,😁,😆,😅,🤣,😂,🙂,🙃,🫠,😉,😊,😇,🥰,😍,🤩,😘,😗,😚,😙,🥲,😋,😛,😜,🤪,😝,🤑,🤗,🤭,🫢,🫣,🤫,🤔,🫡,🤐,🤨,😐,😑,😶,🫥,😏,😒,🙄,😬,🤥,🫨,😌,😔,😪,🤤,😴,😷,🤒,🤕,🤢,🤮,🤧,🥵,🥶,🥴,😵,🤯,🤠,🥳,🥸,😎,🤓,🧐,😕,🫤,😟,🙁,😮,😯,😲,😳,🥺,🥹,😦,😧,😨,😰,😥,😢,😭,😱,😖,😣,😞,😓,😩,😫,🥱,😤,😡,😠,🤬,😈,👿,💀,💩,🤡,👹,👺,👻,👽,👾,🤖,😺,😸,😹,😻,😼,😽,🙀,😿,😾,🙈,🙉,🙊,💌,💘,💝,💖,💗,💓,💞,💕,💟,💔,🩷,🧡,💛,💚,💙,🩵,💜,🤎,🖤,🩶,🤍,💋,💯,💢,💥,💫,💦,💨,💬,💭,💤,👋,🤚,🖐,🖖,🫱,🫲,🫳,🫴,🫷,🫸,👌,🤌,🤏,🤞,🫰,🤟,🤘,🤙,👈,👉,👆,🖕,👇,🫵,👍,👎,👊,🤛,🤜,👏,🙌,🫶,👐,🤲,🤝,🙏,💅,🤳,💪,🦾,🦿,🦵,🦶,👂,🦻,👃,🧠,🫀,🫁,🦷,🦴,👀,👁,👅,👄,🫦,👶,🧒,👦,👧,🧑,👱,👨,🧔,👩,🧓,👴,👵,🙍,🙎,🙅,🙆,💁,🙋,🧏,🙇,🤦,🤷,👮,💂,🥷,👷,🫅,🤴,👸,👳,👲,🧕,🤵,👰,🤰,🫃,🫄,🤱,👼,🎅,🤶,🦸,🦹,🧙,🧚,🧛,🧜,🧝,🧞,🧟,🧌,💆,💇,🚶,🧍,🧎,🏃,💃,🕺,🕴,👯,🧖,🧗,🤺,🏇,🏂,🏄,🚣,🏊,🚴,🚵,🤸,🤼,🤽,🤾,🤹,🧘,🛀,🛌,👭,👫,👬,💏,💑,🗣,👤,👥,🫂,👪,👣,🐵,🐒,🦍,🦧,🐶,🐕,🦮,🐩,🐺,🦊,🦝,🐱,🐈,🦁,🐯,🐅,🐆,🐴,🫎,🫏,🐎,🦄,🦓,🦌,🦬,🐮,🐂,🐃,🐄,🐷,🐖,🐗,🐽,🐏,🐑,🐐,🐪,🐫,🦙,🦒,🐘,🦣,🦏,🦛,🐭,🐁,🐀,🐹,🐰,🐇,🐿,🦫,🦔,🦇,🐻,🐨,🐼,🦥,🦦,🦨,🦘,🦡,🐾,🦃,🐔,🐓,🐣,🐤,🐥,🐦,🐧,🕊,🦅,🦆,🦢,🦉,🦤,🪶,🦩,🦚,🦜,🪽,🪿,🐸,🐊,🐢,🦎,🐍,🐲,🐉,🦕,🦖,🐳,🐋,🐬,🦭,🐟,🐠,🐡,🦈,🐙,🐚,🪸,🪼,🐌,🦋,🐛,🐜,🐝,🪲,🐞,🦗,🪳,🦂,🦟,🪰,🪱,🦠,💐,🌸,💮,🪷,🌹,🥀,🌺,🌻,🌼,🌷,🪻,🌱,🪴,🌲,🌳,🌴,🌵,🌾,🌿,🍀,🍁,🍂,🍃,🪹,🪺,🍄,🍇,🍈,🍉,🍊,🍋,🍌,🍍,🥭,🍎,🍏,🍐,🍑,🍒,🍓,🫐,🥝,🍅,🫒,🥥,🥑,🍆,🥔,🥕,🌽,🫑,🥒,🥬,🥦,🧄,🧅,🥜,🫘,🌰,🫚,🫛,🍞,🥐,🥖,🫓,🥨,🥯,🥞,🧇,🧀,🍖,🍗,🥩,🥓,🍔,🍟,🍕,🌭,🥪,🌮,🌯,🫔,🥙,🧆,🥚,🍳,🥘,🍲,🫕,🥣,🥗,🍿,🧈,🧂,🥫,🍱,🍘,🍙,🍚,🍛,🍜,🍝,🍠,🍢,🍣,🍤,🍥,🥮,🍡,🥟,🥠,🥡,🦀,🦞,🦐,🦑,🦪,🍦,🍧,🍨,🍩,🍪,🎂,🍰,🧁,🥧,🍫,🍬,🍭,🍮,🍯,🍼,🥛,🫖,🍵,🍶,🍾,🍷,🍸,🍹,🍺,🍻,🥂,🥃,🫗,🥤,🧋,🧃,🧉,🧊,🥢,🍴,🥄,🔪,🫙,🏺,🌍,🌎,🌏,🌐,🗺,🗾,🧭,🌋,🗻,🛖,🏚,🏠,🏡,🏢,🏣,🏤,🏥,🏦,🏨,🏩,🏪,🏫,🏬,🏭,🏯,🏰,💒,🗼,🗽,🕌,🛕,🕍,🕋,🎠,🛝,🎡,🎢,💈,🎪,🚂,🚃,🚄,🚅,🚆,🚇,🚈,🚉,🚊,🚝,🚞,🚋,🚌,🚍,🚎,🚐,🚑,🚒,🚓,🚔,🚕,🚖,🚗,🚘,🚙,🛻,🚚,🚛,🚜,🛵,🦽,🦼,🛺,🚲,🛴,🛹,🛼,🚏,🚨,🚥,🚦,🛑,🚧,🛟,🛶,🚤,🚢,🪂,💺,🚁,🚟,🚠,🚡,🚀,🛸,🧳,🌑,🌒,🌓,🌔,🌕,🌖,🌗,🌘,🌙,🌚,🌛,🌜,🌝,🌞,🪐,🌟,🌠,🌌,🌀,🌈,🔥,💧,🌊,🎃,🎄,🎆,🎇,🧨,🎈,🎉,🎊,🎋,🎍,🎎,🎏,🎐,🎑,🧧,🎀,🎁,🏆,🏅,🥇,🥈,🥉,🥎,🏀,🏐,🏈,🏉,🎾,🥏,🎳,🏏,🏑,🏒,🥍,🏓,🏸,🥊,🥋,🥅,🎣,🤿,🎽,🎿,🛷,🥌,🎯,🪀,🪁,🔫,🎱,🔮,🪄,🎮,🎰,🎲,🧩,🧸,🪅,🪩,🪆,🃏,🀄,🎴,🎭,🎨,🧵,🪡,🧶,🪢,👓,🥽,🥼,🦺,👔,👕,👖,🧣,🧤,🧥,🧦,👗,👘,🥻,🩱,🩲,🩳,👙,👚,🪭,👛,👜,👝,🎒,🩴,👞,👟,🥾,🥿,👠,👡,🩰,👢,🪮,👑,👒,🎩,🎓,🧢,🪖,📿,💄,💍,💎,🔇,🔈,🔉,🔊,📢,📣,📯,🔔,🔕,🎼,🎵,🎶,🎤,🎧,📻,🎷,🪗,🎸,🎹,🎺,🎻,🪕,🥁,🪘,🪇,🪈,📱,📲,📞,📟,📠,🔋,🪫,🔌,💻,💽,💾,💿,📀,🧮,🎥,📺,📷,📸,📹,📼,🔍,🔎,💡,🔦,🏮,🪔,📔,📕,📖,📗,📘,📙,📚,📓,📒,📃,📜,📄,📰,📑,🔖,💰,🪙,💴,💵,💶,💷,💸,💳,🧾,💹,📧,📨,📩,📤,📥,📦,📫,📪,📬,📭,📮,📝,💼,📁,📂,📅,📆,📇,📈,📉,📊,📋,📌,📍,📎,📏,📐,🔒,🔓,🔏,🔐,🔑,🔨,🪓,💣,🪃,🏹,🪚,🔧,🪛,🔩,🦯,🔗,🪝,🧰,🧲,🪜,🧪,🧫,🧬,🔬,🔭,📡,💉,🩸,💊,🩹,🩼,🩺,🩻,🚪,🛗,🪞,🪟,🛏,🛋,🪑,🚽,🪠,🚿,🛁,🪤,🪒,🧴,🧷,🧹,🧺,🧻,🪣,🧼,🫧,🪥,🧽,🧯,🛒,🚬,🪦,🧿,🪬,🗿,🪧,🪪,🏧,🚮,🚰,🚹,🚺,🚻,🚼,🚾,🛂,🛃,🛄,🛅,🚸,🚫,🚳,🚭,🚯,🚱,🚷,📵,🔞,🔃,🔄,🔙,🔚,🔛,🔜,🔝,🛐,🕉,🕎,🔯,🪯,🔀,🔁,🔂,🔼,🔽,🎦,🔅,🔆,📶,🛜,📳,📴,🟰,💱,💲,🔱,📛,🔰,🔟,🔠,🔡,🔢,🔣,🔤,🅰,🆎,🅱,🆑,🆒,🆓,🆔,🆕,🆖,🅾,🆗,🅿,🆘,🆙,🆚,🈁,🈂,🈷,🈶,🈯,🉐,🈹,🈚,🈲,🉑,🈸,🈴,🈳,🈺,🈵,🔴,🟠,🟡,🟢,🔵,🟣,🟤,🟥,🟧,🟨,🟩,🟦,🟪,🟫,🔶,🔷,🔸,🔹,🔺,🔻,💠,🔘,🔳,🔲,🏁,🚩,🎌,☺,☹,☠,❣,❤,✋,✌,☝,✊,✍,⛷,⛹,☘,☕,⛰,⛪,⛩,⛲,⛺,♨,⛽,⚓,⛵,⛴,✈,⌛,⏳,⌚,⏰,⏱,⏲,☀,⭐,☁,⛅,⛈,☂,☔,⛱,⚡,❄,☃,⛄,☄,✨,⚽,⚾,⛳,⛸,♠,♥,♦,♣,♟,⛑,☎,⌨,✉,✏,✒,✂,⛏,⚒,⚔,⚙,⚖,⛓,⚗,⚰,⚱,♿,⚠,⛔,☢,☣,⬆,↗,➡,↘,⬇,↙,⬅,↖,↕,↔,↩,↪,⤴,⤵,⚛,✡,☸,☯,✝,☦,☪,☮,♈,♉,♊,♋,♌,♍,♎,♏,♐,♑,♒,♓,⛎,▶,⏩,⏭,⏯,◀,⏪,⏮,⏫,⏬,⏸,⏹,⏺,⏏,♀,♂,⚧,✖,➕,➖,➗,♾,‼,⁉,❓,❔,❕,❗,〰,⚕,♻,⚜,⭕,✅,☑,✔,❌,❎,➰,➿,〽,✳,✴,❇,©,®,™,Ⓜ,㊗,㊙,⚫,⚪,⬛,⬜,◼,◻,◾,◽,▪,▫";
+</script>
+</body>
+</html>
