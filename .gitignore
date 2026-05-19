@@ -2,3 +2,5 @@
 .DS_Store
 *.swp
 *.bak
+.playwright-mcp/
+/jankify-brite-default.png
