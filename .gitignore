@@ -4,3 +4,4 @@
 *.bak
 .playwright-mcp/
 /jankify-brite-default.png
+/jankify-brite-classic.png

@@ -249,6 +249,7 @@ input[type=range] {
   background: transparent; cursor: pointer; margin: 0;
 }
 input[type=range]:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+input[type=range]:disabled { opacity: 0.35; cursor: not-allowed; }
 input[type=range]::-webkit-slider-runnable-track { height: 3px; background: var(--border); border-radius: 2px; }
 input[type=range]::-moz-range-track { height: 3px; background: var(--border); border-radius: 2px; }
 input[type=range]::-webkit-slider-thumb {
@@ -467,12 +468,12 @@ input[type=file] {
   <div class="mode-select">
     <label for="mode">Mode</label>
     <select id="mode" aria-label="Rendering mode">
-      <option value="polygon" selected>Polygon</option>
-      <option value="voronoi">Voronoi</option>
-      <option value="emoji">Emoji</option>
-      <option value="ascii">ASCII</option>
-      <option value="pixel">Pixel</option>
+      <option value="pixel" selected>Pixel</option>
       <option value="brite">Lite Brite</option>
+      <option value="ascii">ASCII</option>
+      <option value="emoji">Emoji</option>
+      <option value="polygon">Polygon</option>
+      <option value="voronoi">Voronoi</option>
     </select>
   </div>
 
@@ -509,7 +510,7 @@ input[type=file] {
   <aside aria-label="Controls">
 
     <!-- POLYGON / VORONOI -->
-    <div class="mode-section" data-modes="polygon voronoi">
+    <div class="mode-section" data-modes="polygon voronoi" hidden>
       <h3>Geometry</h3>
 
       <div class="control">
@@ -646,7 +647,7 @@ input[type=file] {
     </div>
 
     <!-- PIXEL -->
-    <div class="mode-section" data-modes="pixel" hidden>
+    <div class="mode-section" data-modes="pixel">
       <h3>Pixel Art</h3>
 
       <div class="control">
@@ -706,6 +707,13 @@ input[type=file] {
       <h3>Lite Brite</h3>
 
       <div class="control">
+        <div class="checkbox-group">
+          <label><input type="checkbox" id="brite-classic">Classic 9×12 grid (45×60 pegs)</label>
+        </div>
+        <div class="hint">Authentic Hasbro screen resolution. Locks the two sliders below.</div>
+      </div>
+
+      <div class="control">
         <label class="field-label" for="brite-peg">
           <span>Peg size</span>
           <span class="value" id="brite-peg-value">14px</span>
@@ -740,7 +748,7 @@ input[type=file] {
     </div>
 
     <!-- BACKGROUND (emoji + ascii + pixel) -->
-    <div class="mode-section" data-modes="emoji ascii pixel" hidden>
+    <div class="mode-section" data-modes="emoji ascii pixel">
       <hr class="divider">
       <div class="control">
         <div class="row">
@@ -775,7 +783,7 @@ input[type=file] {
       <p class="hint-line hint-desktop">or drop one anywhere here · paste with <kbd>⌘ V</kbd></p>
       <p class="hint-line hint-mobile">photos, screenshots, or take one with your camera</p>
       <p class="modes-line">
-        Polygon<span class="dot">·</span>Voronoi<span class="dot">·</span>Emoji<span class="dot">·</span>ASCII<span class="dot">·</span>Pixel<span class="dot">·</span>Lite Brite
+        Pixel<span class="dot">·</span>Lite Brite<span class="dot">·</span>ASCII<span class="dot">·</span>Emoji<span class="dot">·</span>Polygon<span class="dot">·</span>Voronoi
       </p>
     </label>
     <div class="loading" id="loading" role="status" aria-live="polite">
@@ -794,7 +802,7 @@ input[type=file] {
 "use strict";
 
 const state = {
-  mode: "polygon",
+  mode: "pixel",
   imageData: null,
   width: 0, height: 0,
 
@@ -808,7 +816,7 @@ const state = {
 
   pixelGrid: null, pixelCols: 0, pixelRows: 0, pixelDisplay: 0,
 
-  briteGrid: null,  // { cols, rows, cellSize, pegRadius, cells:[{cx,cy,paletteIdx}] }
+  briteGrid: null,
 
   seed: Date.now(),
   renderPending: false,
@@ -885,7 +893,7 @@ const LITE_BRITE_PALETTE = [
   { name: "violet", rgb: [142,  92, 200] },
   { name: "pink",   rgb: [232, 122, 168] },
 ].map(p => ({ ...p, lab: rgbToLab(p.rgb[0], p.rgb[1], p.rgb[2]) }));
-const BRITE_LUMA_FLOOR = 25;  // below this the cell is a dark hole, no peg
+const BRITE_LUMA_FLOOR = 25;
 
 function nearestBritePeg(r, g, b, a) {
   if (a !== undefined && a < 128) return -1;
@@ -1290,8 +1298,6 @@ function buildEmojiPalette() {
     const img = pctx.getImageData(0, 0, probe.width, probe.height);
     const stats = imageStats(img.data, probe.width, probe.height);
     if (stats.totalPixels === 0) continue;
-    // Empty ratio is measured against the glyph's own bounding box so it means
-    // "how sparse is this glyph" rather than "how much padding around it".
     const emptyRatio = stats.bboxEmpty;
     if (emptyRatio > 0.95) continue;
     if (stats.r === 0 && stats.g === 0 && stats.b === 0) continue;
@@ -1430,9 +1436,7 @@ function renderPixel(canvas, grid, displayPx, bg, gridLines, skipAlpha) {
   }
 }
 
-// One peg sprite per palette index. Translucent-plastic look: opaque core,
-// soft falloff. Cached on first render of each session; rebuilt if pegSize changes.
-let briteSpriteCache = null;  // { pegSize, sprites: HTMLCanvasElement[] }
+let briteSpriteCache = null;
 function buildBriteSprites(pegSize) {
   if (briteSpriteCache && briteSpriteCache.pegSize === pegSize) return briteSpriteCache.sprites;
   const pad = Math.max(2, Math.round(pegSize * 0.35));
@@ -1442,7 +1446,6 @@ function buildBriteSprites(pegSize) {
     sp.width = size; sp.height = size;
     const sx = sp.getContext("2d");
     const cx = size / 2, cy = size / 2;
-    // Soft halo (translucent plastic edge bleed)
     const halo = sx.createRadialGradient(cx, cy, pegSize * 0.3, cx, cy, size / 2);
     const [r, g, b] = p.rgb;
     halo.addColorStop(0,    `rgba(${r},${g},${b},0.45)`);
@@ -1450,7 +1453,6 @@ function buildBriteSprites(pegSize) {
     halo.addColorStop(1,    `rgba(${r},${g},${b},0)`);
     sx.fillStyle = halo;
     sx.fillRect(0, 0, size, size);
-    // Opaque peg cap (the plastic itself)
     const cap = sx.createRadialGradient(cx - pegSize * 0.18, cy - pegSize * 0.18, 0, cx, cy, pegSize / 2);
     cap.addColorStop(0,   `rgba(${Math.min(255, r + 40)},${Math.min(255, g + 40)},${Math.min(255, b + 40)},1)`);
     cap.addColorStop(0.6, `rgba(${r},${g},${b},1)`);
@@ -1468,10 +1470,8 @@ function buildBriteSprites(pegSize) {
 function renderBrite(canvas, briteGrid, glowPct) {
   const ctx = canvas.getContext("2d");
   ctx.save();
-  // Board: near-black, slightly warm (Lite Brite paper is not pure black)
   ctx.fillStyle = "#08070a";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  // The bulb: one big warm vignette behind the pegs. This is the only "glow".
   if (glowPct > 0) {
     const cx = canvas.width / 2, cy = canvas.height / 2;
     const maxR = Math.hypot(canvas.width, canvas.height) * 0.6;
@@ -1754,23 +1754,46 @@ async function pipelinePixel() {
 
 async function pipelineBrite() {
   showLoading(true, "Laying out pegboard…", 20); await nextFrame();
-  const pegSize = parseInt($("brite-peg").value, 10);
-  const pitchPct = parseInt($("brite-pitch").value, 10);
+  const classic = $("brite-classic").checked;
   const glowPct = parseInt($("brite-glow").value, 10);
-
-  // Offset-square layout: alternate rows shifted half a column horizontally.
-  // `pitch` is center-to-center spacing in pixels; row spacing scales the
-  // same so the layout stays geometrically close-packed regardless of pitch.
-  const pitch = pegSize * (pitchPct / 100);
-  const rowStep = pitch * Math.sqrt(3) / 2;
   const W = state.width, H = state.height;
-  const cols = Math.max(1, Math.floor((W - pegSize) / pitch));
-  const rows = Math.max(1, Math.floor((H - pegSize) / rowStep));
 
+  let pegSize, pitch, cols, rows, outW, outH;
+  let srcX0 = 0, srcY0 = 0, srcW = W, srcH = H;
+
+  if (classic) {
+    pegSize = 10;
+    pitch = 16;
+    const isPortrait = H > W;
+    cols = isPortrait ? 45 : 60;
+    rows = isPortrait ? 60 : 45;
+    const rs = pitch * Math.sqrt(3) / 2;
+    outW = Math.round(cols * pitch + pegSize);
+    outH = Math.round((rows - 1) * rs + pegSize);
+    const outAspect = outW / outH;
+    const inAspect = W / H;
+    if (inAspect > outAspect) {
+      srcW = Math.round(H * outAspect);
+      srcX0 = Math.round((W - srcW) / 2);
+    } else {
+      srcH = Math.round(W / outAspect);
+      srcY0 = Math.round((H - srcH) / 2);
+    }
+  } else {
+    pegSize = parseInt($("brite-peg").value, 10);
+    const pitchPct = parseInt($("brite-pitch").value, 10);
+    pitch = pegSize * (pitchPct / 100);
+    cols = Math.max(1, Math.floor((W - pegSize) / pitch));
+    rows = Math.max(1, Math.floor((H - pegSize) / (pitch * Math.sqrt(3) / 2)));
+    outW = W;
+    outH = H;
+  }
+
+  const rowStep = pitch * Math.sqrt(3) / 2;
+  const scaleX = srcW / outW, scaleY = srcH / outH;
   const data = state.imageData.data;
-  // Sample the area covered by one peg (its diameter), not the full pitch —
-  // pitch is empty board, peg is what carries color.
-  const sampleHalf = Math.round(pegSize / 2);
+  const sampleHalfX = Math.max(1, Math.round((pegSize / 2) * scaleX));
+  const sampleHalfY = Math.max(1, Math.round((pegSize / 2) * scaleY));
   const cells = [];
 
   showLoading(true, `Sampling ${(cols * rows).toLocaleString()} cells…`, 50); await nextFrame();
@@ -1779,11 +1802,13 @@ async function pipelineBrite() {
     const cy = Math.round(pegSize / 2 + r * rowStep);
     for (let c = 0; c < cols; c++) {
       const cx = Math.round(pegSize / 2 + c * pitch + offset);
-      if (cx >= W - 1 || cy >= H - 1) continue;
-      const x0 = Math.max(0, cx - sampleHalf);
-      const y0 = Math.max(0, cy - sampleHalf);
-      const x1 = Math.min(W, cx + sampleHalf);
-      const y1 = Math.min(H, cy + sampleHalf);
+      if (cx >= outW - 1 || cy >= outH - 1) continue;
+      const ix = srcX0 + cx * scaleX;
+      const iy = srcY0 + cy * scaleY;
+      const x0 = Math.max(0, Math.round(ix - sampleHalfX));
+      const y0 = Math.max(0, Math.round(iy - sampleHalfY));
+      const x1 = Math.min(W, Math.round(ix + sampleHalfX));
+      const y1 = Math.min(H, Math.round(iy + sampleHalfY));
       const [rr, gg, bb, aa] = avgRgbaRect(data, W, x0, y0, x1, y1);
       const idx = nearestBritePeg(rr, gg, bb, aa);
       if (idx < 0) continue;
@@ -1797,7 +1822,7 @@ async function pipelineBrite() {
 
   state.briteGrid = { cols, rows, pegSize, pitch, cells };
   showLoading(true, "Lighting the bulb…", 94); await nextFrame();
-  const canvas = ensureCanvas(W, H);
+  const canvas = ensureCanvas(outW, outH);
   renderBrite(canvas, state.briteGrid, glowPct);
 }
 
@@ -1870,12 +1895,9 @@ function updateModeVisibility() {
     const modes = section.dataset.modes.split(/\s+/);
     section.hidden = !modes.includes(state.mode);
   });
-  // Vector button label + copy button visibility
   const labelMap = { polygon: "SVG", voronoi: "SVG", emoji: "SVG", ascii: "TXT", pixel: "File" };
   $("download-vector-label").textContent = labelMap[state.mode] || "File";
-  // Brite is PNG-only — hide the vector button entirely rather than relabel
   $("download-vector").hidden = state.mode === "brite";
-  // Copy button only useful where there's a text payload
   $("copy-output").hidden = !(state.mode === "ascii" || state.mode === "pixel" || state.mode === "emoji");
 }
 
@@ -1887,7 +1909,6 @@ function rgbToHex(r, g, b) {
   g = Math.max(0, Math.min(255, Math.round(g)));
   b = Math.max(0, Math.min(255, Math.round(b)));
   const hex = ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
-  // Short form when each component is a repeated digit
   if (hex[0] === hex[1] && hex[2] === hex[3] && hex[4] === hex[5]) {
     return "#" + hex[0] + hex[2] + hex[4];
   }
@@ -1969,7 +1990,6 @@ function asciiText() {
 // Pixel format generators
 // -----------------------------------------------------------------------------
 function pixelGridAs2D() {
-  // Convert flat grid to [rows][cols] 2D
   const out = [];
   for (let r = 0; r < state.pixelRows; r++) {
     out.push(state.pixelGrid.slice(r * state.pixelCols, (r + 1) * state.pixelCols));
@@ -2015,7 +2035,6 @@ function formatPixelsAsSvg() {
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${cols} ${rows}" width="${cols}" height="${rows}" shape-rendering="crispEdges">`,
   ];
   if (bg) out.push(`<rect width="${cols}" height="${rows}" fill="${bg}"/>`);
-  // Group identical colors into single paths for compactness
   const byColor = new Map();
   for (const cell of state.pixelGrid) {
     if (skipAlpha && cell.alpha < 128) continue;
@@ -2067,7 +2086,6 @@ function formatPixelsAsBlocksHtml() {
 }
 
 function formatPixelsAsBlocksAnsi() {
-  // 24-bit truecolor escape sequences. Render in any modern terminal.
   const skipAlpha = $("pixel-skip-alpha").checked;
   const cols = state.pixelCols, rows = state.pixelRows;
   const reset = "[0m";
@@ -2087,7 +2105,6 @@ function formatPixelsAsBlocksAnsi() {
 }
 
 function formatPixelsAsBlocksMono() {
-  // Brightness → ▓▒░  block characters.
   const ramp = " ░▒▓█";
   const skipAlpha = $("pixel-skip-alpha").checked;
   const cols = state.pixelCols, rows = state.pixelRows;
@@ -2173,7 +2190,6 @@ $("file-input").addEventListener("change", async e => {
   e.target.value = "";
 });
 
-// Drag-and-drop accepts files anywhere on the canvas region.
 const area = $("canvas-area");
 ["dragenter", "dragover"].forEach(evt => {
   area.addEventListener(evt, e => {
@@ -2193,7 +2209,6 @@ area.addEventListener("drop", async e => {
   await handleIncomingFile(e.dataTransfer.files[0]);
 });
 
-// Paste an image from the clipboard (⌘/Ctrl+V) anywhere on the page.
 document.addEventListener("paste", async e => {
   const items = e.clipboardData && e.clipboardData.items;
   if (!items) return;
@@ -2230,14 +2245,20 @@ $("brite-pitch").addEventListener("input", e => {
   scheduleRun();
 });
 
-// Brite glow slider: percent suffix and invalidate sprite cache only on peg-size change
 $("brite-glow").addEventListener("input", e => {
   $("brite-glow-value").textContent = e.target.value + "%";
   scheduleRun();
 });
 $("brite-peg").addEventListener("input", () => { briteSpriteCache = null; });
 
-// Populate palette swatches in the sidebar once
+$("brite-classic").addEventListener("change", e => {
+  const locked = e.target.checked;
+  $("brite-peg").disabled = locked;
+  $("brite-pitch").disabled = locked;
+  briteSpriteCache = null;
+  scheduleRun();
+});
+
 (function paintBriteSwatches() {
   const host = $("brite-palette-swatches");
   if (!host) return;
@@ -2249,7 +2270,6 @@ $("brite-peg").addEventListener("input", () => { briteSpriteCache = null; });
   }
 })();
 
-// Pixel quantize: display "unlimited" when 0
 $("pixel-quantize").addEventListener("input", e => {
   const v = parseInt(e.target.value, 10);
   $("pixel-quantize-value").textContent = v === 0 ? "unlimited" : v.toString();
@@ -2284,7 +2304,6 @@ $("bg-enabled").addEventListener("change", scheduleRun);
 $("bg-color").addEventListener("input", scheduleRun);
 
 $("pixel-format").addEventListener("change", () => {
-  // Format change just rewrites status — no pipeline recompute needed
   if (state.pixelGrid) updateStatus();
 });
 $("pixel-skip-alpha").addEventListener("change", scheduleRun);
@@ -2347,8 +2366,6 @@ let debounceTimer = null;
 const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)");
 function scheduleRun() {
   clearTimeout(debounceTimer);
-  // Lite Brite re-renders flash a dark board to bright — slower debounce
-  // reduces flicker exposure during slider drags. Respect reduced-motion too.
   const delay = (state.mode === "brite" || reducedMotion?.matches) ? 300 : 120;
   debounceTimer = setTimeout(runPipeline, delay);
 }
