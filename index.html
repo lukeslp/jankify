@@ -708,9 +708,9 @@ input[type=file] {
 
       <div class="control">
         <div class="checkbox-group">
-          <label><input type="checkbox" id="brite-classic">Classic 9×12 grid (45×60 pegs)</label>
+          <label><input type="checkbox" id="brite-classic">Classic 9×12 board</label>
         </div>
-        <div class="hint">Authentic Hasbro screen resolution. Locks the two sliders below.</div>
+        <div class="hint">Locks output to authentic Hasbro 12:9 aspect (4:3 landscape, 3:4 portrait). Disables the sliders below.</div>
       </div>
 
       <div class="control">
@@ -1778,14 +1778,14 @@ async function pipelineBrite() {
   let srcX0 = 0, srcY0 = 0, srcW = W, srcH = H;
 
   if (classic) {
-    pegSize = 10;
-    pitch = 16;
+    pegSize = 14;
+    pitch = 22;
     const isPortrait = H > W;
-    cols = isPortrait ? 45 : 60;
-    rows = isPortrait ? 60 : 45;
+    outW = isPortrait ? 720 : 960;
+    outH = isPortrait ? 960 : 720;
     const rs = pitch * Math.sqrt(3) / 2;
-    outW = Math.round(cols * pitch + pegSize);
-    outH = Math.round((rows - 1) * rs + pegSize);
+    cols = Math.max(1, Math.floor((outW - pegSize) / pitch));
+    rows = Math.max(1, Math.floor((outH - pegSize) / rs));
     const outAspect = outW / outH;
     const inAspect = W / H;
     if (inAspect > outAspect) {

@@ -42,7 +42,7 @@ Shared primitives worth knowing before editing:
 - **Geometry:** offset-square layout (alternate rows shifted ½ pitch horizontally — matches the real toy, not pure hex close-pack). Pegs are drawn as circles via `ctx.arc` in the cached sprite.
 - **Renderer:** one pre-rendered peg sprite per palette color cached in `briteSpriteCache` and blitted with `drawImage`. One radial vignette behind the grid acts as "the bulb." No `globalCompositeOperation='lighter'` (additive blending saturates and trips photosensitivity thresholds).
 - **Safety:** cells below `BRITE_LUMA_FLOOR` (or with alpha < 128) render as empty holes, not pegs. There is no black peg in the authentic palette.
-- **Classic preset:** `#brite-classic` checkbox locks the layout to a 60×45 (landscape) or 45×60 (portrait) grid at 10px pegs / 16px pitch, with a fixed-aspect output canvas (~970×620 landscape, ~720×969 portrait). The input image is center-cropped to match the output aspect. The peg-size and peg-spacing sliders are disabled while classic is active.
+- **Classic preset:** `#brite-classic` checkbox locks the output canvas to authentic Hasbro 9×12 inch board proportions — true 4:3 (960×720 landscape, 720×960 portrait), regardless of input image aspect or any other setting. Peg size 14px, pitch 22px, so the offset-square layout fits ~43×37 (or 37×43) pegs naturally inside the locked frame. Input image is center-cropped to match the output aspect. Peg-size and peg-spacing sliders are disabled while classic is active.
 
 ## Editing conventions in this file
 
