@@ -716,9 +716,9 @@ input[type=file] {
       <div class="control">
         <label class="field-label" for="brite-peg">
           <span>Peg size</span>
-          <span class="value" id="brite-peg-value">14px</span>
+          <span class="value" id="brite-peg-value">20px</span>
         </label>
-        <input type="range" id="brite-peg" min="8" max="40" value="14" step="1">
+        <input type="range" id="brite-peg" min="8" max="48" value="20" step="1">
         <div class="hint">Bigger pegs, coarser image. Floor of 8 keeps it readable on phones.</div>
       </div>
 
@@ -764,9 +764,9 @@ input[type=file] {
     <div class="control">
       <label class="field-label" for="max-dim">
         <span>Max working size</span>
-        <span class="value" id="max-dim-value">1400px</span>
+        <span class="value" id="max-dim-value">1000px</span>
       </label>
-      <input type="range" id="max-dim" min="400" max="2400" value="1400" step="100">
+      <input type="range" id="max-dim" min="400" max="2400" value="1000" step="100">
       <div class="hint">Large images are downscaled before processing.</div>
     </div>
 
@@ -1439,23 +1439,20 @@ function renderPixel(canvas, grid, displayPx, bg, gridLines, skipAlpha) {
 let briteSpriteCache = null;
 function buildBriteSprites(pegSize) {
   if (briteSpriteCache && briteSpriteCache.pegSize === pegSize) return briteSpriteCache.sprites;
-  const pad = Math.max(3, Math.round(pegSize * 0.6));
-  const size = pegSize + pad * 2;
-  const sprites = LITE_BRITE_PALETTE.map(p => {
+  const haloPad = Math.max(4, Math.round(pegSize * 1.0));
+  const haloSize = pegSize + haloPad * 2;
+  const capSize = pegSize + 4;
+
+  const caps = LITE_BRITE_PALETTE.map(p => {
     const sp = document.createElement("canvas");
-    sp.width = size; sp.height = size;
+    sp.width = capSize; sp.height = capSize;
     const sx = sp.getContext("2d");
-    const cx = size / 2, cy = size / 2;
+    const cx = capSize / 2, cy = capSize / 2;
     const [r, g, b] = p.rgb;
-    const halo = sx.createRadialGradient(cx, cy, pegSize * 0.35, cx, cy, size / 2);
-    halo.addColorStop(0,    `rgba(${r},${g},${b},0.72)`);
-    halo.addColorStop(0.4,  `rgba(${r},${g},${b},0.32)`);
-    halo.addColorStop(1,    `rgba(${r},${g},${b},0)`);
-    sx.fillStyle = halo;
-    sx.fillRect(0, 0, size, size);
     const cap = sx.createRadialGradient(cx, cy, 0, cx, cy, pegSize / 2);
-    cap.addColorStop(0,    `rgba(${Math.min(255, r + 100)},${Math.min(255, g + 100)},${Math.min(255, b + 100)},1)`);
-    cap.addColorStop(0.45, `rgba(${Math.min(255, r + 30)},${Math.min(255, g + 30)},${Math.min(255, b + 30)},1)`);
+    cap.addColorStop(0,    `rgba(255, 255, 255, 1)`);
+    cap.addColorStop(0.25, `rgba(${Math.min(255, r + 140)},${Math.min(255, g + 140)},${Math.min(255, b + 140)},1)`);
+    cap.addColorStop(0.65, `rgba(${Math.min(255, r + 40)},${Math.min(255, g + 40)},${Math.min(255, b + 40)},1)`);
     cap.addColorStop(1,    `rgba(${r},${g},${b},1)`);
     sx.fillStyle = cap;
     sx.beginPath();
@@ -1463,32 +1460,51 @@ function buildBriteSprites(pegSize) {
     sx.fill();
     return sp;
   });
-  briteSpriteCache = { pegSize, sprites };
-  return sprites;
+
+  const halos = LITE_BRITE_PALETTE.map(p => {
+    const sp = document.createElement("canvas");
+    sp.width = haloSize; sp.height = haloSize;
+    const sx = sp.getContext("2d");
+    const cx = haloSize / 2, cy = haloSize / 2;
+    const [r, g, b] = p.rgb;
+    const halo = sx.createRadialGradient(cx, cy, pegSize * 0.25, cx, cy, haloSize / 2);
+    halo.addColorStop(0,    `rgba(${r},${g},${b},0.55)`);
+    halo.addColorStop(0.35, `rgba(${r},${g},${b},0.22)`);
+    halo.addColorStop(1,    `rgba(${r},${g},${b},0)`);
+    sx.fillStyle = halo;
+    sx.fillRect(0, 0, haloSize, haloSize);
+    return sp;
+  });
+
+  briteSpriteCache = { pegSize, sprites: { caps, halos } };
+  return briteSpriteCache.sprites;
 }
 
 function renderBrite(canvas, briteGrid, glowPct) {
   const ctx = canvas.getContext("2d");
   ctx.save();
-  ctx.fillStyle = "#08070a";
+  ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const { caps, halos } = buildBriteSprites(briteGrid.pegSize);
+  const haloHalf = halos[0].width / 2;
+  const capHalf = caps[0].width / 2;
+  const additive = !reducedMotion?.matches;
+
   if (glowPct > 0) {
-    const cx = canvas.width / 2, cy = canvas.height / 2;
-    const maxR = Math.hypot(canvas.width, canvas.height) * 0.6;
-    const bulb = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxR);
-    const intensity = glowPct / 100;
-    bulb.addColorStop(0,    `rgba(255, 232, 178, ${0.55 * intensity})`);
-    bulb.addColorStop(0.35, `rgba(255, 210, 140, ${0.28 * intensity})`);
-    bulb.addColorStop(1,    `rgba(255, 200, 120, 0)`);
-    ctx.fillStyle = bulb;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.globalCompositeOperation = additive ? "lighter" : "source-over";
+    ctx.globalAlpha = Math.max(0.1, glowPct / 100);
+    for (const cell of briteGrid.cells) {
+      ctx.drawImage(halos[cell.paletteIdx], cell.cx - haloHalf, cell.cy - haloHalf);
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = "source-over";
   }
-  const sprites = buildBriteSprites(briteGrid.pegSize);
-  const spriteHalf = sprites[0].width / 2;
+
   for (const cell of briteGrid.cells) {
-    const sprite = sprites[cell.paletteIdx];
-    ctx.drawImage(sprite, cell.cx - spriteHalf, cell.cy - spriteHalf);
+    ctx.drawImage(caps[cell.paletteIdx], cell.cx - capHalf, cell.cy - capHalf);
   }
+
   ctx.restore();
 }
 
