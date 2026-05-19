@@ -734,9 +734,9 @@ input[type=file] {
       <div class="control">
         <label class="field-label" for="brite-glow">
           <span>Bulb glow</span>
-          <span class="value" id="brite-glow-value">60%</span>
+          <span class="value" id="brite-glow-value">85%</span>
         </label>
-        <input type="range" id="brite-glow" min="0" max="100" value="60" step="5">
+        <input type="range" id="brite-glow" min="0" max="100" value="85" step="5">
         <div class="hint">Backlit halo behind the pegs. 0 = unlit template.</div>
       </div>
 
@@ -884,14 +884,14 @@ function deltaE94(a, b) {
 // Lite Brite palette (authentic Hasbro 8-peg set, eyeballed from lit photos)
 // -----------------------------------------------------------------------------
 const LITE_BRITE_PALETTE = [
-  { name: "white",  rgb: [255, 248, 231] },
-  { name: "red",    rgb: [226,  58,  77] },
-  { name: "orange", rgb: [240, 132,  56] },
-  { name: "yellow", rgb: [244, 210,  80] },
-  { name: "green",  rgb: [ 94, 196,  89] },
-  { name: "blue",   rgb: [ 62, 116, 200] },
-  { name: "violet", rgb: [142,  92, 200] },
-  { name: "pink",   rgb: [232, 122, 168] },
+  { name: "white",  rgb: [255, 252, 240] },
+  { name: "red",    rgb: [255,  60,  85] },
+  { name: "orange", rgb: [255, 145,  45] },
+  { name: "yellow", rgb: [255, 222,  60] },
+  { name: "green",  rgb: [ 70, 230,  85] },
+  { name: "blue",   rgb: [ 75, 135, 255] },
+  { name: "violet", rgb: [180, 100, 245] },
+  { name: "pink",   rgb: [255, 125, 185] },
 ].map(p => ({ ...p, lab: rgbToLab(p.rgb[0], p.rgb[1], p.rgb[2]) }));
 const BRITE_LUMA_FLOOR = 25;
 
@@ -1439,24 +1439,24 @@ function renderPixel(canvas, grid, displayPx, bg, gridLines, skipAlpha) {
 let briteSpriteCache = null;
 function buildBriteSprites(pegSize) {
   if (briteSpriteCache && briteSpriteCache.pegSize === pegSize) return briteSpriteCache.sprites;
-  const pad = Math.max(2, Math.round(pegSize * 0.35));
+  const pad = Math.max(3, Math.round(pegSize * 0.6));
   const size = pegSize + pad * 2;
   const sprites = LITE_BRITE_PALETTE.map(p => {
     const sp = document.createElement("canvas");
     sp.width = size; sp.height = size;
     const sx = sp.getContext("2d");
     const cx = size / 2, cy = size / 2;
-    const halo = sx.createRadialGradient(cx, cy, pegSize * 0.3, cx, cy, size / 2);
     const [r, g, b] = p.rgb;
-    halo.addColorStop(0,    `rgba(${r},${g},${b},0.45)`);
-    halo.addColorStop(0.5,  `rgba(${r},${g},${b},0.18)`);
+    const halo = sx.createRadialGradient(cx, cy, pegSize * 0.35, cx, cy, size / 2);
+    halo.addColorStop(0,    `rgba(${r},${g},${b},0.72)`);
+    halo.addColorStop(0.4,  `rgba(${r},${g},${b},0.32)`);
     halo.addColorStop(1,    `rgba(${r},${g},${b},0)`);
     sx.fillStyle = halo;
     sx.fillRect(0, 0, size, size);
-    const cap = sx.createRadialGradient(cx - pegSize * 0.18, cy - pegSize * 0.18, 0, cx, cy, pegSize / 2);
-    cap.addColorStop(0,   `rgba(${Math.min(255, r + 40)},${Math.min(255, g + 40)},${Math.min(255, b + 40)},1)`);
-    cap.addColorStop(0.6, `rgba(${r},${g},${b},1)`);
-    cap.addColorStop(1,   `rgba(${Math.round(r * 0.6)},${Math.round(g * 0.6)},${Math.round(b * 0.6)},1)`);
+    const cap = sx.createRadialGradient(cx, cy, 0, cx, cy, pegSize / 2);
+    cap.addColorStop(0,    `rgba(${Math.min(255, r + 100)},${Math.min(255, g + 100)},${Math.min(255, b + 100)},1)`);
+    cap.addColorStop(0.45, `rgba(${Math.min(255, r + 30)},${Math.min(255, g + 30)},${Math.min(255, b + 30)},1)`);
+    cap.addColorStop(1,    `rgba(${r},${g},${b},1)`);
     sx.fillStyle = cap;
     sx.beginPath();
     sx.arc(cx, cy, pegSize / 2, 0, Math.PI * 2);
@@ -1477,8 +1477,8 @@ function renderBrite(canvas, briteGrid, glowPct) {
     const maxR = Math.hypot(canvas.width, canvas.height) * 0.6;
     const bulb = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxR);
     const intensity = glowPct / 100;
-    bulb.addColorStop(0,    `rgba(255, 232, 178, ${0.32 * intensity})`);
-    bulb.addColorStop(0.35, `rgba(255, 210, 140, ${0.16 * intensity})`);
+    bulb.addColorStop(0,    `rgba(255, 232, 178, ${0.55 * intensity})`);
+    bulb.addColorStop(0.35, `rgba(255, 210, 140, ${0.28 * intensity})`);
     bulb.addColorStop(1,    `rgba(255, 200, 120, 0)`);
     ctx.fillStyle = bulb;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
