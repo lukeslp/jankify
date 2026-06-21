@@ -4,17 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Jankify is a single-file browser tool that "screws up your photos, without AI." All logic, markup, and styling live in `index.html` (~2390 lines, no build step, no runtime network). `og.html` + `og.png` are the social card. Repo is published at `github.com/lukeslp/jankify` and served via Caddy at `https://dr.eamer.dev/jankify/`.
+Jankify is a browser image-transform tool that "screws up your photos, without AI," plus an offline iOS wrapper. Web logic, markup, and styling live in `index.html`; `og.html` + `og.png` are the social card. The iOS app bundles a synchronized offline copy under `Jankify/Resources/Web/` and hosts it in `WKWebView`.
 
 ## How it runs
 
 - **Local dev:** open `index.html` directly in any modern browser, or serve the directory over HTTP if you need to load a test image via `fetch` (Chrome blocks `file://` fetch). No bundler, no dependencies installed. Font Awesome and IBM Plex are loaded from CDNs.
 - **Production:** Caddy block in `/etc/caddy/Caddyfile` uses `handle_path /jankify/*` to serve the directory statically (gzip + SPA fallback to `/index.html`). Legacy `/artboard` redirects also live there. No `sm` entry — static only.
 - **Deploy:** edit, commit, push. Caddy serves the file directly from this directory; no copy step.
+- **iOS sync:** run `scripts/sync-web.sh` after web changes, then `xcodegen generate`.
+- **iOS test:** `xcodebuild test -project Jankify.xcodeproj -scheme Jankify -destination 'platform=iOS Simulator,name=iPhone 17 Pro'` and `node --test JankifyTests/ios-bridge.test.js`.
 
 ## Architecture (single-file pipeline)
 
-Six render modes share one pipeline, switched by `state.mode`. Default mode is `pixel`.
+Eight render modes share one pipeline, switched by `state.mode`. Default mode is `pixel`.
 
 | Mode | Pipeline fn | Exports |
 |------|-------------|---------|
@@ -22,6 +24,8 @@ Six render modes share one pipeline, switched by `state.mode`. Default mode is `
 | `brite` | `pipelineBrite` | PNG only |
 | `ascii` | `pipelineAscii` | PNG, TXT, clipboard |
 | `emoji` | `pipelineEmoji` | PNG, SVG |
+| `hatch` | `pipelineHatch` | PNG, SVG |
+| `rough` | `pipelineRough` | PNG, SVG |
 | `polygon` | `pipelinePolygon` | PNG, SVG |
 | `voronoi` | `pipelineVoronoi` | PNG, SVG |
 
@@ -34,6 +38,8 @@ Shared primitives worth knowing before editing:
 - **`rgbToLab` / `deltaE94`** — used by emoji nearest-match AND Lite Brite palette match (`nearestBritePeg`). Emoji probing renders each glyph to a hidden canvas to learn its LAB color.
 - **`avgRgbRect` / `avgBrightRect` / `avgRgbaRect`** — all area sampling goes through these.
 - **`medianCutPalette`** — optional quantization for pixel mode.
+- **`computeHatch` / `renderHatch`** — tone-driven pen strokes and source-color ink.
+- **`renderRough` / `svgRough`** — rough.js-backed raster and SVG sketch output.
 - **`scheduleRun` / `rerenderOnly`** — debounced full pipeline vs cheap re-render. Sliders that change geometry call `scheduleRun`; cosmetic toggles (stroke opacity, stroke color) call `rerenderOnly`. Brite mode uses a longer 300ms debounce and honors `prefers-reduced-motion`.
 
 ## Lite Brite mode specifics
@@ -51,6 +57,14 @@ Shared primitives worth knowing before editing:
 - Sidebar IDs follow `id="<mode>-<param>"` with a matching `<mode>-<param>-value` span for live readout. The `data-modes` attribute on each `.mode-section` controls visibility; `updateModeVisibility` reads it.
 - Pixel-mode exporters share `state.pixelGrid` (`{col, row, rgb, alpha}` cells). Adding a new export format = one `formatPixelsAs<Name>` function + a `<option>` in `#pixel-format` + a branch in `getPixelOutput`.
 - Default to no comments. Section banners stay (they are file navigation); inline explanatory `//` comments do not.
+
+## iOS wrapper
+
+- `project.yml` is canonical; regenerate and commit `Jankify.xcodeproj` after changes.
+- `JankifyWebView` loads only the bundled `Web/` directory. External links open in Safari.
+- `BridgeController` validates picker, share, and clipboard messages. `ios-bridge.js` maps web controls to those native actions.
+- Keep browser-specific behavior in `index.html` and app-only behavior in `Jankify/Resources/Web/ios-bridge.js`.
+- When a web mode adds an export type, update both the browser exporter and the iOS bridge, then extend `ios-bridge.test.js`.
 
 ## Repo hygiene
 

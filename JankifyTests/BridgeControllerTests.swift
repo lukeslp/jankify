@@ -3,22 +3,19 @@ import XCTest
 
 @MainActor
 final class BridgeControllerTests: XCTestCase {
-    private var temporaryDirectory: URL!
-
-    override func setUpWithError() throws {
-        temporaryDirectory = FileManager.default.temporaryDirectory
+    private func makeTemporaryDirectory() throws -> URL {
+        let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(
-            at: temporaryDirectory,
+            at: directory,
             withIntermediateDirectories: true
         )
-    }
-
-    override func tearDownWithError() throws {
-        try? FileManager.default.removeItem(at: temporaryDirectory)
+        return directory
     }
 
     func testShareMessageCreatesExportFileWithExactContents() throws {
+        let temporaryDirectory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
         let controller = BridgeController(temporaryDirectory: temporaryDirectory)
         let expected = Data("<svg/>".utf8)
 
@@ -37,6 +34,8 @@ final class BridgeControllerTests: XCTestCase {
     }
 
     func testCopyMessagePublishesExactText() throws {
+        let temporaryDirectory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
         let controller = BridgeController(temporaryDirectory: temporaryDirectory)
 
         try controller.process([
@@ -48,6 +47,8 @@ final class BridgeControllerTests: XCTestCase {
     }
 
     func testPickImageMessageRequestsPicker() throws {
+        let temporaryDirectory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
         let controller = BridgeController(temporaryDirectory: temporaryDirectory)
 
         try controller.process(["action": "pickImage"])
@@ -56,6 +57,8 @@ final class BridgeControllerTests: XCTestCase {
     }
 
     func testInvalidMessageThrowsWithoutPublishingSideEffects() {
+        let temporaryDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
         let controller = BridgeController(temporaryDirectory: temporaryDirectory)
 
         XCTAssertThrowsError(try controller.process(["action": "deleteEverything"]))

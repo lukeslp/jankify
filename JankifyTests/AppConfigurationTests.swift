@@ -10,19 +10,24 @@ final class AppConfigurationTests: XCTestCase {
         XCTAssertEqual(launchScreen?["UIColorName"] as? String, "LaunchBackground")
     }
 
-    func testBuiltAppSupportsEveryInterfaceOrientation() {
+    func testBuiltAppSupportsEveryInterfaceOrientation() throws {
         let expected = Set([
             "UIInterfaceOrientationPortrait",
             "UIInterfaceOrientationPortraitUpsideDown",
             "UIInterfaceOrientationLandscapeLeft",
             "UIInterfaceOrientationLandscapeRight"
         ])
-        let phone = Bundle.main.object(
-            forInfoDictionaryKey: "UISupportedInterfaceOrientations"
-        ) as? [String]
-        let pad = Bundle.main.object(
-            forInfoDictionaryKey: "UISupportedInterfaceOrientations~ipad"
-        ) as? [String]
+        let infoURL = Bundle.main.bundleURL.appendingPathComponent("Info.plist")
+        let data = try Data(contentsOf: infoURL)
+        let info = try XCTUnwrap(
+            PropertyListSerialization.propertyList(
+                from: data,
+                options: [],
+                format: nil
+            ) as? [String: Any]
+        )
+        let phone = info["UISupportedInterfaceOrientations"] as? [String]
+        let pad = info["UISupportedInterfaceOrientations~ipad"] as? [String]
 
         XCTAssertEqual(Set(phone ?? []), expected)
         XCTAssertEqual(Set(pad ?? []), expected)

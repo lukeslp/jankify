@@ -42,6 +42,10 @@
     } else if (state.mode === "pixel" && state.pixelGrid) {
       const output = getPixelOutput();
       text = output.text; ext = output.ext; mimeType = output.mime;
+    } else if (state.mode === "hatch" && state.hatchSegments) {
+      text = svgHatch(); ext = "svg"; mimeType = "image/svg+xml";
+    } else if (state.mode === "rough" && state.roughGrid) {
+      text = svgRough(); ext = "svg"; mimeType = "image/svg+xml";
     } else {
       return null;
     }
