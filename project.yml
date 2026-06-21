@@ -33,6 +33,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.lukesteuber.jankify
         PRODUCT_NAME: Jankify
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         TARGETED_DEVICE_FAMILY: "1,2"
         SUPPORTS_MACCATALYST: NO
 
@@ -48,6 +50,19 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.lukesteuber.jankify.tests
         GENERATE_INFOPLIST_FILE: YES
 
+  JankifyUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: JankifyUITests
+    dependencies:
+      - target: Jankify
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.lukesteuber.jankify.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Jankify
+
 schemes:
   Jankify:
     build:
@@ -60,3 +75,4 @@ schemes:
       config: Debug
       targets:
         - JankifyTests
+        - JankifyUITests

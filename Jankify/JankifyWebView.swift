@@ -23,7 +23,7 @@ struct JankifyWebView: UIViewRepresentable {
         webView.isOpaque = false
         webView.backgroundColor = .clear
         webView.scrollView.backgroundColor = .clear
-        webView.accessibilityIdentifier = "jankify-web-content"
+        webView.accessibilityIdentifier = "jankify-offline-ready"
         webView.accessibilityLabel = "Jankify web content"
         #if DEBUG
         webView.isInspectable = true

@@ -64,6 +64,17 @@
                ReferencedContainer = "container:Jankify.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "50CEFD88F12BD671E6053659"
+               BuildableName = "JankifyUITests.xctest"
+               BlueprintName = "JankifyUITests"
+               ReferencedContainer = "container:Jankify.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
       <CommandLineArguments>
       </CommandLineArguments>
