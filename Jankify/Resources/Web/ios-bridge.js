@@ -1,0 +1,1 @@
+/* Native bridge behavior is injected only into the bundled iOS frontend. */

@@ -22,6 +22,11 @@ targets:
     platform: iOS
     sources:
       - path: Jankify
+        excludes:
+          - Resources/Web
+      - path: Jankify/Resources/Web
+        type: folder
+        buildPhase: resources
     info:
       path: Jankify/Info.plist
     settings:

@@ -8,9 +8,12 @@
 
 /* Begin PBXBuildFile section */
 		02C40EC16B4C1DECA06D5A14 /* BridgeMessageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56D9EFFD728EC1F2A536A8E0 /* BridgeMessageTests.swift */; };
+		16F94E438BF47EB9FE2CE519 /* Web in Resources */ = {isa = PBXBuildFile; fileRef = 8BE8D52AC55E9D49A9C163FD /* Web */; };
 		490E6A2E7EC832F513D71286 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA0FC0D4D8AA8AF639D1A48B /* ContentView.swift */; };
+		58997609743BE7BEE168E014 /* BundleContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33E71E9CFAEFB9F0303BCFE6 /* BundleContent.swift */; };
 		7EF7301D066A0FCA6455EF40 /* BridgeMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 942E5D9DE0CEC940134DA164 /* BridgeMessage.swift */; };
 		8D3B995613E7B156CE8F8AB1 /* JankifyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2130B3009F48E20CA3B6F5C6 /* JankifyApp.swift */; };
+		B0F0BFE42F5B82CB97126ADE /* BundleContentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 889993F79861DB410EFB3934 /* BundleContentTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -25,8 +28,11 @@
 
 /* Begin PBXFileReference section */
 		2130B3009F48E20CA3B6F5C6 /* JankifyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JankifyApp.swift; sourceTree = "<group>"; };
+		33E71E9CFAEFB9F0303BCFE6 /* BundleContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundleContent.swift; sourceTree = "<group>"; };
 		4E474D50FDD932FEC6DD7A10 /* Jankify.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Jankify.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		56D9EFFD728EC1F2A536A8E0 /* BridgeMessageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeMessageTests.swift; sourceTree = "<group>"; };
+		889993F79861DB410EFB3934 /* BundleContentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundleContentTests.swift; sourceTree = "<group>"; };
+		8BE8D52AC55E9D49A9C163FD /* Web */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Web; path = Jankify/Resources/Web; sourceTree = SOURCE_ROOT; };
 		942E5D9DE0CEC940134DA164 /* BridgeMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeMessage.swift; sourceTree = "<group>"; };
 		BA0FC0D4D8AA8AF639D1A48B /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		D432C8609C24F406533CCFE3 /* JankifyTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = JankifyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -37,12 +43,22 @@
 		32AAE25E453E81AE3819BB99 /* Jankify */ = {
 			isa = PBXGroup;
 			children = (
+				7B794697448A5697861D08F6 /* Resources */,
 				942E5D9DE0CEC940134DA164 /* BridgeMessage.swift */,
+				33E71E9CFAEFB9F0303BCFE6 /* BundleContent.swift */,
 				BA0FC0D4D8AA8AF639D1A48B /* ContentView.swift */,
 				EF85C574843E75E19AC24295 /* Info.plist */,
 				2130B3009F48E20CA3B6F5C6 /* JankifyApp.swift */,
 			);
 			path = Jankify;
+			sourceTree = "<group>";
+		};
+		7B794697448A5697861D08F6 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				8BE8D52AC55E9D49A9C163FD /* Web */,
+			);
+			path = Resources;
 			sourceTree = "<group>";
 		};
 		9642F814ADB267E84A4FF738 = {
@@ -67,6 +83,7 @@
 			isa = PBXGroup;
 			children = (
 				56D9EFFD728EC1F2A536A8E0 /* BridgeMessageTests.swift */,
+				889993F79861DB410EFB3934 /* BundleContentTests.swift */,
 			);
 			path = JankifyTests;
 			sourceTree = "<group>";
@@ -97,6 +114,7 @@
 			buildConfigurationList = 10B3C469AE32EFE2A1AC2717 /* Build configuration list for PBXNativeTarget "Jankify" */;
 			buildPhases = (
 				A3804C810D5F689AFDDCD89C /* Sources */,
+				5272208F2431162036B3035B /* Resources */,
 			);
 			buildRules = (
 			);
@@ -148,12 +166,24 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		5272208F2431162036B3035B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				16F94E438BF47EB9FE2CE519 /* Web in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		2FEF8035BAC50A0DFF614BD5 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				02C40EC16B4C1DECA06D5A14 /* BridgeMessageTests.swift in Sources */,
+				B0F0BFE42F5B82CB97126ADE /* BundleContentTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -162,6 +192,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				7EF7301D066A0FCA6455EF40 /* BridgeMessage.swift in Sources */,
+				58997609743BE7BEE168E014 /* BundleContent.swift in Sources */,
 				490E6A2E7EC832F513D71286 /* ContentView.swift in Sources */,
 				8D3B995613E7B156CE8F8AB1 /* JankifyApp.swift in Sources */,
 			);
