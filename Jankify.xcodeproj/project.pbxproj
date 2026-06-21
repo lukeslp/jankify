@@ -1,0 +1,411 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		02C40EC16B4C1DECA06D5A14 /* BridgeMessageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56D9EFFD728EC1F2A536A8E0 /* BridgeMessageTests.swift */; };
+		490E6A2E7EC832F513D71286 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA0FC0D4D8AA8AF639D1A48B /* ContentView.swift */; };
+		7EF7301D066A0FCA6455EF40 /* BridgeMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 942E5D9DE0CEC940134DA164 /* BridgeMessage.swift */; };
+		8D3B995613E7B156CE8F8AB1 /* JankifyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2130B3009F48E20CA3B6F5C6 /* JankifyApp.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		AFF124B2BA1E8E301056BA1C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5FC244556D68728F3FD51E5A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 9C7FA3098A811A80FD5159B0;
+			remoteInfo = Jankify;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		2130B3009F48E20CA3B6F5C6 /* JankifyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JankifyApp.swift; sourceTree = "<group>"; };
+		4E474D50FDD932FEC6DD7A10 /* Jankify.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Jankify.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		56D9EFFD728EC1F2A536A8E0 /* BridgeMessageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeMessageTests.swift; sourceTree = "<group>"; };
+		942E5D9DE0CEC940134DA164 /* BridgeMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeMessage.swift; sourceTree = "<group>"; };
+		BA0FC0D4D8AA8AF639D1A48B /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		D432C8609C24F406533CCFE3 /* JankifyTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = JankifyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		EF85C574843E75E19AC24295 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		32AAE25E453E81AE3819BB99 /* Jankify */ = {
+			isa = PBXGroup;
+			children = (
+				942E5D9DE0CEC940134DA164 /* BridgeMessage.swift */,
+				BA0FC0D4D8AA8AF639D1A48B /* ContentView.swift */,
+				EF85C574843E75E19AC24295 /* Info.plist */,
+				2130B3009F48E20CA3B6F5C6 /* JankifyApp.swift */,
+			);
+			path = Jankify;
+			sourceTree = "<group>";
+		};
+		9642F814ADB267E84A4FF738 = {
+			isa = PBXGroup;
+			children = (
+				32AAE25E453E81AE3819BB99 /* Jankify */,
+				C85B59FBCD3F7CCCBA01A28C /* JankifyTests */,
+				A70FCF6C7496161D1B04A812 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A70FCF6C7496161D1B04A812 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				4E474D50FDD932FEC6DD7A10 /* Jankify.app */,
+				D432C8609C24F406533CCFE3 /* JankifyTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		C85B59FBCD3F7CCCBA01A28C /* JankifyTests */ = {
+			isa = PBXGroup;
+			children = (
+				56D9EFFD728EC1F2A536A8E0 /* BridgeMessageTests.swift */,
+			);
+			path = JankifyTests;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		591A77EADD9433A9382FFE40 /* JankifyTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 729C58E7292B73EC1380E7E9 /* Build configuration list for PBXNativeTarget "JankifyTests" */;
+			buildPhases = (
+				2FEF8035BAC50A0DFF614BD5 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D4C7A070316C2EF75FCDD324 /* PBXTargetDependency */,
+			);
+			name = JankifyTests;
+			packageProductDependencies = (
+			);
+			productName = JankifyTests;
+			productReference = D432C8609C24F406533CCFE3 /* JankifyTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		9C7FA3098A811A80FD5159B0 /* Jankify */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 10B3C469AE32EFE2A1AC2717 /* Build configuration list for PBXNativeTarget "Jankify" */;
+			buildPhases = (
+				A3804C810D5F689AFDDCD89C /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Jankify;
+			packageProductDependencies = (
+			);
+			productName = Jankify;
+			productReference = 4E474D50FDD932FEC6DD7A10 /* Jankify.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		5FC244556D68728F3FD51E5A /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					591A77EADD9433A9382FFE40 = {
+						DevelopmentTeam = 596T7J7FB6;
+						ProvisioningStyle = Automatic;
+					};
+					9C7FA3098A811A80FD5159B0 = {
+						DevelopmentTeam = 596T7J7FB6;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = A3A9D44DA5FF313B03688A8F /* Build configuration list for PBXProject "Jankify" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 9642F814ADB267E84A4FF738;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = A70FCF6C7496161D1B04A812 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				9C7FA3098A811A80FD5159B0 /* Jankify */,
+				591A77EADD9433A9382FFE40 /* JankifyTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		2FEF8035BAC50A0DFF614BD5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				02C40EC16B4C1DECA06D5A14 /* BridgeMessageTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A3804C810D5F689AFDDCD89C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7EF7301D066A0FCA6455EF40 /* BridgeMessage.swift in Sources */,
+				490E6A2E7EC832F513D71286 /* ContentView.swift in Sources */,
+				8D3B995613E7B156CE8F8AB1 /* JankifyApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		D4C7A070316C2EF75FCDD324 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 9C7FA3098A811A80FD5159B0 /* Jankify */;
+			targetProxy = AFF124B2BA1E8E301056BA1C /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		14B2EB9AEB9E0D0506C179EB /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 596T7J7FB6;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		19D3B61917A1C9C3846F46E7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.lukesteuber.jankify.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Jankify.app/Jankify";
+			};
+			name = Release;
+		};
+		1E1CE89A02D87C907375FF8A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = Jankify/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.lukesteuber.jankify;
+				PRODUCT_NAME = Jankify;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		40EB240A09D8938223D5D43B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = Jankify/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.lukesteuber.jankify;
+				PRODUCT_NAME = Jankify;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		65DBDC6D050F9BC75B84FFFC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.lukesteuber.jankify.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Jankify.app/Jankify";
+			};
+			name = Debug;
+		};
+		D6CEBC8FE8AE9102998E7B95 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 596T7J7FB6;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		10B3C469AE32EFE2A1AC2717 /* Build configuration list for PBXNativeTarget "Jankify" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				40EB240A09D8938223D5D43B /* Debug */,
+				1E1CE89A02D87C907375FF8A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		729C58E7292B73EC1380E7E9 /* Build configuration list for PBXNativeTarget "JankifyTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				65DBDC6D050F9BC75B84FFFC /* Debug */,
+				19D3B61917A1C9C3846F46E7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		A3A9D44DA5FF313B03688A8F /* Build configuration list for PBXProject "Jankify" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D6CEBC8FE8AE9102998E7B95 /* Debug */,
+				14B2EB9AEB9E0D0506C179EB /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 5FC244556D68728F3FD51E5A /* Project object */;
+}
