@@ -18,6 +18,7 @@
 		9613A47765F5D663CE8EBF88 /* JankifyWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5166A5A443C7CCFF4D829D61 /* JankifyWebView.swift */; };
 		B0F0BFE42F5B82CB97126ADE /* BundleContentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 889993F79861DB410EFB3934 /* BundleContentTests.swift */; };
 		C22D75F2B8ED75F9B74F7487 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C0093D0BAD33913D88C8175D /* Assets.xcassets */; };
+		E721E38C48FEB9B4EE0C54CC /* AppConfigurationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CD772F5184DFAB1457F9128 /* AppConfigurationTests.swift */; };
 		F706E18B819D4FE2A7C5C2F7 /* BridgeControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A2168EAF7D7BF6E2EAA26BA /* BridgeControllerTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -40,6 +41,7 @@
 
 /* Begin PBXFileReference section */
 		2130B3009F48E20CA3B6F5C6 /* JankifyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JankifyApp.swift; sourceTree = "<group>"; };
+		2CD772F5184DFAB1457F9128 /* AppConfigurationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfigurationTests.swift; sourceTree = "<group>"; };
 		33E71E9CFAEFB9F0303BCFE6 /* BundleContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundleContent.swift; sourceTree = "<group>"; };
 		4E474D50FDD932FEC6DD7A10 /* Jankify.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Jankify.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5166A5A443C7CCFF4D829D61 /* JankifyWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JankifyWebView.swift; sourceTree = "<group>"; };
@@ -113,6 +115,7 @@
 		C85B59FBCD3F7CCCBA01A28C /* JankifyTests */ = {
 			isa = PBXGroup;
 			children = (
+				2CD772F5184DFAB1457F9128 /* AppConfigurationTests.swift */,
 				7A2168EAF7D7BF6E2EAA26BA /* BridgeControllerTests.swift */,
 				56D9EFFD728EC1F2A536A8E0 /* BridgeMessageTests.swift */,
 				889993F79861DB410EFB3934 /* BundleContentTests.swift */,
@@ -239,6 +242,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E721E38C48FEB9B4EE0C54CC /* AppConfigurationTests.swift in Sources */,
 				F706E18B819D4FE2A7C5C2F7 /* BridgeControllerTests.swift in Sources */,
 				02C40EC16B4C1DECA06D5A14 /* BridgeMessageTests.swift in Sources */,
 				B0F0BFE42F5B82CB97126ADE /* BundleContentTests.swift in Sources */,
