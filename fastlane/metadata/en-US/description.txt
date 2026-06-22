@@ -1,0 +1,37 @@
+Jankify screws up your photos on purpose, and somehow makes them better.
+
+Feed it any picture and watch it fall apart into eight handmade looks: chunky pixels, a glowing Lite-Brite peg board, ASCII text, an emoji mosaic, ink cross-hatching, loose pen sketches, and shattered low-poly shards. Drag a few sliders, hit a button, export. That is the whole app.
+
+No AI. No "enhance" button. No cloud round-trip. Every pixel is wrecked by plain, honest math running entirely on your device.
+
+EIGHT WAYS TO BREAK A PICTURE
+
+- Pixel: blocky pixel art with optional retro palettes and quantized color
+- Lite Brite: your photo rebuilt as glowing pegs on a black board
+- ASCII: any image turned into text, light to dark
+- Emoji: a mosaic built from thousands of real emoji
+- Hatch: tonal pen-and-ink cross-hatching
+- Rough: loose, hand-drawn sketch outlines
+- Polygon and Voronoi: low-poly triangle and cell shattering
+
+EXPORT ANYTHING
+
+Save a crisp PNG, or pull clean SVG vectors out of most modes. Pixel mode alone exports as box-shadow CSS, an SVG, an HTML table, Unicode blocks, JSON, or plain text. ASCII copies straight to your clipboard.
+
+BUILT TO RESPECT YOU
+
+- Fully offline. Nothing you load ever leaves your phone.
+- No account, no sign-up, no tracking, no ads.
+- No data collected, full stop.
+- Universal app for iPhone and iPad.
+
+MADE FOR
+
+- Profile pictures and avatars with actual personality
+- Album art, stickers, and posters
+- Glitch, vaporwave, and lo-fi aesthetics
+- Anyone tired of every photo tool looking the same
+
+Pick a photo. Break it beautifully.
+
+Made by Luke Steuber.

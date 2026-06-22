@@ -1,0 +1,84 @@
+# Jankify App Store delivery lanes.
+# Auth: source ~/.appstoreconnect/env.sh first (central ASC API key).
+# The app record already exists (com.lukesteuber.jankify), so these lanes
+# never create it — they only update the listing.
+
+default_platform(:ios)
+
+API_KEY_JSON = File.expand_path("~/.appstoreconnect/api_key.json")
+
+def asc_key
+  require "json"
+  cfg = JSON.parse(File.read(API_KEY_JSON))
+  app_store_connect_api_key(
+    key_id: cfg["key_id"],
+    issuer_id: cfg["issuer_id"],
+    key_filepath: File.expand_path(cfg["key_filepath"]),
+    in_house: false
+  )
+end
+
+SHOTS = File.expand_path("screenshots", __dir__)
+
+platform :ios do
+  desc "Push text metadata only (no binary, no screenshots). Safe, no review."
+  lane :upload_listing do
+    deliver(
+      api_key: asc_key,
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      overwrite_screenshots: false,
+      force: true,
+      submit_for_review: false,
+      run_precheck_before_submit: false
+    )
+  end
+
+  desc "Push screenshots only (device class inferred from pixel dimensions)."
+  lane :upload_shots do
+    deliver(
+      api_key: asc_key,
+      skip_binary_upload: true,
+      skip_metadata: true,
+      screenshots_path: SHOTS,
+      overwrite_screenshots: true,
+      force: true,
+      submit_for_review: false,
+      run_precheck_before_submit: false
+    )
+  end
+
+  desc "Push metadata + screenshots, leave the version staged (NO submit)."
+  # NOTE: on a brand-new first version, deliver hits fastlane bug #20538
+  # (fetch_app_store_review_detail returns "No data") and aborts the metadata
+  # run. One-time fix: open App Store Connect → App Review Information, fill in
+  # the contact, and Save. After that this lane runs clean. Until then, push
+  # text with `upload_listing` and screenshots with `upload_shots` separately.
+  lane :stage do
+    deliver(
+      api_key: asc_key,
+      skip_binary_upload: true,
+      screenshots_path: SHOTS,
+      overwrite_screenshots: true,
+      force: true,
+      submit_for_review: false,
+      run_precheck_before_submit: false
+    )
+  end
+
+  desc "Print the current App Store listing state (version, name, screenshot counts)."
+  lane :status do
+    Spaceship::ConnectAPI.token = asc_key
+    app = Spaceship::ConnectAPI::App.find("com.lukesteuber.jankify")
+    UI.header("Jankify (#{app.id})")
+    version = app.get_edit_app_store_version(platform: "IOS")
+    UI.message("Edit version: #{version&.version_string} — #{version&.app_store_state}")
+    if version
+      version.get_app_store_version_localizations.each do |loc|
+        UI.message("  [#{loc.locale}] name set? #{!app.name.to_s.empty?}  desc #{loc.description.to_s.length} chars  keywords:#{loc.keywords}")
+        sets = loc.get_app_screenshot_sets
+        sets.each { |s| UI.message("    #{s.screenshot_display_type}: #{s.app_screenshots.count} shots") }
+      end
+    end
+  end
+end

@@ -1,0 +1,4 @@
+app_identifier("com.lukesteuber.jankify")
+apple_id("luke@lukesteuber.com")
+team_id("596T7J7FB6")
+# Issuer / API team are supplied via env (source ~/.appstoreconnect/env.sh).

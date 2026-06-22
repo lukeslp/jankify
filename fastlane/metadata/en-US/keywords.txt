@@ -1,0 +1,1 @@
+photo,effect,halftone,dither,lowpoly,retro,vaporwave,distort,8bit,filter,stipple,generative,lofi

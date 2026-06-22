@@ -11,3 +11,10 @@ xcuserdata/
 /brite-classic-bright.png
 /brite-neon-default.png
 /brite-classic-4x3.png
+
+# fastlane generated artifacts (keep Fastfile/Appfile/Deliverfile/metadata/screenshots)
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/*.html
+fastlane/.env
+fastlane/test_output/
