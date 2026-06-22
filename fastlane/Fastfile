@@ -66,9 +66,39 @@ platform :ios do
     )
   end
 
+  desc "Delete duplicate screenshots (same filename) left by flaky-API re-uploads."
+  lane :dedup_shots do
+    require "json"
+    cfg = JSON.parse(File.read(API_KEY_JSON))
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: cfg["key_id"], issuer_id: cfg["issuer_id"],
+      filepath: File.expand_path(cfg["key_filepath"]))
+    app = Spaceship::ConnectAPI::App.find("com.lukesteuber.jankify")
+    version = app.get_edit_app_store_version(platform: "IOS")
+    version.get_app_store_version_localizations.each do |loc|
+      loc.get_app_screenshot_sets.each do |set|
+        seen = {}
+        set.app_screenshots.each do |sc|
+          key = sc.file_name
+          if seen[key]
+            UI.message("  deleting duplicate #{set.screenshot_display_type}/#{key}")
+            sc.delete!
+          else
+            seen[key] = true
+          end
+        end
+      end
+    end
+    UI.success("dedup complete")
+  end
+
   desc "Print the current App Store listing state (version, name, screenshot counts)."
   lane :status do
-    Spaceship::ConnectAPI.token = asc_key
+    require "json"
+    cfg = JSON.parse(File.read(API_KEY_JSON))
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: cfg["key_id"], issuer_id: cfg["issuer_id"],
+      filepath: File.expand_path(cfg["key_filepath"]))
     app = Spaceship::ConnectAPI::App.find("com.lukesteuber.jankify")
     UI.header("Jankify (#{app.id})")
     version = app.get_edit_app_store_version(platform: "IOS")

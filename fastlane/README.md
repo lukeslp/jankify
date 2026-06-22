@@ -39,6 +39,22 @@ Push screenshots only (device class inferred from pixel dimensions).
 
 Push metadata + screenshots, leave the version staged (NO submit).
 
+### ios dedup_shots
+
+```sh
+[bundle exec] fastlane ios dedup_shots
+```
+
+Delete duplicate screenshots (same filename) left by flaky-API re-uploads.
+
+### ios status
+
+```sh
+[bundle exec] fastlane ios status
+```
+
+Print the current App Store listing state (version, name, screenshot counts).
+
 ----
 
 This README.md is auto-generated and will be re-generated every time [_fastlane_](https://fastlane.tools) is run.
