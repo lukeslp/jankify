@@ -495,6 +495,11 @@ input[type=file] {
     Reseed
   </button>
 
+  <button class="btn" id="random-btn" disabled title="Random mode + settings (surprise me)">
+    <i class="fa-solid fa-dice" aria-hidden="true"></i>
+    Random
+  </button>
+
   <button class="btn" id="download-png" disabled>
     <i class="fa-solid fa-image" aria-hidden="true"></i>
     PNG
@@ -530,7 +535,7 @@ input[type=file] {
       <div class="control">
         <label class="field-label" for="edge-sensitivity">
           <span>Edge sensitivity</span>
-          <span class="value" id="edge-sensitivity-value">60</span>
+          <span class="value" id="edge-sensitivity-value">60%</span>
         </label>
         <input type="range" id="edge-sensitivity" min="0" max="200" value="60" step="5">
         <div class="hint">Extra points on detected edges, as % of grid count.</div>
@@ -2231,6 +2236,7 @@ function enableExports(yes) {
   $("download-vector").disabled = !yes;
   $("copy-output").disabled = !yes;
   $("reseed-btn").disabled = !yes;
+  $("random-btn").disabled = !yes;
 }
 function updateModeVisibility() {
   document.querySelectorAll(".mode-section").forEach(section => {
@@ -2621,7 +2627,7 @@ function bindSlider(id, valueId, suffix) {
   });
 }
 bindSlider("cell-size", "cell-size-value");
-bindSlider("edge-sensitivity", "edge-sensitivity-value");
+bindSlider("edge-sensitivity", "edge-sensitivity-value", "%");
 bindSlider("max-dim", "max-dim-value", "px");
 bindSlider("emoji-window", "emoji-window-value", "px");
 bindSlider("emoji-scale", "emoji-scale-value", "px");
@@ -2730,11 +2736,115 @@ $("reseed-btn").addEventListener("click", () => {
   runPipeline();
 });
 
+// -----------------------------------------------------------------------------
+// Randomize
+// -----------------------------------------------------------------------------
+const RANDOM_RANGE = {
+  "cell-size": [14, 64],
+  "rough-cell": [16, 44],
+  "emoji-window": [4, 16],
+  "emoji-scale": [8, 22],
+  "ascii-cell": [6, 16],
+  "pixel-grid": [24, 128],
+  "pixel-display": [3, 16],
+  "pixel-quantize": [0, 64],
+  "hatch-spacing": [4, 14],
+  "brite-peg": [10, 28],
+};
+const RANDOM_SKIP = new Set(["ascii-ramp-custom", "pixel-format", "pixel-display", "max-dim"]);
+const RANDOM_MODES = ["pixel", "brite", "ascii", "emoji", "hatch", "rough", "polygon", "voronoi"];
+
+function randInt(lo, hi) { return lo + Math.floor(Math.random() * (hi - lo + 1)); }
+function randPick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function hslToHex(h, s, l) {
+  s /= 100; l /= 100;
+  const k = n => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  const to = n => Math.round(f(n) * 255).toString(16).padStart(2, "0");
+  return "#" + to(0) + to(8) + to(4);
+}
+function randColorFor(id) {
+  const h = randInt(0, 359), s = randInt(35, 90);
+  if (/paper|bg-color/.test(id)) return hslToHex(h, s, randInt(82, 96));
+  if (/ink|stroke-color|-fg$/.test(id)) return hslToHex(h, s, randInt(8, 28));
+  return hslToHex(h, s, randInt(30, 75));
+}
+
+function randomizeControl(el) {
+  if (!el || el.disabled || RANDOM_SKIP.has(el.id)) return;
+  if (el.type === "range") {
+    const step = parseFloat(el.step) || 1;
+    const [lo, hi] = RANDOM_RANGE[el.id] || [parseFloat(el.min), parseFloat(el.max)];
+    const steps = Math.max(0, Math.round((hi - lo) / step));
+    const dec = (String(step).split(".")[1] || "").length;
+    el.value = (lo + randInt(0, steps) * step).toFixed(dec);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  } else if (el.tagName === "SELECT") {
+    el.value = randPick([...el.options]).value;
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  } else if (el.type === "checkbox") {
+    el.checked = Math.random() < 0.5;
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  } else if (el.type === "color") {
+    el.value = randColorFor(el.id);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+}
+
+function randomizeSection(section) {
+  const seenRadio = new Set();
+  section.querySelectorAll("input, select").forEach(el => {
+    if (el.type === "radio") {
+      if (seenRadio.has(el.name)) return;
+      seenRadio.add(el.name);
+      const pick = randPick([...section.querySelectorAll(`input[type="radio"][name="${el.name}"]`)]);
+      pick.checked = true;
+      pick.dispatchEvent(new Event("change", { bubbles: true }));
+      return;
+    }
+    randomizeControl(el);
+  });
+}
+
+function randomizeCurrentMode() {
+  randomizing = true;
+  state.seed = (Math.random() * 2147483646 | 0) + 1;
+  document.querySelectorAll(".mode-section:not([hidden])").forEach(randomizeSection);
+  randomizing = false;
+  if (sourceImage) scheduleRun();
+}
+
+function randomizeEverything() {
+  const others = RANDOM_MODES.filter(m => m !== state.mode);
+  $("mode").value = randPick(others.length ? others : RANDOM_MODES);
+  $("mode").dispatchEvent(new Event("change", { bubbles: true }));
+  randomizeCurrentMode();
+}
+
+$("random-btn").addEventListener("click", randomizeEverything);
+
+document.querySelectorAll(".mode-section > h3").forEach(h3 => {
+  h3.style.display = "flex";
+  h3.style.alignItems = "center";
+  h3.style.justifyContent = "space-between";
+  h3.style.gap = "8px";
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "btn";
+  b.style.cssText = "font-size:12px;padding:4px 10px;font-weight:500";
+  b.title = "Randomize these settings";
+  b.innerHTML = `<i class="fa-solid fa-dice" aria-hidden="true"></i> Random`;
+  b.addEventListener("click", randomizeCurrentMode);
+  h3.appendChild(b);
+});
+
 $("download-png").addEventListener("click", () => {
   const canvas = $("canvas-area").querySelector("canvas");
   if (!canvas) return;
   const a = document.createElement("a");
-  a.download = `polygonize-${state.mode}-${state.seed}.png`;
+  a.download = `jankify-${state.mode}-${state.seed}.png`;
   a.href = canvas.toDataURL("image/png");
   a.click();
 });
@@ -2758,7 +2868,7 @@ $("download-vector").addEventListener("click", () => {
   } else return;
   const blob = new Blob([text], { type: mime });
   const a = document.createElement("a");
-  a.download = `polygonize-${state.mode}-${state.seed}.${ext}`;
+  a.download = `jankify-${state.mode}-${state.seed}.${ext}`;
   a.href = URL.createObjectURL(blob);
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
@@ -2783,6 +2893,7 @@ $("copy-output").addEventListener("click", async () => {
 });
 
 let debounceTimer = null;
+let randomizing = false;
 const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)");
 function scheduleRun() {
   clearTimeout(debounceTimer);
@@ -2790,6 +2901,7 @@ function scheduleRun() {
   debounceTimer = setTimeout(runPipeline, delay);
 }
 function rerenderOnly() {
+  if (randomizing) return;
   if (!sourceImage) return;
   const canvas = $("canvas-area").querySelector("canvas");
   if (!canvas) return;
