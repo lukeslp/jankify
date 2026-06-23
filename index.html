@@ -1823,6 +1823,252 @@ function imageToImageData(img, maxDim) {
 }
 
 // -----------------------------------------------------------------------------
+// LZW (GIF variant)
+// -----------------------------------------------------------------------------
+function lzwDecode(bytes, minCodeSize) {
+  const clear = 1 << minCodeSize;
+  const eoi = clear + 1;
+  let codeSize, dict, next;
+  const reset = () => {
+    codeSize = minCodeSize + 1;
+    dict = new Array(4096);
+    for (let i = 0; i < clear; i++) dict[i] = [i];
+    next = clear + 2;
+  };
+  reset();
+  const out = [];
+  let bitBuf = 0, bitCount = 0, pos = 0, prev = -1;
+  for (;;) {
+    while (bitCount < codeSize && pos < bytes.length) { bitBuf |= bytes[pos++] << bitCount; bitCount += 8; }
+    if (bitCount < codeSize) break;
+    const code = bitBuf & ((1 << codeSize) - 1);
+    bitBuf >>= codeSize; bitCount -= codeSize;
+    if (code === clear) { reset(); prev = -1; continue; }
+    if (code === eoi) break;
+    let entry;
+    if (prev === -1) {
+      entry = dict[code];
+    } else {
+      const prevEntry = dict[prev];
+      entry = (code < next && dict[code]) ? dict[code] : prevEntry.concat(prevEntry[0]);
+      if (next < 4096) {
+        dict[next++] = prevEntry.concat(entry[0]);
+        if (next === (1 << codeSize) - 1 && codeSize < 12) codeSize++;
+      }
+    }
+    for (let i = 0; i < entry.length; i++) out.push(entry[i]);
+    prev = code;
+  }
+  return Uint8Array.from(out);
+}
+
+function lzwEncode(indices, minCodeSize) {
+  const clear = 1 << minCodeSize;
+  const eoi = clear + 1;
+  let codeSize, dict, next;
+  const reset = () => {
+    codeSize = minCodeSize + 1;
+    dict = new Map();
+    for (let i = 0; i < clear; i++) dict.set(String(i), i);
+    next = clear + 2;
+  };
+  reset();
+  const out = [];
+  let bitBuf = 0, bitCount = 0;
+  const emit = code => {
+    bitBuf |= code << bitCount; bitCount += codeSize;
+    while (bitCount >= 8) { out.push(bitBuf & 0xff); bitBuf >>= 8; bitCount -= 8; }
+  };
+  emit(clear);
+  let w = "";
+  for (let i = 0; i < indices.length; i++) {
+    const k = indices[i];
+    const wk = w === "" ? String(k) : w + "," + k;
+    if (dict.has(wk)) { w = wk; continue; }
+    emit(dict.get(w));
+    if (next < 4096) {
+      dict.set(wk, next++);
+      if (next === (1 << codeSize) && codeSize < 12) codeSize++;
+    } else {
+      emit(clear); reset();
+    }
+    w = String(k);
+  }
+  if (w !== "") emit(dict.get(w));
+  emit(eoi);
+  if (bitCount > 0) out.push(bitBuf & 0xff);
+  return Uint8Array.from(out);
+}
+
+// -----------------------------------------------------------------------------
+// GIF decode (composites every frame to full-screen RGBA)
+// -----------------------------------------------------------------------------
+function deinterlace(h) {
+  const order = [];
+  const passes = [[0, 8], [4, 8], [2, 4], [1, 2]];
+  for (const pass of passes) for (let r = pass[0]; r < h; r += pass[1]) order.push(r);
+  return order;
+}
+
+function decodeGif(buffer) {
+  const b = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+  if (b[0] !== 0x47 || b[1] !== 0x49 || b[2] !== 0x46) throw new Error("not a GIF");
+  let p = 6;
+  const u16 = () => (b[p++] | (b[p++] << 8));
+  const width = u16(), height = u16();
+  const packed = b[p++]; p += 2;
+  const readCT = n => { const t = new Uint8Array(n * 3); for (let i = 0; i < n * 3; i++) t[i] = b[p++]; return t; };
+  const gct = (packed & 0x80) ? readCT(2 << (packed & 7)) : null;
+  const subBlocks = () => {
+    const parts = []; let n, len = 0;
+    while ((n = b[p++]) !== 0) { parts.push(b.subarray(p, p + n)); p += n; len += n; }
+    const out = new Uint8Array(len); let o = 0;
+    for (const s of parts) { out.set(s, o); o += s.length; }
+    return out;
+  };
+  const frames = [];
+  const screen = new Uint8ClampedArray(width * height * 4);
+  let delayMs = 100, disposal = 0, transparent = -1, saved = null;
+  for (;;) {
+    const block = b[p++];
+    if (block === 0x3b || block === undefined) break;
+    if (block === 0x21) {
+      const label = b[p++];
+      if (label === 0xf9) {
+        p++;
+        const flags = b[p++];
+        delayMs = u16() * 10;
+        const tIndex = b[p++]; p++;
+        disposal = (flags >> 2) & 7;
+        transparent = (flags & 1) ? tIndex : -1;
+      } else {
+        while (b[p] !== 0) p += b[p] + 1;
+        p++;
+      }
+      continue;
+    }
+    if (block === 0x2c) {
+      const fx = u16(), fy = u16(), fw = u16(), fh = u16();
+      const fp = b[p++];
+      const interlaced = !!(fp & 0x40);
+      const lct = (fp & 0x80) ? readCT(2 << (fp & 7)) : gct;
+      const minCode = b[p++];
+      const indices = lzwDecode(subBlocks(), minCode);
+      if (disposal === 3) saved = screen.slice();
+      const order = interlaced ? deinterlace(fh) : null;
+      for (let row = 0; row < fh; row++) {
+        const srcRow = order ? order[row] : row;
+        for (let col = 0; col < fw; col++) {
+          const idx = indices[srcRow * fw + col];
+          if (idx === transparent) continue;
+          const px = ((fy + row) * width + (fx + col)) * 4;
+          screen[px] = lct[idx * 3]; screen[px + 1] = lct[idx * 3 + 1]; screen[px + 2] = lct[idx * 3 + 2]; screen[px + 3] = 255;
+        }
+      }
+      frames.push({ data: screen.slice(), width, height, delayMs: delayMs || 100, disposal });
+      if (disposal === 2) {
+        for (let row = 0; row < fh; row++) for (let col = 0; col < fw; col++) {
+          const px = ((fy + row) * width + (fx + col)) * 4;
+          screen[px] = 0; screen[px + 1] = 0; screen[px + 2] = 0; screen[px + 3] = 0;
+        }
+      } else if (disposal === 3 && saved) { screen.set(saved); saved = null; }
+      transparent = -1;
+      continue;
+    }
+    break;
+  }
+  return { width, height, frames };
+}
+
+// -----------------------------------------------------------------------------
+// GIF encode (one global palette across all frames for temporal stability)
+// -----------------------------------------------------------------------------
+function gifQuantize(samples, maxColors) {
+  if (samples.length === 0) return [[0, 0, 0]];
+  let buckets = [samples];
+  while (buckets.length < maxColors) {
+    let bi = -1, brange = -1, baxis = 0;
+    for (let i = 0; i < buckets.length; i++) {
+      const bucket = buckets[i];
+      if (bucket.length < 2) continue;
+      const mn = [255, 255, 255], mx = [0, 0, 0];
+      for (const pt of bucket) for (let a = 0; a < 3; a++) { if (pt[a] < mn[a]) mn[a] = pt[a]; if (pt[a] > mx[a]) mx[a] = pt[a]; }
+      for (let a = 0; a < 3; a++) { const r = mx[a] - mn[a]; if (r > brange) { brange = r; bi = i; baxis = a; } }
+    }
+    if (bi === -1 || brange === 0) break;
+    const bucket = buckets[bi];
+    bucket.sort((x, y) => x[baxis] - y[baxis]);
+    const mid = bucket.length >> 1;
+    buckets[bi] = bucket.slice(0, mid);
+    buckets.push(bucket.slice(mid));
+  }
+  return buckets.filter(bk => bk.length).map(bk => {
+    let r = 0, g = 0, bl = 0;
+    for (const pt of bk) { r += pt[0]; g += pt[1]; bl += pt[2]; }
+    const n = bk.length;
+    return [Math.round(r / n), Math.round(g / n), Math.round(bl / n)];
+  });
+}
+
+function encodeGif(opts) {
+  const width = opts.width, height = opts.height, frames = opts.frames, loop = opts.loop || 0;
+  const samples = [];
+  let total = 0;
+  for (const f of frames) total += f.width * f.height;
+  const stride = Math.max(1, Math.floor(total / 24000));
+  let counter = 0;
+  for (const f of frames) {
+    const d = f.data;
+    for (let i = 0; i < d.length; i += 4) { if ((counter++ % stride) === 0) samples.push([d[i], d[i + 1], d[i + 2]]); }
+  }
+  let colors = gifQuantize(samples, 256);
+  if (colors.length < 2) colors = [[0, 0, 0], [255, 255, 255]];
+  const nearest = (r, g, bl) => {
+    let best = 0, bd = Infinity;
+    for (let i = 0; i < colors.length; i++) {
+      const dr = r - colors[i][0], dg = g - colors[i][1], db = bl - colors[i][2];
+      const dd = dr * dr + dg * dg + db * db;
+      if (dd < bd) { bd = dd; best = i; }
+    }
+    return best;
+  };
+  let bits = 1;
+  while ((1 << bits) < colors.length) bits++;
+  const ctEntries = 1 << bits;
+  const out = [];
+  const push = (...xs) => { for (const x of xs) out.push(x & 0xff); };
+  const u16 = v => push(v, v >> 8);
+  push(0x47, 0x49, 0x46, 0x38, 0x39, 0x61);
+  u16(width); u16(height);
+  push(0xf0 | (bits - 1)); push(0); push(0);
+  for (let i = 0; i < ctEntries; i++) {
+    const c = colors[i] || [0, 0, 0];
+    push(c[0], c[1], c[2]);
+  }
+  push(0x21, 0xff, 0x0b);
+  for (const ch of "NETSCAPE2.0") push(ch.charCodeAt(0));
+  push(0x03, 0x01); u16(loop); push(0);
+  const minCode = Math.max(2, bits);
+  for (const f of frames) {
+    const cs = Math.round((f.delayMs || 100) / 10);
+    push(0x21, 0xf9, 0x04, 0x00); u16(cs); push(0x00, 0x00);
+    push(0x2c); u16(0); u16(0); u16(width); u16(height); push(0x00);
+    push(minCode);
+    const idx = new Uint8Array(f.width * f.height);
+    for (let i = 0; i < idx.length; i++) idx[i] = nearest(f.data[i * 4], f.data[i * 4 + 1], f.data[i * 4 + 2]);
+    const data = lzwEncode(idx, minCode);
+    for (let i = 0; i < data.length; i += 255) {
+      const end = Math.min(i + 255, data.length);
+      push(end - i);
+      for (let j = i; j < end; j++) push(data[j]);
+    }
+    push(0x00);
+  }
+  push(0x3b);
+  return Uint8Array.from(out);
+}
+
+// -----------------------------------------------------------------------------
 // Pipeline
 // -----------------------------------------------------------------------------
 async function runPipeline() {
