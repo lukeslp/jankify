@@ -1643,7 +1643,7 @@ function renderBrite(canvas, briteGrid, glowPct) {
   const { caps, halos } = buildBriteSprites(briteGrid.pegSize);
   const haloHalf = halos[0].width / 2;
   const capHalf = caps[0].width / 2;
-  const additive = !reducedMotion?.matches;
+  const additive = !reducedMotion?.matches && !state.briteAnimating;
 
   if (glowPct > 0) {
     ctx.globalCompositeOperation = additive ? "lighter" : "source-over";
@@ -2105,8 +2105,118 @@ function clampDelays(frames, floorMs) {
 }
 
 // -----------------------------------------------------------------------------
+// Animation (GIF) pipeline — frame loop over the active render mode
+// -----------------------------------------------------------------------------
+const ANIM = {
+  MAX_DIM: 512,
+  MAX_FRAMES: 60,
+  DELAY_FLOOR_SAFE_MS: 500,
+  DELAY_FLOOR_HARD_MS: 333,
+  MODES: ["pixel", "brite", "ascii", "emoji", "hatch", "rough"],
+};
+let animState = { abort: false, lastGif: null, notice: "" };
+
+function frameToScaledImageData(frame, maxDim) {
+  const scale = Math.min(1, maxDim / Math.max(frame.width, frame.height));
+  const w = Math.max(1, Math.round(frame.width * scale));
+  const h = Math.max(1, Math.round(frame.height * scale));
+  const src = document.createElement("canvas");
+  src.width = frame.width; src.height = frame.height;
+  src.getContext("2d").putImageData(new ImageData(frame.data, frame.width, frame.height), 0, 0);
+  if (w === frame.width && h === frame.height) return src.getContext("2d").getImageData(0, 0, w, h);
+  const dst = document.createElement("canvas");
+  dst.width = w; dst.height = h;
+  const dctx = dst.getContext("2d");
+  dctx.imageSmoothingEnabled = true;
+  dctx.drawImage(src, 0, 0, w, h);
+  return dctx.getImageData(0, 0, w, h);
+}
+
+async function framesFromGif(file) {
+  const buf = await file.arrayBuffer();
+  const gif = decodeGif(buf);
+  if (!gif.frames.length) throw new Error("No frames found in that GIF");
+  return { width: gif.width, height: gif.height, frames: gif.frames };
+}
+
+function subsampleFrames(frames, cap) {
+  if (frames.length <= cap) return { frames, notice: "" };
+  const out = [];
+  const step = frames.length / cap;
+  for (let i = 0; i < cap; i++) out.push(frames[Math.floor(i * step)]);
+  return { frames: out, notice: `Trimmed ${frames.length}→${cap} frames to fit memory` };
+}
+
+function normalizeFrameSize(frames, w0, h0) {
+  return frames.map(fr => {
+    if (fr.width === w0 && fr.height === h0) return fr;
+    const tmp = document.createElement("canvas");
+    tmp.width = fr.width; tmp.height = fr.height;
+    tmp.getContext("2d").putImageData(new ImageData(fr.data, fr.width, fr.height), 0, 0);
+    const c = document.createElement("canvas");
+    c.width = w0; c.height = h0;
+    const cx = c.getContext("2d");
+    cx.drawImage(tmp, 0, 0, w0, h0);
+    return { data: cx.getImageData(0, 0, w0, h0).data, width: w0, height: h0, delayMs: fr.delayMs };
+  });
+}
+
+async function runAnimatedPipeline(source, options) {
+  options = options || {};
+  const mode = state.mode;
+  if (!ANIM.MODES.includes(mode)) throw new Error("Animation is not available for " + mode + " mode");
+  const sub = subsampleFrames(source.frames, ANIM.MAX_FRAMES);
+  animState.notice = sub.notice;
+  const captured = [];
+  state.briteAnimating = true;
+  try {
+    for (let i = 0; i < sub.frames.length; i++) {
+      if (animState.abort || (options.signal && options.signal.aborted)) throw new Error("aborted");
+      const f = sub.frames[i];
+      const imgData = frameToScaledImageData(f, ANIM.MAX_DIM);
+      state.imageData = imgData;
+      state.width = imgData.width;
+      state.height = imgData.height;
+      await runMode(mode);
+      const cv = $("canvas-area").querySelector("canvas");
+      const shot = cv.getContext("2d").getImageData(0, 0, cv.width, cv.height);
+      captured.push({ data: shot.data, width: cv.width, height: cv.height, delayMs: f.delayMs || Math.round(1000 / (options.fps || 12)) });
+      f.data = null;
+      showLoading(true, `Jankifying frame ${i + 1}/${sub.frames.length}…`, Math.round(100 * (i + 1) / sub.frames.length));
+      await nextFrame();
+    }
+  } finally {
+    state.briteAnimating = false;
+  }
+  const w0 = captured[0].width, h0 = captured[0].height;
+  const norm = normalizeFrameSize(captured, w0, h0);
+  let floor = options.floorMs || ANIM.DELAY_FLOOR_SAFE_MS;
+  let out = clampDelays(norm, floor);
+  let guard = 0;
+  while (analyzeFlash(out, 1000 / floor).maxFlashesPerSec > 3 && guard < 6) {
+    floor = Math.round(floor * 1.5);
+    out = clampDelays(norm, floor);
+    guard++;
+  }
+  const gifBytes = encodeGif({ width: w0, height: h0, frames: out, loop: 0 });
+  animState.lastGif = gifBytes;
+  return { gifBytes, frameCount: out.length, width: w0, height: h0, delayMs: out[0].delayMs, notice: animState.notice };
+}
+
+// -----------------------------------------------------------------------------
 // Pipeline
 // -----------------------------------------------------------------------------
+async function runMode(mode) {
+  if (mode === "polygon") await pipelinePolygon();
+  else if (mode === "voronoi") await pipelineVoronoi();
+  else if (mode === "emoji") await pipelineEmoji();
+  else if (mode === "ascii") await pipelineAscii();
+  else if (mode === "pixel") await pipelinePixel();
+  else if (mode === "brite") await pipelineBrite();
+  else if (mode === "hatch") await pipelineHatch();
+  else if (mode === "rough") await pipelineRough();
+}
+
 async function runPipeline() {
   if (!sourceImage) return;
   if (state.renderPending) return;
@@ -2118,14 +2228,7 @@ async function runPipeline() {
     state.imageData = imageToImageData(sourceImage, maxDim);
     state.width = state.imageData.width;
     state.height = state.imageData.height;
-    if (state.mode === "polygon")  await pipelinePolygon();
-    else if (state.mode === "voronoi") await pipelineVoronoi();
-    else if (state.mode === "emoji")   await pipelineEmoji();
-    else if (state.mode === "ascii")   await pipelineAscii();
-    else if (state.mode === "pixel")   await pipelinePixel();
-    else if (state.mode === "brite")   await pipelineBrite();
-    else if (state.mode === "hatch")   await pipelineHatch();
-    else if (state.mode === "rough")   await pipelineRough();
+    await runMode(state.mode);
     updateStatus();
     enableExports(true);
   } catch (err) {
