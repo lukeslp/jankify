@@ -508,6 +508,11 @@ input[type=file] {
     PNG
   </button>
 
+  <button class="btn" id="make-gif" disabled hidden title="Jankify every frame → GIF">
+    <i class="fa-solid fa-film" aria-hidden="true"></i>
+    GIF
+  </button>
+
   <button class="btn" id="download-vector" disabled>
     <i class="fa-solid fa-bezier-curve" aria-hidden="true"></i>
     <span id="download-vector-label">SVG</span>
@@ -935,6 +940,7 @@ input[type=file] {
     <div class="loading" id="loading" role="status" aria-live="polite">
       <div class="label" id="loading-label">Processing…</div>
       <div class="progress-bar"><div class="progress-bar-fill" id="progress-fill"></div></div>
+      <button class="btn" id="cancel-anim" hidden style="margin-top:12px;">Cancel</button>
     </div>
   </div>
 </main>
@@ -2635,6 +2641,7 @@ function updateModeVisibility() {
   $("download-vector-label").textContent = labelMap[state.mode] || "File";
   $("download-vector").hidden = state.mode === "brite";
   $("copy-output").hidden = !(state.mode === "ascii" || state.mode === "pixel" || state.mode === "emoji");
+  updateAnimAvailability();
 }
 
 // -----------------------------------------------------------------------------
@@ -2961,9 +2968,13 @@ $("mode").addEventListener("change", e => {
 async function handleIncomingFile(file) {
   if (!file || !file.type.startsWith("image/")) return;
   try {
+    const isGif = file.type === "image/gif" || /\.gif$/i.test(file.name || "");
+    state.sourceGifFile = isGif ? file : null;
+    state.lastGifBytes = null;
     sourceImage = await loadImageFile(file);
     state.seed = Date.now();
     await runPipeline();
+    updateAnimAvailability();
   } catch (err) {
     console.error(err);
     alert("Could not load: " + err.message);
@@ -2974,6 +2985,81 @@ $("file-input").addEventListener("change", async e => {
   await handleIncomingFile(e.target.files[0]);
   e.target.value = "";
 });
+
+function updateAnimAvailability() {
+  const btn = $("make-gif");
+  if (!btn) return;
+  const hasGif = !!state.sourceGifFile;
+  const supported = ANIM.MODES.includes(state.mode);
+  btn.hidden = !hasGif;
+  btn.disabled = !(hasGif && supported && !reducedMotion?.matches);
+  btn.title = !supported
+    ? "Animation isn't available for " + state.mode + " mode"
+    : (reducedMotion?.matches ? "Animation off — your system requests reduced motion" : "Jankify every frame → GIF");
+}
+
+let gifAck = null;
+function gifWarningGate() {
+  if (gifAck != null) return Promise.resolve(gifAck);
+  const modal = $("gif-warning");
+  return new Promise(resolve => {
+    const finish = val => {
+      modal.hidden = true;
+      $("gif-warning-safe").removeEventListener("click", onSafe);
+      $("gif-warning-fast").removeEventListener("click", onFast);
+      $("gif-warning-cancel").removeEventListener("click", onCancel);
+      resolve(val);
+    };
+    const onSafe = () => { gifAck = ANIM.DELAY_FLOOR_SAFE_MS; finish(gifAck); };
+    const onFast = () => { gifAck = ANIM.DELAY_FLOOR_HARD_MS; finish(gifAck); };
+    const onCancel = () => finish(null);
+    $("gif-warning-safe").addEventListener("click", onSafe);
+    $("gif-warning-fast").addEventListener("click", onFast);
+    $("gif-warning-cancel").addEventListener("click", onCancel);
+    modal.hidden = false;
+  });
+}
+
+function triggerGifDownload(bytes) {
+  const blob = new Blob([bytes], { type: "image/gif" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `jankify-${state.mode}-${state.seed}.gif`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+async function onMakeGif() {
+  if (!state.sourceGifFile || reducedMotion?.matches) return;
+  const floorMs = await gifWarningGate();
+  if (floorMs == null) return;
+  animState.abort = false;
+  $("make-gif").disabled = true;
+  $("cancel-anim").hidden = false;
+  showLoading(true, "Reading GIF…", 0);
+  try {
+    const src = await framesFromGif(state.sourceGifFile);
+    const result = await runAnimatedPipeline(src, { floorMs });
+    state.lastGifBytes = result.gifBytes;
+    triggerGifDownload(result.gifBytes);
+    let note = `GIF ready · ${result.frameCount} frames · ${result.width}×${result.height}px`;
+    if (result.notice) note += ` · ${result.notice}`;
+    $("status").textContent = note;
+  } catch (err) {
+    if (err.message !== "aborted") { console.error(err); alert("Could not make GIF: " + err.message); }
+  } finally {
+    $("cancel-anim").hidden = true;
+    showLoading(false);
+    updateAnimAvailability();
+    if (sourceImage) await runPipeline();
+  }
+}
+
+$("make-gif").addEventListener("click", onMakeGif);
+$("cancel-anim").addEventListener("click", () => { animState.abort = true; });
 
 const area = $("canvas-area");
 ["dragenter", "dragover"].forEach(evt => {
@@ -3316,5 +3402,16 @@ const EMOJI_SOURCE = "🧑🏻‍❤️‍💋‍🧑🏼,🧑🏻‍❤️‍�
 </script>
 <script data-goatcounter="https://stats.dr.eamer.dev/count"
         async src="https://stats.dr.eamer.dev/count.js"></script>
+<div id="gif-warning" role="dialog" aria-modal="true" aria-labelledby="gif-warning-title" hidden style="position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.62);">
+  <div style="max-width:430px;margin:18px;background:#16181d;color:#e9eaee;border:1px solid #2b2f37;border-radius:14px;padding:22px;box-shadow:0 18px 50px rgba(0,0,0,.55);">
+    <h2 id="gif-warning-title" style="margin:0 0 10px;font-size:1.08rem;">Make an animated GIF</h2>
+    <p style="margin:0 0 16px;font-size:.92rem;line-height:1.5;color:#b7bcc6;">Animated output flashes and loops. Flashing imagery can trigger seizures in people with photosensitive epilepsy. The safe speed keeps frames slow; the flash rate is checked and slowed automatically.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+      <button class="btn" id="gif-warning-cancel" type="button">Cancel</button>
+      <button class="btn" id="gif-warning-fast" type="button">Faster</button>
+      <button class="btn btn-primary" id="gif-warning-safe" type="button">Use safe speed</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
