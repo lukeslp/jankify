@@ -2069,6 +2069,42 @@ function encodeGif(opts) {
 }
 
 // -----------------------------------------------------------------------------
+// Animation safety (WCAG 2.3.1 flash analysis + frame-delay floor)
+// -----------------------------------------------------------------------------
+function frameLuma(frame) {
+  const d = frame.data;
+  const lin = c => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  let sum = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    sum += 0.2126 * lin(d[i] / 255) + 0.7152 * lin(d[i + 1] / 255) + 0.0722 * lin(d[i + 2] / 255);
+  }
+  return sum / (d.length / 4);
+}
+
+function analyzeFlash(frames, fps) {
+  if (frames.length < 2) return { maxFlashesPerSec: 0 };
+  const lumas = frames.map(frameLuma);
+  const n = lumas.length;
+  const transitions = [];
+  for (let i = 0; i < n; i++) {
+    const a = lumas[i], b = lumas[(i + 1) % n];
+    if (Math.abs(a - b) >= 0.1 && Math.max(a, b) >= 0.8) transitions.push(i);
+  }
+  const windowFrames = Math.max(1, Math.round(fps));
+  let worst = 0;
+  for (let i = 0; i < n; i++) {
+    let count = 0;
+    for (const t of transitions) { if (((t - i + n) % n) < windowFrames) count++; }
+    if (count > worst) worst = count;
+  }
+  return { maxFlashesPerSec: worst };
+}
+
+function clampDelays(frames, floorMs) {
+  return frames.map(f => f.delayMs < floorMs ? Object.assign({}, f, { delayMs: floorMs }) : f);
+}
+
+// -----------------------------------------------------------------------------
 // Pipeline
 // -----------------------------------------------------------------------------
 async function runPipeline() {
