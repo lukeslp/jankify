@@ -88,6 +88,7 @@ struct ExportPayload: Equatable {
 
     private static let allowedMIMETypes: Set<String> = [
         "application/json",
+        "image/gif",
         "image/png",
         "image/svg+xml",
         "text/css",

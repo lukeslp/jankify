@@ -70,6 +70,11 @@
     }, 1200);
   }
 
+  window.triggerGifDownload = async function(bytes) {
+    const blob = new Blob([bytes], { type: "image/gif" });
+    await shareBlob(blob, `jankify-${state.mode}-${state.seed}.gif`);
+  };
+
   document.addEventListener("click", async event => {
     const target = event.target.closest(
       'label[for="file-input"], #file-input, #download-png, #download-vector, #copy-output'

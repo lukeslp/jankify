@@ -60,6 +60,22 @@ final class BridgeMessageTests: XCTestCase {
         XCTAssertEqual(payload.safeFilename, "My-Jank-.svg")
     }
 
+    func testAcceptsGifMIMEType() throws {
+        let message = try BridgeMessage.decode([
+            "action": "share",
+            "payload": [
+                "filename": "jankify.gif",
+                "mimeType": "image/gif",
+                "base64": Data("GIF".utf8).base64EncodedString()
+            ]
+        ])
+
+        guard case let .share(payload) = message else {
+            return XCTFail("Expected a share message")
+        }
+        XCTAssertEqual(try payload.decodedData(), Data("GIF".utf8))
+    }
+
     func testRejectsExportsLargerThanFiftyMegabytes() throws {
         let oversized = Data(count: 50 * 1_024 * 1_024 + 1)
         let message = try BridgeMessage.decode([
