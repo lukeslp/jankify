@@ -16,6 +16,8 @@ import android.os.Bundle
 import android.os.Build
 import android.provider.OpenableColumns
 import android.webkit.JavascriptInterface
+import android.webkit.ValueCallback
+import android.webkit.WebChromeClient
 import android.webkit.MimeTypeMap
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -38,6 +40,7 @@ class MainActivity : Activity() {
     private lateinit var webView: WebView
     private val bridgeExecutor = Executors.newSingleThreadExecutor()
     private val backCallback = OnBackInvokedCallback(::handleBack)
+    private var filePathCallback: ValueCallback<Array<Uri>>? = null
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,6 +68,31 @@ class MainActivity : Activity() {
                 userAgentString = "$userAgentString JankifyAndroid/${BuildConfig.VERSION_NAME}"
             }
             webViewClient = OfflineWebViewClient()
+            webChromeClient = object : WebChromeClient() {
+                override fun onShowFileChooser(
+                    webView: WebView?,
+                    filePathCallback: ValueCallback<Array<Uri>>?,
+                    fileChooserParams: FileChooserParams?
+                ): Boolean {
+                    this@MainActivity.filePathCallback?.onReceiveValue(null)
+                    this@MainActivity.filePathCallback = filePathCallback
+                    val intent = fileChooserParams?.createIntent()
+                        ?: Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                            addCategory(Intent.CATEGORY_OPENABLE)
+                            type = "image/*"
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                    return runCatching {
+                        startActivityForResult(intent, FILE_CHOOSER_REQUEST)
+                        true
+                    }.getOrElse {
+                        this@MainActivity.filePathCallback = null
+                        filePathCallback?.onReceiveValue(null)
+                        showError(R.string.no_handler)
+                        false
+                    }
+                }
+            }
             addJavascriptInterface(NativeBridge(), BRIDGE_NAME)
         }
         setContentView(webView)
@@ -80,6 +108,17 @@ class MainActivity : Activity() {
     @Deprecated("Android callback required for the framework document picker")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == FILE_CHOOSER_REQUEST) {
+            val callback = filePathCallback
+            filePathCallback = null
+            val uris = if (resultCode == RESULT_OK) {
+                WebChromeClient.FileChooserParams.parseResult(resultCode, data)
+            } else {
+                null
+            }
+            callback?.onReceiveValue(uris)
+            return
+        }
         if (requestCode != PICK_IMAGE_REQUEST || resultCode != RESULT_OK) return
         val uri = data?.data ?: return
         bridgeExecutor.execute {
@@ -205,18 +244,18 @@ class MainActivity : Activity() {
     private inner class NativeBridge {
         @JavascriptInterface
         fun postMessage(message: String) {
-            if (webView.url != APP_URL) return
-            runCatching { BridgePolicy.decode(message) }
-                .onSuccess { decoded ->
-                    runOnUiThread {
+            runOnUiThread {
+                if (webView.url != APP_URL) return@runOnUiThread
+                runCatching { BridgePolicy.decode(message) }
+                    .onSuccess { decoded ->
                         when (decoded) {
                             BridgeMessage.PickImage -> pickImage()
                             is BridgeMessage.CopyText -> copyText(decoded.text)
                             is BridgeMessage.Share -> shareExport(decoded)
                         }
                     }
-                }
-                .onFailure { runOnUiThread { showError(R.string.action_failed) } }
+                    .onFailure { showError(R.string.action_failed) }
+            }
         }
     }
 
@@ -263,6 +302,7 @@ class MainActivity : Activity() {
         const val APP_URL = "https://$APP_HOST/assets/index.html"
         const val BRIDGE_NAME = "JankifyAndroid"
         const val PICK_IMAGE_REQUEST = 1001
+        const val FILE_CHOOSER_REQUEST = 1002
         val ALLOWED_ASSETS = setOf("index.html", "offline.css", "android-bridge.js")
     }
 }
