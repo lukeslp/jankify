@@ -1,4 +1,8 @@
-/* App-local replacements for the hosted font and icon stylesheets. */
+/*
+ * File Purpose: Replace hosted typography and icon styles in offline mobile bundles.
+ * Primary Functions: Provide system-font icon fallbacks for canonical Jankify controls.
+ * Inputs/Outputs: Matches Font Awesome class names and renders local Unicode symbols.
+ */
 .fa-solid {
   display: inline-block;
   width: 1.1em;

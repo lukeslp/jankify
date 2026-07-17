@@ -1,3 +1,8 @@
+/*
+ * File Purpose: Adapt Jankify's canonical web controls to the trusted iOS bridge.
+ * Primary Functions: Native photo picking, export sharing, GIF sharing, and clipboard writes.
+ * Inputs/Outputs: Receives DOM actions and native image callbacks; emits validated bridge messages.
+ */
 (() => {
   "use strict";
 

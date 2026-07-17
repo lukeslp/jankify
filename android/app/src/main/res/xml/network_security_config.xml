@@ -1,0 +1,12 @@
+<!--
+  File Purpose: Enforce encrypted traffic if the system opens any app-scoped URL.
+  Primary Functions: Deny cleartext transport and trust standard system certificates.
+  Inputs/Outputs: Consumed by Android networking policy; the WebView itself is offline-only.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

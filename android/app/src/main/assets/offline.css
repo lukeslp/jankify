@@ -1,0 +1,19 @@
+/*
+ * File Purpose: Replace hosted typography and icon styles in offline mobile bundles.
+ * Primary Functions: Provide system-font icon fallbacks for canonical Jankify controls.
+ * Inputs/Outputs: Matches Font Awesome class names and renders local Unicode symbols.
+ */
+.fa-solid {
+  display: inline-block;
+  width: 1.1em;
+  font-family: system-ui, sans-serif;
+  font-style: normal;
+  text-align: center;
+}
+.fa-upload::before, .fa-cloud-arrow-up::before { content: "\2191"; }
+.fa-image::before { content: "\25a3"; }
+.fa-bezier-curve::before { content: "\223f"; }
+.fa-clipboard::before { content: "\25a4"; }
+.fa-shuffle::before { content: "\21c4"; }
+.fa-check::before { content: "\2713"; }
+.fa-film::before { content: "\25a6"; }

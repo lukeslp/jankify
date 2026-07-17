@@ -1936,12 +1936,20 @@ function deinterlace(h) {
   return order;
 }
 
-function decodeGif(buffer) {
+function decodeGif(buffer, options) {
+  options = options || {};
   const b = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
   if (b[0] !== 0x47 || b[1] !== 0x49 || b[2] !== 0x46) throw new Error("not a GIF");
+  const maxFrames = Number.isFinite(options.maxFrames) ? Math.max(1, Math.floor(options.maxFrames)) : Infinity;
+  const maxDimension = Number.isFinite(options.maxDimension) ? Math.max(1, Math.floor(options.maxDimension)) : Infinity;
+  const maxDecodedBytes = Number.isFinite(options.maxDecodedBytes) ? Math.max(1, Math.floor(options.maxDecodedBytes)) : Infinity;
   let p = 6;
   const u16 = () => (b[p++] | (b[p++] << 8));
   const width = u16(), height = u16();
+  const screenBytes = width * height * 4;
+  if (!width || !height || !Number.isSafeInteger(screenBytes) || screenBytes > maxDecodedBytes) {
+    throw new Error("This GIF exceeds the decoded pixel budget. Choose a smaller image.");
+  }
   const packed = b[p++]; p += 2;
   const readCT = n => { const t = new Uint8Array(n * 3); for (let i = 0; i < n * 3; i++) t[i] = b[p++]; return t; };
   const gct = (packed & 0x80) ? readCT(2 << (packed & 7)) : null;
@@ -1953,7 +1961,33 @@ function decodeGif(buffer) {
     return out;
   };
   const frames = [];
+  const scale = Math.min(1, maxDimension / Math.max(width, height));
+  const retainedWidth = Math.max(1, Math.round(width * scale));
+  const retainedHeight = Math.max(1, Math.round(height * scale));
+  let retainedBytes = 0;
   const screen = new Uint8ClampedArray(width * height * 4);
+  const retainFrame = () => {
+    const bytes = retainedWidth * retainedHeight * 4;
+    // Account for the compositing screen and a possible disposal-method-3 snapshot.
+    if (retainedBytes + bytes + (screenBytes * 2) > maxDecodedBytes) {
+      throw new Error("This GIF exceeds the decoded pixel budget. Choose a shorter or smaller GIF.");
+    }
+    const data = new Uint8ClampedArray(bytes);
+    for (let y = 0; y < retainedHeight; y++) {
+      const sourceY = Math.min(height - 1, Math.floor(y * height / retainedHeight));
+      for (let x = 0; x < retainedWidth; x++) {
+        const sourceX = Math.min(width - 1, Math.floor(x * width / retainedWidth));
+        const sourceOffset = (sourceY * width + sourceX) * 4;
+        const targetOffset = (y * retainedWidth + x) * 4;
+        data[targetOffset] = screen[sourceOffset];
+        data[targetOffset + 1] = screen[sourceOffset + 1];
+        data[targetOffset + 2] = screen[sourceOffset + 2];
+        data[targetOffset + 3] = screen[sourceOffset + 3];
+      }
+    }
+    retainedBytes += bytes;
+    frames.push({ data, width: retainedWidth, height: retainedHeight, delayMs: delayMs || 100, disposal });
+  };
   let delayMs = 100, disposal = 0, transparent = -1, saved = null;
   for (;;) {
     const block = b[p++];
@@ -1974,6 +2008,7 @@ function decodeGif(buffer) {
       continue;
     }
     if (block === 0x2c) {
+      if (frames.length >= maxFrames) return { width, height, frames, truncated: true };
       const fx = u16(), fy = u16(), fw = u16(), fh = u16();
       const fp = b[p++];
       const interlaced = !!(fp & 0x40);
@@ -1991,7 +2026,7 @@ function decodeGif(buffer) {
           screen[px] = lct[idx * 3]; screen[px + 1] = lct[idx * 3 + 1]; screen[px + 2] = lct[idx * 3 + 2]; screen[px + 3] = 255;
         }
       }
-      frames.push({ data: screen.slice(), width, height, delayMs: delayMs || 100, disposal });
+      retainFrame();
       if (disposal === 2) {
         for (let row = 0; row < fh; row++) for (let col = 0; col < fw; col++) {
           const px = ((fy + row) * width + (fx + col)) * 4;
@@ -2003,7 +2038,7 @@ function decodeGif(buffer) {
     }
     break;
   }
-  return { width, height, frames };
+  return { width, height, frames, truncated: false };
 }
 
 // -----------------------------------------------------------------------------
@@ -2160,13 +2195,26 @@ function frameToScaledImageData(frame, maxDim) {
 
 async function framesFromGif(file) {
   const buf = await file.arrayBuffer();
-  const gif = decodeGif(buf);
+  const gif = decodeGif(buf, {
+    maxFrames: ANIM.MAX_FRAMES,
+    maxDimension: ANIM.MAX_DIM,
+    maxDecodedBytes: 64 * 1_024 * 1_024,
+  });
   if (!gif.frames.length) throw new Error("No frames found in that GIF");
-  return { width: gif.width, height: gif.height, frames: gif.frames };
+  if (gif.truncated) Object.defineProperty(gif.frames, "truncated", { value: true });
+  return {
+    width: gif.frames[0].width,
+    height: gif.frames[0].height,
+    frames: gif.frames,
+    truncated: gif.truncated,
+  };
 }
 
 function subsampleFrames(frames, cap) {
-  if (frames.length <= cap) return { frames, notice: "" };
+  if (frames.length <= cap) return {
+    frames,
+    notice: frames.truncated ? `Limited animation to ${cap} frames to fit memory` : "",
+  };
   const out = [];
   const step = frames.length / cap;
   for (let i = 0; i < cap; i++) out.push(frames[Math.floor(i * step)]);

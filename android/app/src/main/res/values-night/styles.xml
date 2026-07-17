@@ -1,0 +1,15 @@
+<!--
+  File Purpose: Provide dark system-bar colors for the Jankify Android shell.
+  Primary Functions: Match the bundled web app when Android uses dark mode.
+  Inputs/Outputs: Consumed in night mode; styles status and navigation bars.
+-->
+<resources>
+    <style name="Theme.Jankify" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:colorAccent">#E07A52</item>
+        <item name="android:navigationBarColor">#16140F</item>
+        <item name="android:statusBarColor">#1F1C16</item>
+    </style>
+</resources>

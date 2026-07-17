@@ -75,3 +75,49 @@ test("encode -> decode preserves a multi-color gradient frame within palette err
   }
   assert.ok(maxErr <= 8, "palette mapping error within tolerance, got " + maxErr);
 });
+
+test("decodeGif bounds retained high-frame GIFs at the requested cap", () => {
+  const frames = [
+    solidFrame(255, 0, 0, 100),
+    solidFrame(0, 255, 0, 100),
+    solidFrame(0, 0, 255, 100),
+  ];
+  const bytes = codec.encodeGif({ width: 2, height: 2, frames, loop: 0 });
+
+  const decoded = codec.decodeGif(bytes, { maxFrames: 2, maxDecodedBytes: 1_024 });
+
+  assert.strictEqual(decoded.frames.length, 2);
+  assert.strictEqual(decoded.truncated, true);
+  assert.deepStrictEqual(Array.from(decoded.frames[1].data.slice(0, 4)), [0, 255, 0, 255]);
+});
+
+test("decodeGif downscales frames before retaining them", () => {
+  const width = 8, height = 4;
+  const data = new Uint8ClampedArray(width * height * 4).fill(255);
+  const bytes = codec.encodeGif({
+    width,
+    height,
+    frames: [{ data, width, height, delayMs: 100 }],
+    loop: 0
+  });
+
+  const decoded = codec.decodeGif(bytes, { maxFrames: 1, maxDimension: 4, maxDecodedBytes: 1_024 });
+
+  assert.strictEqual(decoded.frames[0].width, 4);
+  assert.strictEqual(decoded.frames[0].height, 2);
+  assert.strictEqual(decoded.frames[0].data.byteLength, 32);
+});
+
+test("decodeGif rejects frames that exceed the decoded-pixel-byte budget", () => {
+  const bytes = codec.encodeGif({
+    width: 8,
+    height: 8,
+    frames: [solidFrame(255, 255, 255, 100)],
+    loop: 0
+  });
+
+  assert.throws(
+    () => codec.decodeGif(bytes, { maxFrames: 1, maxDecodedBytes: 128 }),
+    /decoded pixel budget/i
+  );
+});

@@ -1,0 +1,8 @@
+<!--
+  File Purpose: Restrict shared exports to Jankify's private cache directory.
+  Primary Functions: Grant temporary content URIs for files under cache/exports only.
+  Inputs/Outputs: Consumed by FileProvider; exposes no persistent or user files.
+-->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <cache-path name="exports" path="exports/" />
+</paths>
