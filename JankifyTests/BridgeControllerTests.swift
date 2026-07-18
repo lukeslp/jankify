@@ -66,4 +66,18 @@ final class BridgeControllerTests: XCTestCase {
         XCTAssertNil(controller.pendingClipboardText)
         XCTAssertFalse(controller.isPhotoPickerPresented)
     }
+
+    func testSniffedMIMETypeDetectsSupportedImageMagic() {
+        let gif89a = Data([0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x00])
+        let gif87a = Data([0x47, 0x49, 0x46, 0x38, 0x37, 0x61, 0x00])
+        let png = Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00])
+        let jpeg = Data([0xFF, 0xD8, 0xFF, 0xE0])
+        let unknown = Data([0x00, 0x01, 0x02, 0x03])
+
+        XCTAssertEqual(BridgeController.sniffedMIMEType(for: gif89a), "image/gif")
+        XCTAssertEqual(BridgeController.sniffedMIMEType(for: gif87a), "image/gif")
+        XCTAssertEqual(BridgeController.sniffedMIMEType(for: png), "image/png")
+        XCTAssertEqual(BridgeController.sniffedMIMEType(for: jpeg), "image/jpeg")
+        XCTAssertNil(BridgeController.sniffedMIMEType(for: unknown))
+    }
 }

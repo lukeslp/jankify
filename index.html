@@ -57,11 +57,13 @@
 
   Inputs
     Any browser-decodable image (JPEG, PNG, WebP, GIF, …)
+    Animated GIF sources unlock the GIF export button.
     Controls vary by mode — see sidebar.
 
   Outputs
     Inline canvas. Per-mode downloads (PNG always; SVG / TXT / CSS / HTML
     / JSON depending on mode). Clipboard copy for text outputs.
+    Animated GIF export: jankifies each source frame with the active mode.
 
   Run: open in any modern browser. No build, no server, no network at runtime.
 ================================================================================
@@ -519,7 +521,7 @@ input[type=file] {
     PNG
   </button>
 
-  <button class="btn" id="make-gif" disabled hidden title="Jankify every frame → GIF">
+  <button class="btn" id="make-gif" disabled hidden title="Jankify every frame of this GIF, then download" aria-label="Make animated GIF from every frame">
     <i class="fa-solid fa-film" aria-hidden="true"></i>
     GIF
   </button>
@@ -921,6 +923,17 @@ input[type=file] {
       </div>
     </div>
 
+    <!-- GIF SOURCE -->
+    <div id="gif-guide" hidden>
+      <hr class="divider">
+      <div class="control">
+        <div class="field-label"><span>Animated GIF</span></div>
+        <div class="hint">
+          Preview shows the first frame. Pick a mode (Pixel, Lite Brite, ASCII, Emoji, Hatch, or Rough), tweak settings, then press <strong>GIF</strong> in the header to jankify every frame and download a looping result. Polygon and Voronoi skip animation. Long GIFs are capped for memory; speed is checked for photosensitivity.
+        </div>
+      </div>
+    </div>
+
     <!-- UNIVERSAL -->
     <hr class="divider">
     <div class="control">
@@ -943,7 +956,8 @@ input[type=file] {
         Choose an image
       </span>
       <p class="hint-line hint-desktop">or drop one anywhere here · paste with <kbd>⌘ V</kbd></p>
-      <p class="hint-line hint-mobile">photos, screenshots, or take one with your camera</p>
+      <p class="hint-line hint-mobile">photos, screenshots, GIFs, or take one with your camera</p>
+      <p class="hint-line">Animated GIF in → jankify every frame → GIF out</p>
       <p class="modes-line">
         Pixel<span class="dot">·</span>Lite Brite<span class="dot">·</span>ASCII<span class="dot">·</span>Emoji<span class="dot">·</span>Hatch<span class="dot">·</span>Rough<span class="dot">·</span>Polygon<span class="dot">·</span>Voronoi
       </p>
@@ -958,10 +972,13 @@ input[type=file] {
 
 <div class="status" id="status" aria-live="polite">Ready. No image loaded.</div>
 
-<div id="gif-warning" role="dialog" aria-modal="true" aria-labelledby="gif-warning-title" hidden tabindex="-1">
+<div id="gif-warning" role="dialog" aria-modal="true" aria-labelledby="gif-warning-title" aria-describedby="gif-warning-desc" hidden tabindex="-1">
   <div style="max-width:430px;margin:18px;background:#16181d;color:#e9eaee;border:1px solid #2b2f37;border-radius:14px;padding:22px;box-shadow:0 18px 50px rgba(0,0,0,.55);">
     <h2 id="gif-warning-title" style="margin:0 0 10px;font-size:1.08rem;">Make an animated GIF</h2>
-    <p style="margin:0 0 16px;font-size:.92rem;line-height:1.5;color:#b7bcc6;">Animated output flashes and loops. Flashing imagery can trigger seizures in people with photosensitive epilepsy. The safe speed keeps frames slow; the flash rate is checked and slowed automatically.</p>
+    <div id="gif-warning-desc">
+      <p style="margin:0 0 12px;font-size:.92rem;line-height:1.5;color:#b7bcc6;">This runs your current mode on every frame of the source GIF, then packs the results into a looping download. Still-image PNG/SVG exports stay available separately.</p>
+      <p style="margin:0 0 16px;font-size:.92rem;line-height:1.5;color:#b7bcc6;">Animated output flashes and loops. Flashing imagery can trigger seizures in people with photosensitive epilepsy. The safe speed keeps frames slow; the flash rate is checked and slowed automatically.</p>
+    </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
       <button class="btn" id="gif-warning-cancel" type="button">Cancel</button>
       <button class="btn" id="gif-warning-fast" type="button">Faster</button>
@@ -1857,36 +1874,35 @@ function imageToImageData(img, maxDim) {
 function lzwDecode(bytes, minCodeSize) {
   const clear = 1 << minCodeSize;
   const eoi = clear + 1;
-  let codeSize, dict, next;
+  let codeSize = minCodeSize + 1;
+  let next = eoi + 1;
+  let dict = new Array(4096);
   const reset = () => {
     codeSize = minCodeSize + 1;
     dict = new Array(4096);
     for (let i = 0; i < clear; i++) dict[i] = [i];
-    next = clear + 2;
+    next = eoi + 1;
   };
   reset();
   const out = [];
-  let bitBuf = 0, bitCount = 0, pos = 0, prev = -1;
+  let bitBuf = 0, bitCount = 0, pos = 0, prev = null;
   for (;;) {
     while (bitCount < codeSize && pos < bytes.length) { bitBuf |= bytes[pos++] << bitCount; bitCount += 8; }
     if (bitCount < codeSize) break;
     const code = bitBuf & ((1 << codeSize) - 1);
     bitBuf >>= codeSize; bitCount -= codeSize;
-    if (code === clear) { reset(); prev = -1; continue; }
+    if (code === clear) { reset(); prev = null; continue; }
     if (code === eoi) break;
     let entry;
-    if (prev === -1) {
-      entry = dict[code];
-    } else {
-      const prevEntry = dict[prev];
-      entry = (code < next && dict[code]) ? dict[code] : prevEntry.concat(prevEntry[0]);
-      if (next < 4096) {
-        dict[next++] = prevEntry.concat(entry[0]);
-        if (next === (1 << codeSize) - 1 && codeSize < 12) codeSize++;
-      }
-    }
+    if (code < next && dict[code] !== undefined) entry = dict[code];
+    else if (prev) entry = prev.concat(prev[0]);
+    else break;
     for (let i = 0; i < entry.length; i++) out.push(entry[i]);
-    prev = code;
+    if (prev && next < 4096) {
+      dict[next++] = prev.concat(entry[0]);
+      if (next >= (1 << codeSize) && codeSize < 12) codeSize++;
+    }
+    prev = entry;
   }
   return Uint8Array.from(out);
 }
@@ -1894,36 +1910,39 @@ function lzwDecode(bytes, minCodeSize) {
 function lzwEncode(indices, minCodeSize) {
   const clear = 1 << minCodeSize;
   const eoi = clear + 1;
-  let codeSize, dict, next;
-  const reset = () => {
-    codeSize = minCodeSize + 1;
-    dict = new Map();
-    for (let i = 0; i < clear; i++) dict.set(String(i), i);
-    next = clear + 2;
-  };
-  reset();
+  let nextCode = eoi + 1;
+  let codeSize = minCodeSize + 1;
+  let table = new Map();
   const out = [];
   let bitBuf = 0, bitCount = 0;
   const emit = code => {
     bitBuf |= code << bitCount; bitCount += codeSize;
     while (bitCount >= 8) { out.push(bitBuf & 0xff); bitBuf >>= 8; bitCount -= 8; }
   };
-  emit(clear);
-  let w = "";
-  for (let i = 0; i < indices.length; i++) {
-    const k = indices[i];
-    const wk = w === "" ? String(k) : w + "," + k;
-    if (dict.has(wk)) { w = wk; continue; }
-    emit(dict.get(w));
-    if (next < 4096) {
-      dict.set(wk, next++);
-      if (next === (1 << codeSize) && codeSize < 12) codeSize++;
-    } else {
-      emit(clear); reset();
-    }
-    w = String(k);
+  if (!indices.length) {
+    emit(clear); emit(eoi);
+    if (bitCount > 0) out.push(bitBuf & 0xff);
+    return Uint8Array.from(out);
   }
-  if (w !== "") emit(dict.get(w));
+  emit(clear);
+  let prefix = indices[0];
+  for (let i = 1; i < indices.length; i++) {
+    const k = indices[i];
+    const key = prefix * 4096 + k;
+    if (table.has(key)) { prefix = table.get(key); continue; }
+    emit(prefix);
+    if (nextCode === 4096) {
+      emit(clear);
+      nextCode = eoi + 1;
+      codeSize = minCodeSize + 1;
+      table = new Map();
+    } else {
+      if (nextCode >= (1 << codeSize)) codeSize++;
+      table.set(key, nextCode++);
+    }
+    prefix = k;
+  }
+  emit(prefix);
   emit(eoi);
   if (bitCount > 0) out.push(bitBuf & 0xff);
   return Uint8Array.from(out);
@@ -2686,6 +2705,11 @@ function updateStatus() {
     msg += `  ·  ${m.cols}×${m.rows}  ·  ${state.roughGrid.length.toLocaleString()} shapes`;
   }
   msg += `  ·  seed ${state.seed}`;
+  if (state.sourceGifFile) {
+    msg += ANIM.MODES.includes(state.mode)
+      ? "  ·  GIF source — press GIF to animate"
+      : "  ·  GIF source — switch mode to animate";
+  }
   $("status").textContent = msg;
 }
 function showLoading(active, label, progress) {
@@ -3036,13 +3060,33 @@ $("mode").addEventListener("change", e => {
   if (sourceImage) scheduleRun();
 });
 
-async function handleIncomingFile(file) {
-  if (!file || !file.type.startsWith("image/")) return;
+async function fileLooksLikeGif(file) {
+  if (!file) return false;
+  if (file.type === "image/gif" || /\.gif$/i.test(file.name || "")) return true;
   try {
-    const isGif = file.type === "image/gif" || /\.gif$/i.test(file.name || "");
-    state.sourceGifFile = isGif ? file : null;
+    const head = new Uint8Array(await file.slice(0, 6).arrayBuffer());
+    return head.length >= 6
+      && head[0] === 0x47 && head[1] === 0x49 && head[2] === 0x46
+      && head[3] === 0x38 && (head[4] === 0x37 || head[4] === 0x39) && head[5] === 0x61;
+  } catch (_) {
+    return false;
+  }
+}
+
+async function handleIncomingFile(file) {
+  if (!file) return;
+  const isGif = await fileLooksLikeGif(file);
+  const namedImage = (file.type || "").startsWith("image/");
+  if (!namedImage && !isGif) return;
+  try {
+    let sourceFile = file;
+    if (isGif && (file.type !== "image/gif" || !/\.gif$/i.test(file.name || ""))) {
+      const base = String(file.name || "jankify-source").replace(/\.gif$/i, "") || "jankify-source";
+      sourceFile = new File([file], base + ".gif", { type: "image/gif" });
+    }
+    state.sourceGifFile = isGif ? sourceFile : null;
     state.lastGifBytes = null;
-    sourceImage = await loadImageFile(file);
+    sourceImage = await loadImageFile(sourceFile);
     state.seed = Date.now();
     await runPipeline();
     updateAnimAvailability();
@@ -3059,14 +3103,23 @@ $("file-input").addEventListener("change", async e => {
 
 function updateAnimAvailability() {
   const btn = $("make-gif");
+  const guide = $("gif-guide");
   if (!btn) return;
   const hasGif = !!state.sourceGifFile;
   const supported = ANIM.MODES.includes(state.mode);
   btn.hidden = !hasGif;
   btn.disabled = !(hasGif && supported && !reducedMotion?.matches);
-  btn.title = !supported
-    ? "Animation isn't available for " + state.mode + " mode"
-    : (reducedMotion?.matches ? "Animation off — your system requests reduced motion" : "Jankify every frame → GIF");
+  if (guide) guide.hidden = !hasGif;
+  if (!supported) {
+    btn.title = "Animation isn't available for " + state.mode + " mode — switch to Pixel, Lite Brite, ASCII, Emoji, Hatch, or Rough";
+    btn.setAttribute("aria-label", "Make GIF unavailable in " + state.mode + " mode");
+  } else if (reducedMotion?.matches) {
+    btn.title = "Animation off — your system requests reduced motion";
+    btn.setAttribute("aria-label", "Make GIF disabled because reduced motion is on");
+  } else {
+    btn.title = "Jankify every frame of this GIF, then download";
+    btn.setAttribute("aria-label", "Make animated GIF from every frame");
+  }
 }
 
 let gifAck = null;

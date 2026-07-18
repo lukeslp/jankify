@@ -44,13 +44,18 @@ final class BridgeController: ObservableObject {
             guard let data = try await item.loadTransferable(type: Data.self) else {
                 throw BridgeControllerError.imageDataUnavailable
             }
-            let mimeType = item.supportedContentTypes
+            let declared = item.supportedContentTypes
                 .compactMap(\.preferredMIMEType)
-                .first ?? "image/jpeg"
+                .first
+            let mimeType = Self.sniffedMIMEType(for: data) ?? declared ?? "image/jpeg"
             try await sendImage(data, mimeType: mimeType)
         } catch {
             errorMessage = "Could not load that image."
         }
+    }
+
+    static func sniffedMIMEType(for data: Data) -> String? {
+        ImageMIMETypeSniffer.mimeType(for: data)
     }
 
     func sendImage(_ data: Data, mimeType: String) async throws {
@@ -79,4 +84,23 @@ final class BridgeController: ObservableObject {
 enum BridgeControllerError: Error {
     case imageDataUnavailable
     case webViewUnavailable
+}
+
+enum ImageMIMETypeSniffer {
+    static func mimeType(for data: Data) -> String? {
+        if data.starts(with: [0x47, 0x49, 0x46, 0x38, 0x39, 0x61])
+            || data.starts(with: [0x47, 0x49, 0x46, 0x38, 0x37, 0x61]) {
+            return "image/gif"
+        }
+
+        if data.starts(with: [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]) {
+            return "image/png"
+        }
+
+        if data.starts(with: [0xFF, 0xD8, 0xFF]) {
+            return "image/jpeg"
+        }
+
+        return nil
+    }
 }

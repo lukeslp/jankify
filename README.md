@@ -6,6 +6,16 @@ Jankify transforms photos into pixel art, Lite Brite boards, ASCII, emoji mosaic
 
 Open `index.html` in a modern browser. No package installation or build step is required.
 
+### Animated GIF
+
+1. Upload an animated GIF (still images use PNG/SVG/etc. as usual).
+2. The canvas shows the first frame; a sidebar note and header **GIF** button appear.
+3. Choose Pixel, Lite Brite, ASCII, Emoji, Hatch, or Rough (Polygon and Voronoi are still-only).
+4. Press **GIF**, pick a playback speed in the photosensitivity dialog, and wait while each frame is processed.
+5. The looping result downloads in the browser, or opens the share sheet on iOS/Android.
+
+Long GIFs are trimmed/downscaled for memory; frame delay is floored and checked against flash limits.
+
 ## Synchronize mobile web assets
 
 After changing `index.html`, `Jankify/Resources/Web/offline.css`, or either native bridge, run:

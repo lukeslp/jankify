@@ -17,7 +17,12 @@
     const binary = atob(base64);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-    const file = new File([bytes], "jankify-source", { type: mimeType });
+    const isGif = mimeType === "image/gif"
+      || (bytes.length >= 6
+        && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46
+        && bytes[3] === 0x38 && (bytes[4] === 0x37 || bytes[4] === 0x39) && bytes[5] === 0x61);
+    const type = isGif ? "image/gif" : (mimeType || "application/octet-stream");
+    const file = new File([bytes], isGif ? "jankify-source.gif" : "jankify-source", { type });
     await handleIncomingFile(file);
   };
 
