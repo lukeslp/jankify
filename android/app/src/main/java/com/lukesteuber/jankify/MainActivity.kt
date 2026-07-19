@@ -123,6 +123,7 @@ class MainActivity : Activity() {
             )
         }
         webView.loadUrl(APP_URL)
+        DirectUpdateChecker.check(this)
     }
 
     @Deprecated("Android callback required for the framework document picker")
