@@ -47,7 +47,23 @@ test -f "$aab"
 
 build_tools="$HOME/Library/Android/sdk/build-tools/36.0.0"
 "$build_tools/apksigner" verify --verbose "$apk"
-jarsigner -verify -strict "$aab" >/dev/null
+aab_verification=$(mktemp)
+trap 'rm -f "$aab_verification"' EXIT
+set +e
+jarsigner -verify -strict "$aab" >"$aab_verification" 2>&1
+aab_status=$?
+set -e
+# Self-signed portfolio certificates make jarsigner return 4 for certificate
+# chain warnings even when every bundle entry is signed. Reject any other
+# status and still require jarsigner's explicit success marker.
+if [ "$aab_status" -ne 0 ] && [ "$aab_status" -ne 4 ]; then
+  cat "$aab_verification" >&2
+  exit "$aab_status"
+fi
+grep -q "^jar verified" "$aab_verification" || {
+  cat "$aab_verification" >&2
+  exit 1
+}
 
 mkdir -p "$stage_dir"
 cp "$apk" "$stage_dir/Jankify-$version.apk"

@@ -42,7 +42,9 @@ node --test JankifyTests/ios-bridge.test.js
 
 ## Android
 
-Android build is in testing. No signed APK is available yet.
+Android builds are distributed directly from the project download page. Release
+artifacts use the established Jankify signing identity and are verified before
+publication.
 
 Requirements:
 
