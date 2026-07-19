@@ -26,7 +26,17 @@ class BridgePolicyTest {
     fun allowsOnlyCanonicalExportMimeTypes() {
         assertTrue("image/png" in BridgePolicy.allowedMimeTypes)
         assertTrue("image/gif" in BridgePolicy.allowedMimeTypes)
+        assertTrue("video/mp4" in BridgePolicy.allowedMimeTypes)
+        assertTrue("video/webm" in BridgePolicy.allowedMimeTypes)
         assertFalse("application/vnd.android.package-archive" in BridgePolicy.allowedMimeTypes)
+    }
+
+    @Test
+    fun importPolicyAcceptsImagesAndVideosOnly() {
+        assertTrue(BridgePolicy.isAllowedImportMimeType("image/gif"))
+        assertTrue(BridgePolicy.isAllowedImportMimeType("video/mp4"))
+        assertTrue(BridgePolicy.isAllowedImportMimeType("video/quicktime"))
+        assertFalse(BridgePolicy.isAllowedImportMimeType("application/pdf"))
     }
 
     @Test

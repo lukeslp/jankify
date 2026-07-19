@@ -19,8 +19,13 @@ internal object BridgePolicy {
         "image/svg+xml",
         "text/css",
         "text/html",
-        "text/plain"
+        "text/plain",
+        "video/mp4",
+        "video/webm"
     )
+
+    fun isAllowedImportMimeType(mimeType: String): Boolean =
+        mimeType.startsWith("image/") || mimeType.startsWith("video/")
 
     fun safeFilename(filename: String): String {
         val leaf = filename.substringAfterLast('/').substringAfterLast('\\')

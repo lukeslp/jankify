@@ -68,3 +68,42 @@ test("Hatch SVG uses the native share bridge", async () => {
 test("Rough SVG uses the native share bridge", async () => {
   assert.equal(await exportedTextFor("rough"), "<svg>rough</svg>");
 });
+
+test("Animation downloads use native sharing with canonical video MIME types", async () => {
+  const messages = [];
+  const sandbox = {
+    Blob,
+    File: class {},
+    Uint8Array,
+    atob,
+    alert: message => assert.fail(message),
+    handleIncomingFile: async () => {},
+    state: { mode: "pixel", seed: 42 },
+    document: { addEventListener() {} },
+    window: {
+      webkit: {
+        messageHandlers: {
+          jankify: { postMessage: message => messages.push(message) }
+        }
+      }
+    },
+    FileReader: class {
+      readAsDataURL(blob) {
+        blob.arrayBuffer().then(buffer => {
+          this.result = `data:${blob.type};base64,${Buffer.from(buffer).toString("base64")}`;
+          this.onload();
+        });
+      }
+    }
+  };
+
+  vm.runInNewContext(bridgeSource, sandbox);
+  await vm.runInNewContext(
+    "window.downloadBlob(new Blob(['video'], { type: 'video/webm;codecs=vp9' }), 'jankify.webm')",
+    sandbox
+  );
+
+  assert.equal(messages[0].action, "share");
+  assert.equal(messages[0].payload.mimeType, "video/webm");
+  assert.equal(messages[0].payload.filename, "jankify.webm");
+});

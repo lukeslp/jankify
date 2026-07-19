@@ -38,27 +38,34 @@ final class BridgeController: ObservableObject {
         }
     }
 
-    func importPhoto(_ item: PhotosPickerItem?) async {
+    func importMedia(_ item: PhotosPickerItem?) async {
         guard let item else { return }
         do {
             guard let data = try await item.loadTransferable(type: Data.self) else {
-                throw BridgeControllerError.imageDataUnavailable
+                throw BridgeControllerError.mediaDataUnavailable
             }
             let declared = item.supportedContentTypes
                 .compactMap(\.preferredMIMEType)
                 .first
             let mimeType = Self.sniffedMIMEType(for: data) ?? declared ?? "image/jpeg"
-            try await sendImage(data, mimeType: mimeType)
+            guard Self.isSupportedImportMIMEType(mimeType) else {
+                throw BridgeControllerError.unsupportedMediaType
+            }
+            try await sendMedia(data, mimeType: mimeType)
         } catch {
-            errorMessage = "Could not load that image."
+            errorMessage = "Could not load that photo or video."
         }
+    }
+
+    static func isSupportedImportMIMEType(_ mimeType: String) -> Bool {
+        mimeType.hasPrefix("image/") || mimeType.hasPrefix("video/")
     }
 
     static func sniffedMIMEType(for data: Data) -> String? {
         ImageMIMETypeSniffer.mimeType(for: data)
     }
 
-    func sendImage(_ data: Data, mimeType: String) async throws {
+    func sendMedia(_ data: Data, mimeType: String) async throws {
         guard let webView else {
             throw BridgeControllerError.webViewUnavailable
         }
@@ -82,7 +89,8 @@ final class BridgeController: ObservableObject {
 }
 
 enum BridgeControllerError: Error {
-    case imageDataUnavailable
+    case mediaDataUnavailable
+    case unsupportedMediaType
     case webViewUnavailable
 }
 

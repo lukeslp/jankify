@@ -56,14 +56,15 @@
     runPipeline                                         Orchestrator
 
   Inputs
-    Any browser-decodable image (JPEG, PNG, WebP, GIF, …)
-    Animated GIF sources unlock the GIF export button.
+    Any browser-decodable image or video (JPEG, PNG, WebP, GIF, MP4, MOV, …)
+    Animated GIF and video sources unlock animation asset exports.
     Controls vary by mode — see sidebar.
 
   Outputs
     Inline canvas. Per-mode downloads (PNG always; SVG / TXT / CSS / HTML
     / JSON depending on mode). Clipboard copy for text outputs.
-    Animated GIF export: jankifies each source frame with the active mode.
+    Animation exports: looping GIF, PNG sprite sheet, and browser-recorded video.
+    Video sources are sampled locally; no media is uploaded.
 
   Run: open in any modern browser. No build, no server, no network at runtime.
 ================================================================================
@@ -94,6 +95,7 @@
   }
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { margin: 0; padding: 0; height: 100%; }
 body {
   font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
@@ -438,6 +440,11 @@ input[type=range]::-moz-range-thumb {
 }
 .loading.active { display: flex; }
 .loading .label { font-size: 14px; font-weight: 500; }
+.loading .detail {
+  min-height: 1.2em;
+  color: rgba(255,255,255,0.78);
+  font: 12px/1.4 "IBM Plex Mono", monospace;
+}
 .loading .progress-bar {
   width: 220px; height: 3px;
   background: rgba(255,255,255,0.2);
@@ -501,7 +508,7 @@ input[type=file] {
     <i class="fa-solid fa-upload" aria-hidden="true"></i>
     <span id="upload-btn-label">Upload</span>
   </label>
-  <input type="file" id="file-input" accept="image/*" aria-label="Choose an image">
+  <input type="file" id="file-input" accept="image/*,video/*,.mp4,.mov,.m4v,.webm" aria-label="Choose a photo, animated GIF, or video from your device">
 
   <button class="btn" id="reseed-btn" disabled title="Re-randomize">
     <i class="fa-solid fa-shuffle" aria-hidden="true"></i>
@@ -521,6 +528,16 @@ input[type=file] {
   <button class="btn" id="make-gif" disabled hidden title="Jankify every frame of this GIF, then download" aria-label="Make animated GIF from every frame">
     <i class="fa-solid fa-film" aria-hidden="true"></i>
     GIF
+  </button>
+
+  <button class="btn" id="make-sheet" disabled hidden title="Export processed frames as a sprite sheet" aria-label="Make a sprite sheet from processed frames">
+    <i class="fa-solid fa-border-all" aria-hidden="true"></i>
+    Sheet
+  </button>
+
+  <button class="btn" id="make-video" disabled hidden title="Export processed frames as a video" aria-label="Make a video from processed frames">
+    <i class="fa-solid fa-video" aria-hidden="true"></i>
+    Video
   </button>
 
   <button class="btn" id="download-vector" disabled>
@@ -920,14 +937,37 @@ input[type=file] {
       </div>
     </div>
 
-    <!-- GIF SOURCE -->
-    <div id="gif-guide" hidden>
+    <!-- ANIMATED SOURCE -->
+    <div id="animation-guide" hidden>
       <hr class="divider">
       <div class="control">
-        <div class="field-label"><span>Animated GIF</span></div>
+        <div class="field-label"><span>Animation workshop</span></div>
         <div class="hint">
-          Preview shows the first frame. Pick a mode (Pixel, Lite Brite, ASCII, Emoji, Hatch, or Rough), tweak settings, then press <strong>GIF</strong> in the header to jankify every frame and download a looping result. Polygon and Voronoi skip animation. Long GIFs are capped for memory; speed is checked for photosensitivity.
+          Preview shows the first frame. Tune it, then export a looping GIF, a game-ready PNG sprite sheet, or a video when your browser supports recording. Pixel, Lite Brite, ASCII, Emoji, Hatch, and Rough support animation.
         </div>
+      </div>
+      <div class="control" id="clip-seconds-control">
+        <label class="field-label" for="clip-seconds">
+          <span>Animation length</span>
+          <span class="value" id="clip-seconds-value">6s</span>
+        </label>
+        <input type="range" id="clip-seconds" min="1" max="10" value="6" step="1">
+        <div class="hint">Uses the first seconds of an uploaded GIF or video. Trim on your phone first to choose a different moment.</div>
+      </div>
+      <div class="control">
+        <label class="field-label" for="animation-fps">
+          <span>Frames per second</span>
+          <span class="value" id="animation-fps-value">12 fps</span>
+        </label>
+        <input type="range" id="animation-fps" min="2" max="30" value="12" step="1">
+        <div class="hint">More frames look smoother but take longer and make larger files.</div>
+      </div>
+      <div class="control">
+        <label class="field-label" for="sheet-columns">
+          <span>Sheet columns</span>
+          <span class="value" id="sheet-columns-value">6</span>
+        </label>
+        <input type="range" id="sheet-columns" min="1" max="10" value="6" step="1">
       </div>
     </div>
 
@@ -947,14 +987,14 @@ input[type=file] {
   <div class="canvas-area" id="canvas-area">
     <label class="placeholder" id="placeholder" for="file-input">
       <span class="icon" aria-hidden="true"><i class="fa-solid fa-cloud-arrow-up"></i></span>
-      <h2>Add an image to jankify</h2>
+      <h2>Add a photo or video to jankify</h2>
       <span class="cta">
         <i class="fa-solid fa-image" aria-hidden="true"></i>
-        Choose an image
+        Choose media
       </span>
       <p class="hint-line hint-desktop">or drop one anywhere here · paste with <kbd>⌘ V</kbd></p>
-      <p class="hint-line hint-mobile">photos, screenshots, GIFs, or take one with your camera</p>
-      <p class="hint-line">Animated GIF in → jankify every frame → GIF out</p>
+      <p class="hint-line hint-mobile">photos, screenshots, GIFs, or videos from your camera roll</p>
+      <p class="hint-line">Video or GIF in → animated GIF, sprite sheet, or video out</p>
       <p class="modes-line">
         Pixel<span class="dot">·</span>Lite Brite<span class="dot">·</span>ASCII<span class="dot">·</span>Emoji<span class="dot">·</span>Hatch<span class="dot">·</span>Rough<span class="dot">·</span>Polygon<span class="dot">·</span>Voronoi
       </p>
@@ -962,6 +1002,7 @@ input[type=file] {
     <div class="loading" id="loading" role="status" aria-live="polite">
       <div class="label" id="loading-label">Processing…</div>
       <div class="progress-bar"><div class="progress-bar-fill" id="progress-fill"></div></div>
+      <div class="detail" id="loading-detail">0% · 0s</div>
       <button class="btn" id="cancel-anim" hidden style="margin-top:12px;">Cancel</button>
     </div>
   </div>
@@ -971,15 +1012,15 @@ input[type=file] {
 
 <div id="gif-warning" role="dialog" aria-modal="true" aria-labelledby="gif-warning-title" aria-describedby="gif-warning-desc" hidden tabindex="-1">
   <div style="max-width:430px;margin:18px;background:#16181d;color:#e9eaee;border:1px solid #2b2f37;border-radius:14px;padding:22px;box-shadow:0 18px 50px rgba(0,0,0,.55);">
-    <h2 id="gif-warning-title" style="margin:0 0 10px;font-size:1.08rem;">Make an animated GIF</h2>
+    <h2 id="gif-warning-title" style="margin:0 0 10px;font-size:1.08rem;">Make animated media</h2>
     <div id="gif-warning-desc">
-      <p style="margin:0 0 12px;font-size:.92rem;line-height:1.5;color:#b7bcc6;">This runs your current mode on every frame of the source GIF, then packs the results into a looping download. Still-image PNG/SVG exports stay available separately.</p>
+      <p style="margin:0 0 12px;font-size:.92rem;line-height:1.5;color:#b7bcc6;">This runs your current mode on sampled frames from the source, then packs the results into your chosen animation asset. Still-image exports stay available separately.</p>
       <p style="margin:0 0 16px;font-size:.92rem;line-height:1.5;color:#b7bcc6;">Animated output flashes and loops. Flashing imagery can trigger seizures in people with photosensitive epilepsy. The safe speed keeps frames slow; the flash rate is checked and slowed automatically.</p>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
       <button class="btn" id="gif-warning-cancel" type="button">Cancel</button>
-      <button class="btn" id="gif-warning-fast" type="button">Faster</button>
-      <button class="btn btn-primary" id="gif-warning-safe" type="button">Use safe speed</button>
+      <button class="btn" id="gif-warning-fast" type="button">Keep source speed</button>
+      <button class="btn btn-primary" id="gif-warning-safe" type="button">Use safer speed</button>
     </div>
   </div>
 </div>
@@ -1017,6 +1058,8 @@ const state = {
 
   seed: Date.now(),
   renderPending: false,
+  sourceAnimation: null,
+  lastAnimationFrames: null,
 };
 
 let sourceImage = null;
@@ -1855,9 +1898,16 @@ function loadImageFile(file) {
   });
 }
 function imageToImageData(img, maxDim) {
-  const scale = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight));
-  const w = Math.max(1, Math.round(img.naturalWidth * scale));
-  const h = Math.max(1, Math.round(img.naturalHeight * scale));
+  // HTMLImageElement exposes intrinsic dimensions as naturalWidth/Height;
+  // canvas-backed video previews expose width/height instead.
+  const sourceWidth = img.naturalWidth || img.videoWidth || img.width;
+  const sourceHeight = img.naturalHeight || img.videoHeight || img.height;
+  if (!Number.isFinite(sourceWidth) || !Number.isFinite(sourceHeight) || sourceWidth <= 0 || sourceHeight <= 0) {
+    throw new Error("Source media has no readable dimensions");
+  }
+  const scale = Math.min(1, maxDim / Math.max(sourceWidth, sourceHeight));
+  const w = Math.max(1, Math.round(sourceWidth * scale));
+  const h = Math.max(1, Math.round(sourceHeight * scale));
   const c = document.createElement("canvas");
   c.width = w; c.height = h;
   const cx = c.getContext("2d");
@@ -2188,13 +2238,19 @@ function clampDelays(frames, floorMs) {
 // Animation (GIF) pipeline — frame loop over the active render mode
 // -----------------------------------------------------------------------------
 const ANIM = {
-  MAX_DIM: 512,
-  MAX_FRAMES: 60,
-  DELAY_FLOOR_SAFE_MS: 500,
-  DELAY_FLOOR_HARD_MS: 333,
+  MAX_DIM: 640,
+  MAX_FRAMES: 300,
+  MAX_VIDEO_SECONDS: 10,
+  DELAY_FLOOR_SAFE_MS: 167,
   MODES: ["pixel", "brite", "ascii", "emoji", "hatch", "rough"],
 };
 let animState = { abort: false, lastGif: null, notice: "" };
+
+function animationFrameBudget() {
+  const fps = parseInt($("animation-fps").value, 10) || 12;
+  const seconds = parseInt($("clip-seconds").value, 10) || 6;
+  return Math.max(1, Math.min(ANIM.MAX_FRAMES, Math.ceil(fps * seconds)));
+}
 
 function frameToScaledImageData(frame, maxDim) {
   const scale = Math.min(1, maxDim / Math.max(frame.width, frame.height));
@@ -2213,26 +2269,123 @@ function frameToScaledImageData(frame, maxDim) {
 }
 
 async function framesFromGif(file) {
+  showLoading(true, "Loading GIF data…", 5);
+  await nextFrame();
   const buf = await file.arrayBuffer();
+  showLoading(true, "Decoding GIF frames…", 15);
+  await nextFrame();
   const gif = decodeGif(buf, {
-    maxFrames: ANIM.MAX_FRAMES,
+    maxFrames: animationFrameBudget(),
     maxDimension: ANIM.MAX_DIM,
-    maxDecodedBytes: 64 * 1_024 * 1_024,
+    maxDecodedBytes: 256 * 1_024 * 1_024,
   });
   if (!gif.frames.length) throw new Error("No frames found in that GIF");
-  if (gif.truncated) Object.defineProperty(gif.frames, "truncated", { value: true });
+  const limitMs = parseInt($("clip-seconds").value, 10) * 1000;
+  let elapsed = 0;
+  const limited = [];
+  for (const frame of gif.frames) {
+    if (limited.length && elapsed >= limitMs) break;
+    limited.push(frame);
+    elapsed += Math.max(1, frame.delayMs || 100);
+  }
+  const wasTrimmed = limited.length < gif.frames.length;
+  if (gif.truncated || wasTrimmed) Object.defineProperty(limited, "truncated", { value: true });
   return {
-    width: gif.frames[0].width,
-    height: gif.frames[0].height,
-    frames: gif.frames,
-    truncated: gif.truncated,
+    width: limited[0].width,
+    height: limited[0].height,
+    frames: limited,
+    truncated: gif.truncated || wasTrimmed,
   };
+}
+
+function waitForMedia(target, event, errorEvent) {
+  return new Promise((resolve, reject) => {
+    const clean = () => {
+      target.removeEventListener(event, ok);
+      target.removeEventListener(errorEvent || "error", fail);
+    };
+    const ok = () => { clean(); resolve(); };
+    const fail = () => { clean(); reject(new Error("This browser could not decode that video")); };
+    target.addEventListener(event, ok, { once: true });
+    target.addEventListener(errorEvent || "error", fail, { once: true });
+  });
+}
+
+async function seekVideo(video, time) {
+  if (Math.abs(video.currentTime - time) < 0.001 && video.readyState >= 2) return;
+  const ready = waitForMedia(video, "seeked");
+  video.currentTime = time;
+  await ready;
+}
+
+async function openVideoFile(file) {
+  const url = URL.createObjectURL(file);
+  const video = document.createElement("video");
+  video.preload = "auto";
+  video.muted = true;
+  video.playsInline = true;
+  video.src = url;
+  try {
+    if (video.readyState < 1) await waitForMedia(video, "loadedmetadata");
+    if (video.readyState < 2) await waitForMedia(video, "loadeddata");
+    if (!Number.isFinite(video.duration) || video.duration <= 0 || !video.videoWidth || !video.videoHeight) {
+      throw new Error("The video has no readable duration or picture track");
+    }
+    return { video, url };
+  } catch (err) {
+    URL.revokeObjectURL(url);
+    throw err;
+  }
+}
+
+function videoFrameCanvas(video, maxDim) {
+  const scale = Math.min(1, maxDim / Math.max(video.videoWidth, video.videoHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+  canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+  canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+  return canvas;
+}
+
+async function previewFromVideo(file) {
+  const opened = await openVideoFile(file);
+  try {
+    await seekVideo(opened.video, Math.min(0.05, opened.video.duration / 2));
+    return videoFrameCanvas(opened.video, parseInt($("max-dim").value, 10));
+  } finally {
+    URL.revokeObjectURL(opened.url);
+  }
+}
+
+async function framesFromVideo(file) {
+  const opened = await openVideoFile(file);
+  try {
+    const fps = parseInt($("animation-fps").value, 10);
+    const requested = Math.min(parseInt($("clip-seconds").value, 10), ANIM.MAX_VIDEO_SECONDS);
+    const duration = Math.min(opened.video.duration, requested);
+    const count = Math.max(1, Math.min(animationFrameBudget(), Math.ceil(duration * fps)));
+    const delayMs = Math.round(1000 * duration / count);
+    const frames = [];
+    for (let i = 0; i < count; i++) {
+      if (animState.abort) throw new Error("aborted");
+      const time = Math.min(opened.video.duration - 0.001, i * duration / count);
+      await seekVideo(opened.video, Math.max(0, time));
+      const canvas = videoFrameCanvas(opened.video, ANIM.MAX_DIM);
+      const image = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height);
+      frames.push({ data: image.data, width: image.width, height: image.height, delayMs });
+      showLoading(true, `Reading video frame ${i + 1}/${count}…`, Math.round(35 * (i + 1) / count));
+      await nextFrame();
+    }
+    return { width: frames[0].width, height: frames[0].height, frames, truncated: duration < opened.video.duration };
+  } finally {
+    URL.revokeObjectURL(opened.url);
+  }
 }
 
 function subsampleFrames(frames, cap) {
   if (frames.length <= cap) return {
     frames,
-    notice: frames.truncated ? `Limited animation to ${cap} frames to fit memory` : "",
+    notice: frames.truncated ? `Source limited to ${frames.length} decoded frames by memory or frame budget` : "",
   };
   const out = [];
   const step = frames.length / cap;
@@ -2258,7 +2411,7 @@ async function runAnimatedPipeline(source, options) {
   options = options || {};
   const mode = state.mode;
   if (!ANIM.MODES.includes(mode)) throw new Error("Animation is not available for " + mode + " mode");
-  const sub = subsampleFrames(source.frames, ANIM.MAX_FRAMES);
+  const sub = subsampleFrames(source.frames, animationFrameBudget());
   animState.notice = sub.notice;
   const captured = [];
   state.briteAnimating = true;
@@ -2275,7 +2428,7 @@ async function runAnimatedPipeline(source, options) {
       const shot = cv.getContext("2d").getImageData(0, 0, cv.width, cv.height);
       captured.push({ data: shot.data, width: cv.width, height: cv.height, delayMs: f.delayMs || Math.round(1000 / (options.fps || 12)) });
       f.data = null;
-      showLoading(true, `Jankifying frame ${i + 1}/${sub.frames.length}…`, Math.round(100 * (i + 1) / sub.frames.length));
+      showLoading(true, `Jankifying frame ${i + 1}/${sub.frames.length}…`, Math.round(38 + 50 * (i + 1) / sub.frames.length));
       await nextFrame();
     }
   } finally {
@@ -2283,17 +2436,25 @@ async function runAnimatedPipeline(source, options) {
   }
   const w0 = captured[0].width, h0 = captured[0].height;
   const norm = normalizeFrameSize(captured, w0, h0);
-  let floor = options.floorMs || ANIM.DELAY_FLOOR_SAFE_MS;
+  let floor = options.floorMs ?? ANIM.DELAY_FLOOR_SAFE_MS;
   let out = clampDelays(norm, floor);
   let guard = 0;
-  while (analyzeFlash(out, 1000 / floor).maxFlashesPerSec > 3 && guard < 6) {
-    floor = Math.round(floor * 1.5);
+  let effectiveDelay = Math.max(1, Math.min(...out.map(frame => frame.delayMs || 1)));
+  while (analyzeFlash(out, 1000 / effectiveDelay).maxFlashesPerSec > 3 && guard < 6) {
+    floor = Math.round(Math.max(floor, effectiveDelay) * 1.5);
     out = clampDelays(norm, floor);
+    effectiveDelay = Math.max(1, Math.min(...out.map(frame => frame.delayMs || 1)));
     guard++;
   }
-  const gifBytes = encodeGif({ width: w0, height: h0, frames: out, loop: 0 });
+  let gifBytes = null;
+  if (options.encodeGif !== false) {
+    showLoading(true, `Encoding ${out.length} GIF frames…`, 92);
+    await nextFrame();
+    gifBytes = encodeGif({ width: w0, height: h0, frames: out, loop: 0 });
+  }
   animState.lastGif = gifBytes;
-  return { gifBytes, frameCount: out.length, width: w0, height: h0, delayMs: out[0].delayMs, notice: animState.notice };
+  state.lastAnimationFrames = out;
+  return { gifBytes, frames: out, frameCount: out.length, width: w0, height: h0, delayMs: out[0].delayMs, notice: animState.notice };
 }
 
 // -----------------------------------------------------------------------------
@@ -2702,18 +2863,41 @@ function updateStatus() {
     msg += `  ·  ${m.cols}×${m.rows}  ·  ${state.roughGrid.length.toLocaleString()} shapes`;
   }
   msg += `  ·  seed ${state.seed}`;
-  if (state.sourceGifFile) {
+  if (state.sourceAnimation) {
+    const kind = state.sourceAnimation.kind === "video" ? "Video" : "GIF";
     msg += ANIM.MODES.includes(state.mode)
-      ? "  ·  GIF source — press GIF to animate"
-      : "  ·  GIF source — switch mode to animate";
+      ? `  ·  ${kind} source — export GIF, sheet, or video`
+      : `  ·  ${kind} source — switch mode to animate`;
   }
   $("status").textContent = msg;
 }
+let loadingStartedAt = 0;
+let loadingClock = null;
+let loadingProgress = 0;
+function updateLoadingDetail() {
+  const elapsed = loadingStartedAt ? Math.max(0, Math.floor((performance.now() - loadingStartedAt) / 1000)) : 0;
+  $("loading-detail").textContent = `${Math.round(loadingProgress)}% · ${elapsed}s`;
+}
 function showLoading(active, label, progress) {
   const el = $("loading");
+  const wasActive = el.classList.contains("active");
   el.classList.toggle("active", !!active);
+  $("canvas-area").setAttribute("aria-busy", active ? "true" : "false");
+  if (active && !wasActive) {
+    loadingStartedAt = performance.now();
+    clearInterval(loadingClock);
+    loadingClock = setInterval(updateLoadingDetail, 500);
+  } else if (!active) {
+    clearInterval(loadingClock);
+    loadingClock = null;
+    loadingStartedAt = 0;
+  }
   if (label != null) $("loading-label").textContent = label;
-  if (progress != null) $("progress-fill").style.width = progress + "%";
+  if (progress != null) {
+    loadingProgress = Math.max(0, Math.min(100, progress));
+    $("progress-fill").style.width = loadingProgress + "%";
+  }
+  updateLoadingDetail();
 }
 function nextFrame() { return new Promise(r => requestAnimationFrame(() => r())); }
 
@@ -3054,6 +3238,7 @@ function getPixelOutput() {
 $("mode").addEventListener("change", e => {
   state.mode = e.target.value;
   updateModeVisibility();
+  updateAnimAvailability();
   if (sourceImage) scheduleRun();
 });
 
@@ -3070,25 +3255,42 @@ async function fileLooksLikeGif(file) {
   }
 }
 
+function fileLooksLikeVideo(file) {
+  return !!file && ((file.type || "").startsWith("video/") || /\.(mp4|mov|m4v|webm|ogv)$/i.test(file.name || ""));
+}
+
 async function handleIncomingFile(file) {
   if (!file) return;
-  const isGif = await fileLooksLikeGif(file);
-  const namedImage = (file.type || "").startsWith("image/");
-  if (!namedImage && !isGif) return;
+  const size = file.size >= 1_048_576
+    ? `${(file.size / 1_048_576).toFixed(1)} MB`
+    : `${Math.max(1, Math.round(file.size / 1024))} KB`;
+  showLoading(true, `Opening ${file.name || "media"}…`, 1);
+  $("status").textContent = `Opening ${file.name || "media"} · ${size}`;
+  await nextFrame();
   try {
+    const isGif = await fileLooksLikeGif(file);
+    const isVideo = fileLooksLikeVideo(file);
+    const namedImage = (file.type || "").startsWith("image/");
+    if (!namedImage && !isGif && !isVideo) throw new Error("Choose an image, GIF, or browser-readable video");
     let sourceFile = file;
     if (isGif && (file.type !== "image/gif" || !/\.gif$/i.test(file.name || ""))) {
       const base = String(file.name || "jankify-source").replace(/\.gif$/i, "") || "jankify-source";
       sourceFile = new File([file], base + ".gif", { type: "image/gif" });
     }
-    state.sourceGifFile = isGif ? sourceFile : null;
+    state.sourceAnimation = isVideo
+      ? { kind: "video", file: sourceFile }
+      : isGif ? { kind: "gif", file: sourceFile } : null;
     state.lastGifBytes = null;
-    sourceImage = await loadImageFile(sourceFile);
+    state.lastAnimationFrames = null;
+    showLoading(true, isVideo ? "Reading video preview…" : isGif ? "Reading GIF preview…" : "Decoding image…", 8);
+    sourceImage = isVideo ? await previewFromVideo(sourceFile) : await loadImageFile(sourceFile);
     state.seed = Date.now();
     await runPipeline();
     updateAnimAvailability();
   } catch (err) {
     console.error(err);
+    showLoading(false);
+    $("status").textContent = `Could not open ${file.name || "media"}`;
     alert("Could not load: " + err.message);
   }
 }
@@ -3099,14 +3301,19 @@ $("file-input").addEventListener("change", async e => {
 });
 
 function updateAnimAvailability() {
-  const btn = $("make-gif");
-  const guide = $("gif-guide");
-  if (!btn) return;
-  const hasGif = !!state.sourceGifFile;
+  const buttons = [$("make-gif"), $("make-sheet"), $("make-video")].filter(Boolean);
+  const guide = $("animation-guide");
+  if (!buttons.length) return;
+  const hasAnimation = !!state.sourceAnimation;
   const supported = ANIM.MODES.includes(state.mode);
-  btn.hidden = !hasGif;
-  btn.disabled = !(hasGif && supported && !reducedMotion?.matches);
-  if (guide) guide.hidden = !hasGif;
+  const canRecord = typeof MediaRecorder !== "undefined" && !!HTMLCanvasElement.prototype.captureStream;
+  for (const btn of buttons) {
+    btn.hidden = !hasAnimation || (btn.id === "make-video" && !canRecord);
+    btn.disabled = !(hasAnimation && supported && !reducedMotion?.matches);
+  }
+  if (guide) guide.hidden = !hasAnimation;
+  if ($("clip-seconds-control")) $("clip-seconds-control").hidden = !hasAnimation;
+  const btn = $("make-gif");
   if (!supported) {
     btn.title = "Animation isn't available for " + state.mode + " mode — switch to Pixel, Lite Brite, ASCII, Emoji, Hatch, or Rough";
     btn.setAttribute("aria-label", "Make GIF unavailable in " + state.mode + " mode");
@@ -3114,8 +3321,8 @@ function updateAnimAvailability() {
     btn.title = "Animation off — your system requests reduced motion";
     btn.setAttribute("aria-label", "Make GIF disabled because reduced motion is on");
   } else {
-    btn.title = "Jankify every frame of this GIF, then download";
-    btn.setAttribute("aria-label", "Make animated GIF from every frame");
+    btn.title = "Jankify sampled frames, then download a looping GIF";
+    btn.setAttribute("aria-label", "Make animated GIF from the source");
   }
 }
 
@@ -3153,24 +3360,115 @@ function triggerGifDownload(bytes) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-async function onMakeGif() {
-  if (!state.sourceGifFile || reducedMotion?.matches) return;
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2500);
+}
+
+async function sourceAnimationFrames() {
+  if (!state.sourceAnimation) throw new Error("Add a GIF or video first");
+  return state.sourceAnimation.kind === "video"
+    ? framesFromVideo(state.sourceAnimation.file)
+    : framesFromGif(state.sourceAnimation.file);
+}
+
+async function downloadSpriteSheet(result) {
+  showLoading(true, "Packing sprite sheet…", 94);
+  await nextFrame();
+  const columns = Math.min(result.frameCount, parseInt($("sheet-columns").value, 10));
+  const rows = Math.ceil(result.frameCount / columns);
+  const canvas = document.createElement("canvas");
+  canvas.width = result.width * columns;
+  canvas.height = result.height * rows;
+  if (canvas.width > 8192 || canvas.height > 8192) {
+    throw new Error(`Sprite sheet would be ${canvas.width}×${canvas.height}px. Lower sheet columns or working size.`);
+  }
+  const ctx = canvas.getContext("2d");
+  result.frames.forEach((frame, i) => {
+    ctx.putImageData(new ImageData(frame.data, frame.width, frame.height), (i % columns) * result.width, Math.floor(i / columns) * result.height);
+  });
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+  if (!blob) throw new Error("Could not encode the sprite sheet");
+  downloadBlob(blob, `jankify-${state.mode}-${result.frameCount}f-${columns}x${rows}.png`);
+  return `${columns}×${rows} sheet · ${canvas.width}×${canvas.height}px`;
+}
+
+function supportedVideoMime() {
+  if (typeof MediaRecorder === "undefined") return null;
+  const choices = ["video/mp4;codecs=avc1.42E01E", "video/mp4", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
+  return choices.find(type => MediaRecorder.isTypeSupported(type)) || "";
+}
+
+async function downloadProcessedVideo(result) {
+  if (!HTMLCanvasElement.prototype.captureStream || typeof MediaRecorder === "undefined") {
+    throw new Error("This browser cannot record a processed video; GIF and sprite sheet still work");
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = result.width;
+  canvas.height = result.height;
+  const ctx = canvas.getContext("2d");
+  const fps = parseInt($("animation-fps").value, 10);
+  const stream = canvas.captureStream(fps);
+  const mimeType = supportedVideoMime();
+  const recorder = new MediaRecorder(stream, mimeType ? { mimeType, videoBitsPerSecond: 6_000_000 } : undefined);
+  const chunks = [];
+  recorder.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
+  const stopped = new Promise((resolve, reject) => {
+    recorder.onstop = resolve;
+    recorder.onerror = event => reject(event.error || new Error("Video recording failed"));
+  });
+  recorder.start();
+  const track = stream.getVideoTracks()[0];
+  for (let i = 0; i < result.frames.length; i++) {
+    if (animState.abort) { recorder.stop(); throw new Error("aborted"); }
+    const frame = result.frames[i];
+    ctx.putImageData(new ImageData(frame.data, frame.width, frame.height), 0, 0);
+    if (track && typeof track.requestFrame === "function") track.requestFrame();
+    showLoading(true, `Recording video frame ${i + 1}/${result.frames.length}…`, Math.round(90 + 9 * (i + 1) / result.frames.length));
+    await new Promise(resolve => setTimeout(resolve, Math.max(20, frame.delayMs)));
+  }
+  recorder.stop();
+  await stopped;
+  stream.getTracks().forEach(track => track.stop());
+  const actualType = recorder.mimeType || mimeType || "video/webm";
+  const ext = actualType.includes("mp4") ? "mp4" : "webm";
+  downloadBlob(new Blob(chunks, { type: actualType }), `jankify-${state.mode}-${result.frameCount}f.${ext}`);
+  return `${ext.toUpperCase()} · ${result.frameCount} frames · ${result.width}×${result.height}px`;
+}
+
+async function exportAnimation(kind) {
+  if (!state.sourceAnimation || reducedMotion?.matches) return;
   const floorMs = await gifWarningGate();
   if (floorMs == null) return;
   animState.abort = false;
-  $("make-gif").disabled = true;
+  ["make-gif", "make-sheet", "make-video"].forEach(id => { if ($(id)) $(id).disabled = true; });
   $("cancel-anim").hidden = false;
-  showLoading(true, "Reading GIF…", 0);
+  showLoading(true, state.sourceAnimation.kind === "video" ? "Reading video…" : "Reading GIF…", 0);
   try {
-    const src = await framesFromGif(state.sourceGifFile);
-    const result = await runAnimatedPipeline(src, { floorMs });
-    state.lastGifBytes = result.gifBytes;
-    triggerGifDownload(result.gifBytes);
-    let note = `GIF ready · ${result.frameCount} frames · ${result.width}×${result.height}px`;
+    const src = await sourceAnimationFrames();
+    const result = await runAnimatedPipeline(src, { floorMs, encodeGif: kind === "gif" });
+    let note;
+    if (kind === "gif") {
+      showLoading(true, "Preparing GIF download…", 99);
+      state.lastGifBytes = result.gifBytes;
+      triggerGifDownload(result.gifBytes);
+      note = `GIF ready · ${result.frameCount} frames · ${result.width}×${result.height}px`;
+    } else if (kind === "sheet") {
+      note = `Sprite sheet ready · ${await downloadSpriteSheet(result)}`;
+    } else {
+      note = `Video ready · ${await downloadProcessedVideo(result)}`;
+    }
+    showLoading(true, "Download ready", 100);
     if (result.notice) note += ` · ${result.notice}`;
     $("status").textContent = note;
   } catch (err) {
-    if (err.message !== "aborted") { console.error(err); alert("Could not make GIF: " + err.message); }
+    if (err.message !== "aborted") { console.error(err); alert("Could not make animation asset: " + err.message); }
   } finally {
     $("cancel-anim").hidden = true;
     showLoading(false);
@@ -3179,10 +3477,12 @@ async function onMakeGif() {
   }
 }
 
-$("make-gif").addEventListener("click", onMakeGif);
+$("make-gif").addEventListener("click", () => exportAnimation("gif"));
+$("make-sheet").addEventListener("click", () => exportAnimation("sheet"));
+$("make-video").addEventListener("click", () => exportAnimation("video"));
 $("cancel-anim").addEventListener("click", () => { animState.abort = true; });
 $("gif-warning-safe")?.addEventListener("click", () => { gifAck = ANIM.DELAY_FLOOR_SAFE_MS; closeGifWarning(gifAck); });
-$("gif-warning-fast")?.addEventListener("click", () => { gifAck = ANIM.DELAY_FLOOR_HARD_MS; closeGifWarning(gifAck); });
+$("gif-warning-fast")?.addEventListener("click", () => { gifAck = 0; closeGifWarning(gifAck); });
 $("gif-warning-cancel")?.addEventListener("click", () => closeGifWarning(null));
 $("gif-warning")?.addEventListener("keydown", e => { if (e.key === "Escape") closeGifWarning(null); });
 { const gw = $("gif-warning"); if (gw) gw.hidden = true; }
@@ -3241,6 +3541,9 @@ bindSlider("hatch-angle", "hatch-angle-value", "°");
 bindSlider("hatch-levels", "hatch-levels-value");
 bindSlider("hatch-jitter", "hatch-jitter-value", "%");
 bindSlider("rough-cell", "rough-cell-value", "px");
+bindSlider("clip-seconds", "clip-seconds-value", "s");
+bindSlider("animation-fps", "animation-fps-value", " fps");
+bindSlider("sheet-columns", "sheet-columns-value");
 
 function bindSliderLive(id, valueId, suffix, fn) {
   const el = $(id), val = $(valueId);

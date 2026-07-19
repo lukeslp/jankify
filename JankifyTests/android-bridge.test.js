@@ -57,7 +57,7 @@ function makeSandbox(mode = "hatch") {
     setTimeout: callback => callback()
   };
   vm.runInNewContext(bridgeSource, sandbox);
-  return { messages, clickHandler };
+  return { messages, clickHandler, sandbox };
 }
 
 async function click(clickHandler, target) {
@@ -89,4 +89,15 @@ test("ASCII output uses the native clipboard bridge", async () => {
   const { messages, clickHandler } = makeSandbox("ascii");
   await click(clickHandler, { id: "copy-output", matches: () => false });
   assert.deepEqual(messages, [{ action: "copyText", payload: { text: "ASCII" } }]);
+});
+
+test("Animation downloads use native sharing with canonical video MIME types", async () => {
+  const { messages, sandbox } = makeSandbox();
+  await vm.runInNewContext(
+    "window.downloadBlob(new Blob(['video'], { type: 'video/mp4;codecs=avc1.42E01E' }), 'jankify.mp4')",
+    sandbox
+  );
+  assert.equal(messages[0].action, "share");
+  assert.equal(messages[0].payload.mimeType, "video/mp4");
+  assert.equal(messages[0].payload.filename, "jankify.mp4");
 });

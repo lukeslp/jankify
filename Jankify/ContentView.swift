@@ -3,7 +3,7 @@ import PhotosUI
 
 struct ContentView: View {
     @StateObject private var bridge = BridgeController()
-    @State private var selectedPhoto: PhotosPickerItem?
+    @State private var selectedMedia: PhotosPickerItem?
 
     var body: some View {
         ZStack {
@@ -13,11 +13,11 @@ struct ContentView: View {
         }
         .photosPicker(
             isPresented: $bridge.isPhotoPickerPresented,
-            selection: $selectedPhoto,
-            matching: .images
+            selection: $selectedMedia,
+            matching: .any(of: [.images, .videos])
         )
-        .onChange(of: selectedPhoto) { _, item in
-            Task { await bridge.importPhoto(item) }
+        .onChange(of: selectedMedia) { _, item in
+            Task { await bridge.importMedia(item) }
         }
         .onChange(of: bridge.pendingClipboardText) { _, text in
             guard let text else { return }

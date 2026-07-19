@@ -1,6 +1,6 @@
 /*
  * File Purpose: Host Jankify's bundled web app in a secure, offline Android WebView.
- * Primary Functions: Serve trusted assets, constrain navigation, pick photos, share exports, and copy text.
+ * Primary Functions: Serve trusted assets, constrain navigation, pick media, share exports, and copy text.
  * Inputs/Outputs: Receives local web bridge messages and document URIs; emits native intents and web callbacks.
  */
 package com.lukesteuber.jankify
@@ -143,7 +143,7 @@ class MainActivity : Activity() {
         if (requestCode != PICK_IMAGE_REQUEST || resultCode != RESULT_OK) return
         val uri = data?.data ?: return
         bridgeExecutor.execute {
-            runCatching { importImage(uri) }
+            runCatching { importMedia(uri) }
                 .onFailure { runOnUiThread { showError(R.string.image_load_failed) } }
         }
     }
@@ -169,20 +169,21 @@ class MainActivity : Activity() {
         if (webView.canGoBack()) webView.goBack() else finish()
     }
 
-    private fun pickImage() {
+    private fun pickMedia() {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
-            type = "image/*"
+            type = "*/*"
+            putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*"))
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         runCatching { startActivityForResult(intent, PICK_IMAGE_REQUEST) }
             .onFailure { showError(R.string.no_handler) }
     }
 
-    private fun importImage(uri: Uri) {
+    private fun importMedia(uri: Uri) {
         val mimeType = contentResolver.getType(uri)
-            ?.takeIf { it.startsWith("image/") }
-            ?: throw IllegalArgumentException("Not an image")
+            ?.takeIf(BridgePolicy::isAllowedImportMimeType)
+            ?: throw IllegalArgumentException("Not supported media")
         val declaredSize = contentResolver.query(
             uri,
             arrayOf(OpenableColumns.SIZE),
@@ -195,7 +196,7 @@ class MainActivity : Activity() {
         require(declaredSize == null || declaredSize <= BridgePolicy.MAX_DECODED_BYTES)
 
         val bytes = contentResolver.openInputStream(uri)?.use(::readLimited)
-            ?: throw IllegalArgumentException("Image unavailable")
+            ?: throw IllegalArgumentException("Media unavailable")
         val base64 = Base64.getEncoder().encodeToString(bytes)
         val script = "window.jankifyReceiveImage(${JSONObject.quote(base64)},${JSONObject.quote(mimeType)})"
         runOnUiThread { webView.evaluateJavascript(script, null) }
@@ -270,7 +271,7 @@ class MainActivity : Activity() {
                 runCatching { BridgePolicy.decode(message) }
                     .onSuccess { decoded ->
                         when (decoded) {
-                            BridgeMessage.PickImage -> pickImage()
+                            BridgeMessage.PickImage -> pickMedia()
                             is BridgeMessage.CopyText -> copyText(decoded.text)
                             is BridgeMessage.Share -> shareExport(decoded)
                         }

@@ -76,6 +76,31 @@ final class BridgeMessageTests: XCTestCase {
         XCTAssertEqual(try payload.decodedData(), Data("GIF".utf8))
     }
 
+    func testAcceptsCanonicalVideoMIMETypes() throws {
+        for mimeType in ["video/mp4", "video/webm"] {
+            let message = try BridgeMessage.decode([
+                "action": "share",
+                "payload": [
+                    "filename": "jankify-video",
+                    "mimeType": mimeType,
+                    "base64": Data("video".utf8).base64EncodedString()
+                ]
+            ])
+
+            guard case let .share(payload) = message else {
+                return XCTFail("Expected a share message for \(mimeType)")
+            }
+            XCTAssertEqual(try payload.decodedData(), Data("video".utf8))
+        }
+    }
+
+    func testImportPolicyAcceptsImagesAndVideosOnly() {
+        XCTAssertTrue(BridgeController.isSupportedImportMIMEType("image/gif"))
+        XCTAssertTrue(BridgeController.isSupportedImportMIMEType("video/mp4"))
+        XCTAssertTrue(BridgeController.isSupportedImportMIMEType("video/quicktime"))
+        XCTAssertFalse(BridgeController.isSupportedImportMIMEType("application/pdf"))
+    }
+
     func testRejectsExportsLargerThanFiftyMegabytes() throws {
         let oversized = Data(count: 50 * 1_024 * 1_024 + 1)
         let message = try BridgeMessage.decode([

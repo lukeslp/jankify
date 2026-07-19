@@ -1,7 +1,7 @@
 /*
  * File Purpose: Adapt Jankify's canonical web controls to the trusted Android bridge.
- * Primary Functions: Native photo picking, export sharing, GIF sharing, and clipboard writes.
- * Inputs/Outputs: Receives DOM actions and native image callbacks; emits JSON bridge messages.
+ * Primary Functions: Native media picking, export sharing, animation sharing, and clipboard writes.
+ * Inputs/Outputs: Receives DOM actions and native media callbacks; emits JSON bridge messages.
  */
 (() => {
   "use strict";
@@ -34,12 +34,17 @@
   });
 
   async function shareBlob(blob, filename) {
+    const mimeType = blob.type.startsWith("video/mp4")
+      ? "video/mp4"
+      : blob.type.startsWith("video/webm") ? "video/webm" : blob.type;
     post("share", {
       filename,
-      mimeType: blob.type || "application/octet-stream",
+      mimeType: mimeType || "application/octet-stream",
       base64: await blobBase64(blob)
     });
   }
+
+  window.downloadBlob = shareBlob;
 
   function currentVectorExport() {
     let text, ext, mimeType;

@@ -93,7 +93,9 @@ struct ExportPayload: Equatable {
         "image/svg+xml",
         "text/css",
         "text/html",
-        "text/plain"
+        "text/plain",
+        "video/mp4",
+        "video/webm"
     ]
 }
 

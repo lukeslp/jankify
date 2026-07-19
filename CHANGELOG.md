@@ -10,6 +10,10 @@
 
 ### Added
 
+- Local MP4, MOV, M4V, and WebM import with bounded duration and frame sampling.
+- Animated GIF, PNG sprite-sheet, and processed-video exports from GIF or video sources.
+- Configurable animation duration, frame rate, sheet columns, and detailed progress feedback.
+- Native iOS and Android media picking and animation-export sharing.
 - Offline Android WebView shell targeting API 36 and JDK 21.
 - System photo picker, native share/export, and clipboard bridge behavior.
 - Strict local-asset origin, navigation, MIME, filename, and payload-size controls.

@@ -6,15 +6,15 @@ Jankify transforms photos into pixel art, Lite Brite boards, ASCII, emoji mosaic
 
 Open `index.html` in a modern browser. No package installation or build step is required.
 
-### Animated GIF
+### Animated media
 
-1. Upload an animated GIF (still images use PNG/SVG/etc. as usual).
-2. The canvas shows the first frame; a sidebar note and header **GIF** button appear.
+1. Upload an animated GIF or browser-readable video such as MP4, MOV, or WebM.
+2. The canvas shows the first frame; animation controls and export buttons appear.
 3. Choose Pixel, Lite Brite, ASCII, Emoji, Hatch, or Rough (Polygon and Voronoi are still-only).
-4. Press **GIF**, pick a playback speed in the photosensitivity dialog, and wait while each frame is processed.
-5. The looping result downloads in the browser, or opens the share sheet on iOS/Android.
+4. Choose a duration, frame rate, and sprite-sheet layout, then export a looping GIF, PNG sprite sheet, or recorded video.
+5. The result downloads in the browser, or opens the native share sheet on iOS/Android.
 
-Long GIFs are trimmed/downscaled for memory; frame delay is floored and checked against flash limits.
+Long sources are trimmed and downscaled for memory. Frame timing is bounded and checked against flash limits, and progress remains visible during decoding, rendering, and encoding.
 
 ## Synchronize mobile web assets
 
@@ -87,7 +87,7 @@ The script tests and builds the signed APK and AAB, verifies both signatures, an
 - Only `index.html`, `offline.css`, and `android-bridge.js` are served from the private synthetic app origin.
 - File and content URL access, cleartext traffic, mixed content, and untrusted in-WebView navigation are blocked.
 - Web links open in the system browser.
-- Photo selection uses Android's system document picker and reads only the selected image.
+- Media selection uses Android's system document picker and reads only the selected image or video.
 - Export MIME types, names, and decoded sizes are validated before cache-only sharing.
 - Web local storage remains enabled and private to the app.
 
