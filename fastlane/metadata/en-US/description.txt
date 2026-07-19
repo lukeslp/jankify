@@ -1,6 +1,6 @@
-Jankify screws up your photos on purpose, and somehow makes them better.
+Jankify screws up your photos, GIFs, and videos on purpose—and somehow makes them better.
 
-Feed it any picture and watch it fall apart into eight handmade looks: chunky pixels, a glowing Lite-Brite peg board, ASCII text, an emoji mosaic, ink cross-hatching, loose pen sketches, and shattered low-poly shards. Drag a few sliders, hit a button, export. That is the whole app.
+Feed it a photo, animated GIF, or short video and watch it fall apart into eight handmade looks: chunky pixels, a glowing Lite-Brite peg board, ASCII text, an emoji mosaic, ink cross-hatching, loose pen sketches, and shattered low-poly shards. Drag a few sliders, hit a button, export.
 
 No AI. No "enhance" button. No cloud round-trip. Every pixel is wrecked by plain, honest math running entirely on your device.
 
@@ -18,6 +18,12 @@ EXPORT ANYTHING
 
 Save a crisp PNG, or pull clean SVG vectors out of most modes. Pixel mode alone exports as box-shadow CSS, an SVG, an HTML table, Unicode blocks, JSON, or plain text. ASCII copies straight to your clipboard.
 
+MAKE IT MOVE
+
+Turn an animated GIF or video into looping pixel art, glowing pegs, ASCII, emoji, hatching, or a rough sketch. Set the duration and frame rate, then export the result as an animated GIF, a PNG sprite sheet, or processed video. Clear progress feedback stays visible while Jankify decodes, renders, and encodes each frame.
+
+Long clips are trimmed and scaled to stay responsive. Animation timing is bounded, reduced-motion preferences are respected, and Jankify warns before producing rapid animation.
+
 BUILT TO RESPECT YOU
 
 - Fully offline. Nothing you load ever leaves your phone.
@@ -27,8 +33,9 @@ BUILT TO RESPECT YOU
 
 MADE FOR
 
-- Profile pictures and avatars with actual personality
+- Profile pictures, reaction GIFs, and avatars with actual personality
 - Album art, stickers, and posters
+- Animated loops, sprite sheets, and short video experiments
 - Glitch, vaporwave, and lo-fi aesthetics
 - Anyone tired of every photo tool looking the same
 

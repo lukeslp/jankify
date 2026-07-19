@@ -1,1 +1,1 @@
-photo,effect,halftone,dither,lowpoly,retro,vaporwave,distort,8bit,filter,stipple,generative,lofi
+gif,video,sprite,pixel,ascii,emoji,dither,retro,glitch,animation,mosaic,filter,lofi,sketch

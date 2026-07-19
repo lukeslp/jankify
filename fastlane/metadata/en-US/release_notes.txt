@@ -1,1 +1,1 @@
-First release. Eight ways to wreck a photo, all running on your device. No account, no cloud, no AI. Thanks for trying Jankify.
+Jankify now moves. Import animated GIFs or short videos, apply six handmade effects frame by frame, and export a looping GIF, PNG sprite sheet, or processed video. Animation duration, frame rate, progress feedback, and safer-motion controls are built in.
