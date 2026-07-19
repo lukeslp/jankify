@@ -4,19 +4,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Jankify is a browser image-transform tool that "screws up your photos, without AI," plus an offline iOS wrapper. Web logic, markup, and styling live in `index.html`; `og.html` + `og.png` are the social card. The iOS app bundles a synchronized offline copy under `Jankify/Resources/Web/` and hosts it in `WKWebView`.
+Jankify is a browser media-transform tool that "screws up your photos, without AI," plus offline iOS and Android wrappers. Web logic, markup, and styling live in `index.html`; `og.html` + `og.png` are the social card. Both native apps bundle synchronized offline copies of the same editor in a WebView.
 
 ## How it runs
 
 - **Local dev:** open `index.html` directly in any modern browser, or serve the directory over HTTP if you need to load a test image via `fetch` (Chrome blocks `file://` fetch). No bundler, no dependencies installed. Font Awesome and IBM Plex are loaded from CDNs.
 - **Production:** Caddy block in `/etc/caddy/Caddyfile` uses `handle_path /jankify/*` to serve the directory statically (gzip + SPA fallback to `/index.html`). Legacy `/artboard` redirects also live there. No `sm` entry — static only.
 - **Deploy:** edit, commit, push. Caddy serves the file directly from this directory; no copy step.
-- **iOS sync:** run `scripts/sync-web.sh` after web changes, then `xcodegen generate`.
-- **iOS test:** `xcodebuild test -project Jankify.xcodeproj -scheme Jankify -destination 'platform=iOS Simulator,name=iPhone 17 Pro'` and `node --test JankifyTests/ios-bridge.test.js`.
+- **Native sync:** run `scripts/sync-web.sh` after web changes. It updates both `Jankify/Resources/Web/` and `android/app/src/main/assets/`; regenerate the Xcode project with `xcodegen generate` when project settings change.
+- **Native tests:** run the iOS `xcodebuild test` gate, `node --test JankifyTests/ios-bridge.test.js JankifyTests/android-bridge.test.js JankifyTests/video-animation.test.js`, and Android's `:app:testDebugUnitTest` task.
 
 ## Architecture (single-file pipeline)
 
 Eight render modes share one pipeline, switched by `state.mode`. Default mode is `pixel`.
+
+Photos are still-image inputs. Animated GIFs and short MP4, MOV, M4V, or WebM clips also enter the shared animation pipeline. Pixel, Lite Brite, ASCII, Emoji, Hatch, and Rough can export looping GIFs, PNG sprite sheets, or processed video; Polygon and Voronoi remain still-only. Animation work is bounded to 10 seconds, 30 fps, and 300 frames, with progress and safer-motion controls.
 
 | Mode | Pipeline fn | Exports |
 |------|-------------|---------|
@@ -58,13 +60,14 @@ Shared primitives worth knowing before editing:
 - Pixel-mode exporters share `state.pixelGrid` (`{col, row, rgb, alpha}` cells). Adding a new export format = one `formatPixelsAs<Name>` function + a `<option>` in `#pixel-format` + a branch in `getPixelOutput`.
 - Default to no comments. Section banners stay (they are file navigation); inline explanatory `//` comments do not.
 
-## iOS wrapper
+## Native wrappers
 
 - `project.yml` is canonical; regenerate and commit `Jankify.xcodeproj` after changes.
 - `JankifyWebView` loads only the bundled `Web/` directory. External links open in Safari.
 - `BridgeController` validates picker, share, and clipboard messages. `ios-bridge.js` maps web controls to those native actions.
+- Android's `MainActivity` hosts the generated asset bundle, applies the same image/video import and export policy, and routes shares through `android-bridge.js`.
 - Keep browser-specific behavior in `index.html` and app-only behavior in `Jankify/Resources/Web/ios-bridge.js`.
-- When a web mode adds an export type, update both the browser exporter and the iOS bridge, then extend `ios-bridge.test.js`.
+- When a web mode adds an export type, update both native bridges and extend their JavaScript and native policy tests.
 
 ## Repo hygiene
 

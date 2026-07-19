@@ -1,6 +1,6 @@
 # Screenshot provenance
 
-The 11 App Store screenshots in `en-US/` are authentic captures of Jankify
+The 10 App Store screenshots in `en-US/` are authentic captures of Jankify
 running in the iOS Simulator (iPhone 17 Pro Max for the 6.9" set, iPad Pro 13"
 M5 for the 13" set), then composited into branded marketing frames.
 
