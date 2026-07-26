@@ -5,6 +5,7 @@ struct JankifyApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .onAppear { ReviewPromptPolicy().recordSession() }
         }
     }
 }

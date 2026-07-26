@@ -31,8 +31,8 @@ targets:
       path: Jankify/Info.plist
       properties:
         CFBundleDisplayName: Jankify
-        CFBundleShortVersionString: "1.1"
-        CFBundleVersion: "5"
+        CFBundleShortVersionString: "1.1.1"
+        CFBundleVersion: "8"
         ITSAppUsesNonExemptEncryption: false
         UILaunchScreen:
           UIColorName: LaunchBackground

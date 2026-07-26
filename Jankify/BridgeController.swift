@@ -33,6 +33,8 @@ final class BridgeController: ObservableObject {
             let url = temporaryDirectory.appendingPathComponent(payload.safeFilename)
             try data.write(to: url, options: .atomic)
             pendingShare = ShareItem(url: url)
+            // Export/share is the peak completion moment — gate StoreKit there.
+            ReviewPromptPolicy().noteSuccessAndRequestIfAppropriate()
         case let .copyText(text):
             pendingClipboardText = text
         }
