@@ -1,1 +1,6 @@
-Jankify now moves. Import animated GIFs or short videos, apply six handmade effects frame by frame, and export a looping GIF, PNG sprite sheet, or processed video. Animation duration, frame rate, progress feedback, and safer-motion controls are built in.
+Jankify 1.1.1 is a small follow-up to the animation release.
+
+- After you export a few pieces across separate sessions, the app may occasionally invite an App Store rating. Never on first open, never mid-effect.
+- GIF and video import, frame-by-frame effects, and export options from 1.1 are unchanged.
+
+Feedback welcome at luke@lukesteuber.com.
