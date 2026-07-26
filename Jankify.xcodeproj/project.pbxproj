@@ -21,6 +21,7 @@
 		9613A47765F5D663CE8EBF88 /* JankifyWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5166A5A443C7CCFF4D829D61 /* JankifyWebView.swift */; };
 		B0F0BFE42F5B82CB97126ADE /* BundleContentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 889993F79861DB410EFB3934 /* BundleContentTests.swift */; };
 		C22D75F2B8ED75F9B74F7487 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C0093D0BAD33913D88C8175D /* Assets.xcassets */; };
+		C93F4C4D0DE2C7CE8A12CE02 /* ReviewPromptPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E8793D50BEDF75B626E7DD5 /* ReviewPromptPolicyTests.swift */; };
 		E721E38C48FEB9B4EE0C54CC /* AppConfigurationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CD772F5184DFAB1457F9128 /* AppConfigurationTests.swift */; };
 		F706E18B819D4FE2A7C5C2F7 /* BridgeControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A2168EAF7D7BF6E2EAA26BA /* BridgeControllerTests.swift */; };
 /* End PBXBuildFile section */
@@ -52,6 +53,7 @@
 		56D9EFFD728EC1F2A536A8E0 /* BridgeMessageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeMessageTests.swift; sourceTree = "<group>"; };
 		6A1266DF779C2F0927660463 /* JankifyUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = JankifyUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		6A684B9271A4C20152F59673 /* JankifyLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JankifyLaunchTests.swift; sourceTree = "<group>"; };
+		6E8793D50BEDF75B626E7DD5 /* ReviewPromptPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewPromptPolicyTests.swift; sourceTree = "<group>"; };
 		72602A0B0B31EF37DBF5FCC7 /* BridgeController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeController.swift; sourceTree = "<group>"; };
 		7A2168EAF7D7BF6E2EAA26BA /* BridgeControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeControllerTests.swift; sourceTree = "<group>"; };
 		889993F79861DB410EFB3934 /* BundleContentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundleContentTests.swift; sourceTree = "<group>"; };
@@ -136,6 +138,7 @@
 				7A2168EAF7D7BF6E2EAA26BA /* BridgeControllerTests.swift */,
 				56D9EFFD728EC1F2A536A8E0 /* BridgeMessageTests.swift */,
 				889993F79861DB410EFB3934 /* BundleContentTests.swift */,
+				6E8793D50BEDF75B626E7DD5 /* ReviewPromptPolicyTests.swift */,
 			);
 			path = JankifyTests;
 			sourceTree = "<group>";
@@ -289,6 +292,7 @@
 				F706E18B819D4FE2A7C5C2F7 /* BridgeControllerTests.swift in Sources */,
 				02C40EC16B4C1DECA06D5A14 /* BridgeMessageTests.swift in Sources */,
 				B0F0BFE42F5B82CB97126ADE /* BundleContentTests.swift in Sources */,
+				C93F4C4D0DE2C7CE8A12CE02 /* ReviewPromptPolicyTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

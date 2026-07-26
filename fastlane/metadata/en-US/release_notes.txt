@@ -1,6 +1,6 @@
-Jankify 1.1.1 is a small follow-up to the animation release.
+Jankify 1.1.2 is a quiet stability update.
 
-- After you export a few pieces across separate sessions, the app may occasionally invite an App Store rating. Never on first open, never mid-effect.
-- GIF and video import, frame-by-frame effects, and export options from 1.1 are unchanged.
+- Improves reliability when returning to the app after an export.
+- GIF and video import, frame-by-frame effects, and export options work as before.
 
 Feedback welcome at luke@lukesteuber.com.
