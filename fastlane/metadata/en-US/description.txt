@@ -2,7 +2,7 @@ Jankify screws up your photos, GIFs, and videos on purpose—and somehow makes t
 
 Feed it a photo, animated GIF, or short video and watch it fall apart into eight handmade looks: chunky pixels, a glowing Lite-Brite peg board, ASCII text, an emoji mosaic, ink cross-hatching, loose pen sketches, and shattered low-poly shards. Drag a few sliders, hit a button, export.
 
-No AI. No "enhance" button. No cloud round-trip. Every pixel is wrecked by plain, honest math running entirely on your device.
+No remote model. No "enhance" button. No cloud round-trip. Every pixel is wrecked by plain, honest math running entirely on your device.
 
 EIGHT WAYS TO BREAK A PICTURE
 
