@@ -40,4 +40,31 @@ final class AppConfigurationTests: XCTestCase {
 
         XCTAssertEqual(usesEncryption, false)
     }
+
+    func testPrivacyManifestDeclaresAppLocalUserDefaultsReason() throws {
+        let url = try XCTUnwrap(
+            Bundle.main.url(forResource: "PrivacyInfo", withExtension: "xcprivacy")
+        )
+        let data = try Data(contentsOf: url)
+        let manifest = try XCTUnwrap(
+            PropertyListSerialization.propertyList(from: data, options: [], format: nil)
+                as? [String: Any]
+        )
+        let accessedTypes = try XCTUnwrap(
+            manifest["NSPrivacyAccessedAPITypes"] as? [[String: Any]]
+        )
+        let userDefaults = try XCTUnwrap(
+            accessedTypes.first {
+                $0["NSPrivacyAccessedAPIType"] as? String
+                    == "NSPrivacyAccessedAPICategoryUserDefaults"
+            }
+        )
+
+        XCTAssertEqual(
+            userDefaults["NSPrivacyAccessedAPITypeReasons"] as? [String],
+            ["CA92.1"]
+        )
+        XCTAssertEqual(manifest["NSPrivacyTracking"] as? Bool, false)
+        XCTAssertEqual((manifest["NSPrivacyCollectedDataTypes"] as? [Any])?.count, 0)
+    }
 }

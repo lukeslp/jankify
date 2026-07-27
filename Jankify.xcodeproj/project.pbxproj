@@ -11,6 +11,7 @@
 		052A13706779553813820304 /* external-lzw.gif in Resources */ = {isa = PBXBuildFile; fileRef = E4AD38BD93FE4A36A340B7F0 /* external-lzw.gif */; };
 		15780366C7DF7435A56D0837 /* JankifyLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A684B9271A4C20152F59673 /* JankifyLaunchTests.swift */; };
 		16F94E438BF47EB9FE2CE519 /* Web in Resources */ = {isa = PBXBuildFile; fileRef = 8BE8D52AC55E9D49A9C163FD /* Web */; };
+		1A3EEA29433EAAAE43E1DB14 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7A1B139A5D1193A4975CB834 /* PrivacyInfo.xcprivacy */; };
 		1F634EAE80702FD505D06CBD /* ReviewPromptPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C5E8B1D77E553BB2C814A9C /* ReviewPromptPolicy.swift */; };
 		22F6B900844D8E21147DB118 /* BridgeController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72602A0B0B31EF37DBF5FCC7 /* BridgeController.swift */; };
 		33C89906521E3A5DEA8719AF /* load-functions.js in Resources */ = {isa = PBXBuildFile; fileRef = B0A2CF9F08500606B776AC14 /* load-functions.js */; };
@@ -55,6 +56,7 @@
 		6A684B9271A4C20152F59673 /* JankifyLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JankifyLaunchTests.swift; sourceTree = "<group>"; };
 		6E8793D50BEDF75B626E7DD5 /* ReviewPromptPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewPromptPolicyTests.swift; sourceTree = "<group>"; };
 		72602A0B0B31EF37DBF5FCC7 /* BridgeController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeController.swift; sourceTree = "<group>"; };
+		7A1B139A5D1193A4975CB834 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		7A2168EAF7D7BF6E2EAA26BA /* BridgeControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeControllerTests.swift; sourceTree = "<group>"; };
 		889993F79861DB410EFB3934 /* BundleContentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundleContentTests.swift; sourceTree = "<group>"; };
 		8BE8D52AC55E9D49A9C163FD /* Web */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Web; path = Jankify/Resources/Web; sourceTree = SOURCE_ROOT; };
@@ -89,6 +91,7 @@
 				EF85C574843E75E19AC24295 /* Info.plist */,
 				2130B3009F48E20CA3B6F5C6 /* JankifyApp.swift */,
 				5166A5A443C7CCFF4D829D61 /* JankifyWebView.swift */,
+				7A1B139A5D1193A4975CB834 /* PrivacyInfo.xcprivacy */,
 			);
 			path = Jankify;
 			sourceTree = "<group>";
@@ -277,6 +280,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C22D75F2B8ED75F9B74F7487 /* Assets.xcassets in Resources */,
+				1A3EEA29433EAAAE43E1DB14 /* PrivacyInfo.xcprivacy in Resources */,
 				16F94E438BF47EB9FE2CE519 /* Web in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
