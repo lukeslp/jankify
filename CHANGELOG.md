@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- The header App Store button is hidden inside the iOS and Android apps; it only renders on the web.
 - GIF LZW decode/encode code-size growth now matches the GIF89a bit-width rules, so Make GIF works on real third-party GIFs (not only self-encoded round-trips).
 - Native shells sniff GIF magic bytes and name the imported file `*.gif`, so the GIF export button appears on iOS the same way it does on Android/web.
 - GIF photosensitivity warning no longer blocks app launch on Android/iOS WebViews (`hidden` vs inline `display:flex`).
