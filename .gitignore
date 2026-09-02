@@ -24,3 +24,4 @@ android/.gradle/
 android/local.properties
 android/**/build/
 dist/
+artifacts/google-play/
