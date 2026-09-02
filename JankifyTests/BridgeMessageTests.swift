@@ -94,6 +94,7 @@ final class BridgeMessageTests: XCTestCase {
         }
     }
 
+    @MainActor
     func testImportPolicyAcceptsImagesAndVideosOnly() {
         XCTAssertTrue(BridgeController.isSupportedImportMIMEType("image/gif"))
         XCTAssertTrue(BridgeController.isSupportedImportMIMEType("video/mp4"))

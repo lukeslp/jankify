@@ -12,6 +12,15 @@ const bridgeSource = fs.readFileSync(
   "android/app/src/main/assets/android-bridge.js",
   "utf8"
 );
+const bundledHtml = fs.readFileSync(
+  "android/app/src/main/assets/index.html",
+  "utf8"
+);
+
+test("Android bundle hides the App Store link before first paint", () => {
+  assert.match(bundledHtml, /html\[data-native\] #store-link/);
+  assert.match(bundledHtml, /window\.JankifyAndroid/);
+});
 
 function makeSandbox(mode = "hatch") {
   const messages = [];

@@ -25,7 +25,7 @@ sync_bundle() {
     s{</body>}{<script src="$ENV{BRIDGE_SCRIPT}"></script>\n</body>};
   ' "$temporary_html"
   if [ "$strip_app_store_link" = "true" ]; then
-    perl -0pi -e 's{\n  <a class="btn" href="https://apps\.apple\.com/app/id6782693852"[^>]*>.*?</a>\n}{}s' "$temporary_html"
+    perl -0pi -e 's{\n  <a class="btn" id="store-link" href="https://apps\.apple\.com/app/id6782693852"[^>]*>.*?</a>\n}{}s' "$temporary_html"
   fi
   mv "$temporary_html" "$output_html"
 }

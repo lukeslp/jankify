@@ -7,6 +7,15 @@ const bridgeSource = fs.readFileSync(
   "Jankify/Resources/Web/ios-bridge.js",
   "utf8"
 );
+const bundledHtml = fs.readFileSync(
+  "Jankify/Resources/Web/index.html",
+  "utf8"
+);
+
+test("iOS bundle omits the App Store link", () => {
+  assert.doesNotMatch(bundledHtml, /id="store-link"/);
+  assert.doesNotMatch(bundledHtml, /apps\.apple\.com\/app\/id6782693852/);
+});
 
 async function exportedTextFor(mode) {
   const messages = [];
