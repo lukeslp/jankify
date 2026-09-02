@@ -2,6 +2,8 @@
 
 Jankify transforms photos into pixel art, Lite Brite boards, ASCII, emoji mosaics, hatching, rough sketches, polygons, and Voronoi art. The canonical browser app is `index.html`; native iOS and Android shells bundle synchronized offline copies.
 
+The Edit/Create workspace switcher connects the editor to the SpaceJank creator at `https://jankify.app/create/`. Editing remains fully bundled in the native apps; Create opens the browser-hosted generator collection.
+
 ## Web
 
 Open `index.html` in a modern browser. No package installation or build step is required.

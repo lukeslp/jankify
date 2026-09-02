@@ -144,6 +144,32 @@ header h1 {
 header h1 .accent { color: var(--accent); }
 header .spacer { flex: 1; }
 
+.workspace-switcher {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.workspace-switcher a,
+.workspace-switcher [aria-current="page"] {
+  padding: 4px 9px;
+  border-radius: calc(var(--radius) - 3px);
+  color: var(--fg-muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+}
+.workspace-switcher a:hover { color: var(--fg); }
+.workspace-switcher a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.workspace-switcher [aria-current="page"] {
+  background: var(--surface);
+  color: var(--fg);
+  box-shadow: 0 1px 2px var(--shadow);
+}
+
 .mode-select {
   display: inline-flex;
   align-items: center;
@@ -497,6 +523,11 @@ input[type=file] {
 
 <header>
   <h1><span class="accent">▲</span> Jankify</h1>
+
+  <nav class="workspace-switcher" aria-label="Jankify workspace">
+    <span aria-current="page">Edit</span>
+    <a href="https://jankify.app/create/" title="Open the SpaceJank creator">Create</a>
+  </nav>
 
   <a class="btn" id="store-link" href="https://apps.apple.com/app/id6782693852" target="_blank" rel="noreferrer" title="Jankify on the App Store">
     <i class="fa-solid fa-mobile-screen-button" aria-hidden="true"></i>
