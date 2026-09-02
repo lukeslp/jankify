@@ -14,6 +14,8 @@ release for review.
   with no review submission.
 - `fastlane ios upload_build ipa:/path/to/Jankify.ipa` uploads the signed
   1.1.3 (58) build without distributing it. Allow time for Apple to process it.
+- `fastlane ios attach_build build:58` pairs the processed build with version
+  1.1.3 without submitting it for review.
 
 ## App Store Connect checks
 

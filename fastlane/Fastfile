@@ -81,6 +81,28 @@ platform :ios do
     )
   end
 
+  desc "Attach a processed build to the editable App Store version."
+  lane :attach_build do |options|
+    build_number = options[:build].to_s
+    UI.user_error!("Pass build:58") if build_number.empty?
+    require "json"
+    cfg = JSON.parse(File.read(API_KEY_JSON))
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: cfg["key_id"], issuer_id: cfg["issuer_id"],
+      filepath: File.expand_path(cfg["key_filepath"]))
+    app = Spaceship::ConnectAPI::App.find("com.lukesteuber.jankify")
+    version = app.get_edit_app_store_version(platform: "IOS")
+    UI.user_error!("No editable App Store version") unless version
+    build = Spaceship::ConnectAPI::Build.all(
+      app_id: app.id, version: version.version_string,
+      build_number: build_number, platform: "IOS"
+    ).first
+    UI.user_error!("Build #{version.version_string} (#{build_number}) is not available") unless build
+    UI.user_error!("Build #{build_number} is #{build.processing_state}") unless build.processing_state == "VALID"
+    version.select_build(build_id: build.id)
+    UI.success("Attached build #{version.version_string} (#{build_number})")
+  end
+
   desc "Delete duplicate screenshots (same filename) left by flaky-API re-uploads."
   lane :dedup_shots do
     require "json"
@@ -119,6 +141,13 @@ platform :ios do
     version = app.get_edit_app_store_version(platform: "IOS")
     UI.message("Edit version: #{version&.version_string} — #{version&.app_store_state}")
     if version
+      begin
+        selected_build = version.get_build
+      rescue RuntimeError => error
+        raise unless error.message == "No data"
+        selected_build = nil
+      end
+      UI.message("Selected build: #{selected_build&.version || 'none'}")
       version.get_app_store_version_localizations.each do |loc|
         UI.message("  [#{loc.locale}] name set? #{!app.name.to_s.empty?}  desc #{loc.description.to_s.length} chars  keywords:#{loc.keywords}")
         sets = loc.get_app_screenshot_sets

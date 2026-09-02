@@ -47,6 +47,14 @@ Push metadata + screenshots, leave the version staged (NO submit).
 
 Upload a signed IPA to App Store Connect without distributing it.
 
+### ios attach_build
+
+```sh
+[bundle exec] fastlane ios attach_build
+```
+
+Attach a processed build to the editable App Store version.
+
 ### ios dedup_shots
 
 ```sh
