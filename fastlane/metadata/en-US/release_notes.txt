@@ -1,6 +1,6 @@
-Jankify 1.1.2 is a quiet stability update.
+Jankify 1.1.3 is a small reliability update.
 
-- Improves reliability when returning to the app after an export.
-- GIF and video import, frame-by-frame effects, and export options work as before.
+- Improves the in-app review prompt after returning to Jankify.
+- Keeps platform privacy declarations current.
 
-Feedback welcome at luke@lukesteuber.com.
+Photos, GIFs, and videos still stay entirely on your device.

@@ -1,59 +1,36 @@
-# Jankify 1.0 — submission checklist
+# Jankify 1.1.3 — release checklist
 
-Everything that can be pushed from the command line is automated by the lanes in
-`fastlane/Fastfile`. A few fields can only be set in the App Store Connect web UI;
-they are the short list below. The app record already exists
-(`com.lukesteuber.jankify`, Apple ID 6782693852).
+The App Store record already exists (`com.lukesteuber.jankify`, Apple ID
+6782693852). These steps stage build 11 and its listing without submitting the
+release for review.
 
-## Pushed automatically (see Fastfile)
+## Automated staging
 
-- `bundle exec fastlane upload_listing` — name, subtitle, promo text, description,
-  keywords, release notes, marketing/support/privacy URLs, copyright, categories.
-- `bundle exec fastlane upload_shots` — 6 iPhone 6.9" + 5 iPad 13" screenshots.
-- `bundle exec fastlane stage` — both of the above at once, leaves the version
-  staged with **no** review submission.
+- `fastlane ios upload_listing` pushes the text metadata and the canonical
+  `jankify.app` URLs.
+- `fastlane ios upload_shots` replaces the screenshots with 5 iPhone 6.9-inch
+  and 5 iPad 13-inch screenshots.
+- `fastlane ios stage` performs both operations and leaves the version staged
+  with no review submission.
+- Upload the signed 1.1.3 (11) IPA with the central App Store Connect API key,
+  then allow time for Apple to process it.
 
-Auth first: `source ~/.appstoreconnect/env.sh`.
+## App Store Connect checks
 
-## Build
+- [ ] Confirm version 1.1.3 and build 11 are paired under **App Store → 1.1.3**.
+- [ ] Confirm the age rating remains 4+ and the app remains free in all intended
+      territories.
+- [ ] Confirm App Privacy remains **Data Not Collected**.
+- [ ] Confirm `https://jankify.app/privacy.html` is the privacy policy URL.
+- [ ] Confirm the review contact is complete. No demo account is required.
+- [ ] Review all 10 screenshots, the description, and the release notes in the
+      listing preview.
 
-- Build **5** (marketing version 1.0.0) is uploaded via the central ASC API key.
-- Builds 1–4 already existed on the record; 5 supersedes them.
-- After upload, the build takes ~5–30 min to finish processing before it can be
-  attached to the 1.0 version. Attach it under **App Store → 1.0 → Build**.
-
-## Set once in the App Store Connect UI
-
-These are not reliably settable through `deliver`, so do them in the browser:
-
-1. **Age rating** → 4+ (no objectionable content in any category).
-2. **Pricing** → Free (Availability: all territories).
-3. **App Privacy** → "Data Not Collected" (the app makes no network calls and
-   has no analytics). Privacy policy URL is already set to
-   `https://dr.eamer.dev/jankify/privacy.html`.
-4. **Encryption** → already declared exempt in Info.plist
-   (`ITSAppUsesNonExemptEncryption = false`); no extra step.
-
-## App Review information (set in the UI — needs your phone number)
-
-`deliver` can't set the review contact without a valid phone number, so add it
-in **App Store → App Review Information**: first name, last name, your phone
-(format `+1 555 123 4567`), and `luke@lukesteuber.com`. No demo account is
-needed. Paste this into the **Notes** field:
+Use this review note if the existing one needs to be refreshed:
 
 > Jankify runs entirely on-device with no account, login, network calls, or
 > special configuration. To review: tap Choose an image, pick any photo, choose
-> a mode from the Mode menu (Pixel, Lite Brite, ASCII, Emoji, Hatch, Rough,
-> Polygon, Voronoi), adjust the sliders, then export with PNG / SVG / Copy. No
-> data is collected. The tagline "without AI" is the product brand.
+> a mode, adjust the controls, then export or share the result. No data is
+> collected.
 
-## Before tapping Submit for Review
-
-- [ ] Deploy the website so the privacy page is live: commit + push, confirm
-      `https://dr.eamer.dev/jankify/privacy.html` returns the real policy
-      (currently the path falls back to the app until `privacy.html` is deployed).
-- [ ] Confirm build 5 is attached to the 1.0 version.
-- [ ] Age rating, pricing, and App Privacy set per above.
-- [ ] Review the 11 screenshots and the description in the listing preview.
-
-Then **Submit for Review** is the only remaining click.
+Submit for review only after every check above is complete.
