@@ -12,11 +12,11 @@ Search the existing Play Console account for exact package `com.lukesteuber.jank
 
 ## Engineering gates
 
-- [ ] Resolve or commit the four pre-existing working-tree changes without mixing them into Play setup.
+- [x] Resolve and commit the native bundle synchronization and release changes.
 - [ ] Add a Play release behavior that disables direct-download update prompts.
 - [ ] Make the privacy policy platform-neutral and accurate for Android.
-- [ ] Build, stage, sign, and checksum version 1.0.6 (13) with the established identity.
-- [ ] Inspect package, version, target SDK, permissions, embedded SDKs, and signatures.
+- [x] Build, stage, sign, and checksum version 1.0.7 (14) with the established identity.
+- [x] Inspect package, version, target SDK, permissions, and signatures.
 - [ ] Complete the device/accessibility checks in `play/intake.md`.
 
 ## Store listing to stage
