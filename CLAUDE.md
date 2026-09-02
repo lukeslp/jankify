@@ -9,8 +9,8 @@ Jankify is a browser media-transform tool that "screws up your photos, without A
 ## How it runs
 
 - **Local dev:** open `index.html` directly in any modern browser, or serve the directory over HTTP if you need to load a test image via `fetch` (Chrome blocks `file://` fetch). No bundler, no dependencies installed. Font Awesome and IBM Plex are loaded from CDNs.
-- **Production:** Caddy block in `/etc/caddy/Caddyfile` uses `handle_path /jankify/*` to serve the directory statically (gzip + SPA fallback to `/index.html`). Legacy `/artboard` redirects also live there. No `sm` entry — static only.
-- **Deploy:** edit, commit, push. Caddy serves the file directly from this directory; no copy step.
+- **Production:** Drummer's shared Caddy site serves `/jankify/` from the separate static directory `/home/coolhand/www/dr.eamer.dev/jankify/`. The generic `dr.eamer.dev` file-server block owns the route; there is no dedicated `/jankify/*` handler or `sm` service. `jankify.app` and `www.jankify.app` currently redirect to this path.
+- **Deploy:** edit, test, commit, and push, then explicitly synchronize the browser files to Drummer's static directory. A Git push alone does not deploy the website. Compare the live `index.html` and `privacy.html` before overwriting because the production copies have previously drifted from the repository; static-file updates do not require a Caddy reload.
 - **Native sync:** run `scripts/sync-web.sh` after web changes. It updates both `Jankify/Resources/Web/` and `android/app/src/main/assets/`; regenerate the Xcode project with `xcodegen generate` when project settings change.
 - **Native tests:** run the iOS `xcodebuild test` gate, `node --test JankifyTests/ios-bridge.test.js JankifyTests/android-bridge.test.js JankifyTests/video-animation.test.js`, and Android's `:app:testDebugUnitTest` task.
 
