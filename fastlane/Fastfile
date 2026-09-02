@@ -25,6 +25,7 @@ platform :ios do
   lane :upload_listing do
     deliver(
       api_key: asc_key,
+      app_version: get_version_number(xcodeproj: "Jankify.xcodeproj", target: "Jankify"),
       skip_binary_upload: true,
       skip_screenshots: true,
       overwrite_screenshots: false,
@@ -38,6 +39,7 @@ platform :ios do
   lane :upload_shots do
     deliver(
       api_key: asc_key,
+      app_version: get_version_number(xcodeproj: "Jankify.xcodeproj", target: "Jankify"),
       skip_binary_upload: true,
       skip_metadata: true,
       screenshots_path: SHOTS,
@@ -57,12 +59,25 @@ platform :ios do
   lane :stage do
     deliver(
       api_key: asc_key,
+      app_version: get_version_number(xcodeproj: "Jankify.xcodeproj", target: "Jankify"),
       skip_binary_upload: true,
       screenshots_path: SHOTS,
       overwrite_screenshots: true,
       force: true,
       submit_for_review: false,
       run_precheck_before_submit: false
+    )
+  end
+
+  desc "Upload a signed IPA to App Store Connect without distributing it."
+  lane :upload_build do |options|
+    ipa_path = File.expand_path(options[:ipa].to_s)
+    UI.user_error!("Pass ipa:/path/to/Jankify.ipa") unless File.file?(ipa_path)
+    upload_to_testflight(
+      api_key: asc_key,
+      ipa: ipa_path,
+      skip_waiting_for_build_processing: true,
+      distribute_external: false
     )
   end
 
@@ -109,6 +124,10 @@ platform :ios do
         sets = loc.get_app_screenshot_sets
         sets.each { |s| UI.message("    #{s.screenshot_display_type}: #{s.app_screenshots.count} shots") }
       end
+    end
+    build_filter = version ? { "preReleaseVersion.version" => version.version_string } : {}
+    app.get_builds(filter: build_filter, includes: "preReleaseVersion", sort: "-uploadedDate").each do |build|
+      UI.message("Build #{build.app_version} (#{build.version}) — #{build.processing_state} — uploaded #{build.uploaded_date}")
     end
   end
 end

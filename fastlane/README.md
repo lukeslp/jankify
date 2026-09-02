@@ -39,6 +39,14 @@ Push screenshots only (device class inferred from pixel dimensions).
 
 Push metadata + screenshots, leave the version staged (NO submit).
 
+### ios upload_build
+
+```sh
+[bundle exec] fastlane ios upload_build
+```
+
+Upload a signed IPA to App Store Connect without distributing it.
+
 ### ios dedup_shots
 
 ```sh
