@@ -84,7 +84,7 @@ platform :ios do
   desc "Attach a processed build to the editable App Store version."
   lane :attach_build do |options|
     build_number = options[:build].to_s
-    UI.user_error!("Pass build:58") if build_number.empty?
+    UI.user_error!("Pass build:NUMBER") if build_number.empty?
     require "json"
     cfg = JSON.parse(File.read(API_KEY_JSON))
     Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(

@@ -1,5 +1,6 @@
-Jankify 1.1.3 is a small reliability update.
+Jankify 1.1.3 adds a Create side alongside the editor.
 
+- Use the new Edit/Create switcher to open SpaceJank's seven pixel-art space generators in your browser.
 - Improves the in-app review prompt after returning to Jankify.
 - Keeps platform privacy declarations current.
 
