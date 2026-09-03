@@ -13,9 +13,18 @@ const PALETTES = {
   emp: { label: "EMP", ramp: ["#ffffff", "#d8fff6", "#8affe0", "#3fd0c0", "#1a8090", "#0a3a4a"], smoke: "#1c3038" },
 };
 
+const BLAST_SHAPES = {
+  nova: { label: "Nova" },
+  ring: { label: "Shock ring" },
+  cone: { label: "Directed" },
+  cluster: { label: "Cluster" },
+};
+
 function buildBlast(state) {
   const rng = mulberry32(state.seed >>> 0);
+  const id = BLAST_SHAPES[state.shape] ? state.shape : "nova";
   const shape = {
+    id,
     offsetX: (rng() - 0.5) * state.size * 0.18,
     offsetY: (rng() - 0.5) * state.size * 0.18,
     stretchX: 0.78 + rng() * 0.44,
@@ -23,7 +32,21 @@ function buildBlast(state) {
     lobes: 2 + Math.floor(rng() * 4),
     lobePhase: rng() * Math.PI * 2,
     lobeStrength: 0.08 + rng() * 0.16,
+    direction: rng() * Math.PI * 2,
+    clusterCenters: [],
   };
+  if (id === "cluster") {
+    shape.lobes = 5 + Math.floor(rng() * 4);
+    shape.lobeStrength = 0.18 + rng() * 0.14;
+    for (let i = 0; i < 3; i++) {
+      const angle = rng() * Math.PI * 2;
+      shape.clusterCenters.push({
+        x: Math.cos(angle) * state.size * (0.08 + rng() * 0.15),
+        y: Math.sin(angle) * state.size * (0.08 + rng() * 0.15),
+        scale: 0.55 + rng() * 0.3,
+      });
+    }
+  }
   const debris = [];
   const nD = Math.max(0, Math.min(48, state.debris | 0));
   for (let i = 0; i < nD; i++) {
@@ -81,12 +104,22 @@ function drawBlast(ctx, t, i, state, blast) {
       const x = gx * px + px / 2, y = gy * px + px / 2;
       const dx = (x - cx) / shape.stretchX;
       const dy = (y - cy) / shape.stretchY;
-      const d = Math.hypot(dx, dy);
+      let d = Math.hypot(dx, dy);
       const angle = Math.atan2(dy, dx);
       const n = noiseAt(gx, gy);
       const lobedEdge = 1 + Math.sin(angle * shape.lobes + shape.lobePhase) * shape.lobeStrength;
-      const edge = r * (0.75 + n * 0.45) * lobedEdge;
+      let edge = r * (0.75 + n * 0.45) * lobedEdge;
+      if (shape.id === "cone") {
+        const forward = Math.cos(angle - shape.direction);
+        if (forward < -0.15) continue;
+        edge *= 0.5 + 0.9 * Math.max(0, forward);
+      } else if (shape.id === "cluster") {
+        for (const cluster of shape.clusterCenters) {
+          d = Math.min(d, Math.hypot(dx - cluster.x, dy - cluster.y) / cluster.scale);
+        }
+      }
       if (d > edge) continue;
+      if (shape.id === "ring" && d < edge * (0.42 + 0.1 * n)) continue;
       // heat: 1 at centre → 0 at rim, dragged down as the blast cools
       let heat = (1 - d / Math.max(1, edge)) * (1 - cool * 0.9) + n * 0.15 - cool * 0.25;
       if (heat <= 0.02) {
@@ -149,6 +182,7 @@ export const explosionsMode = {
   defaults() {
     return {
       seed: Math.floor(Math.random() * 1e9),
+      shape: "nova",
       palette: "fire",
       frames: 14,
       size: 96,
@@ -162,6 +196,12 @@ export const explosionsMode = {
 
   controls() {
     return [
+      {
+        type: "select",
+        key: "shape",
+        label: "Blast shape",
+        options: Object.entries(BLAST_SHAPES).map(([value, def]) => ({ value, label: def.label })),
+      },
       {
         type: "select",
         key: "palette",
@@ -210,7 +250,8 @@ export const explosionsMode = {
     this._strip.height = this._sheet.height;
     this._strip.getContext("2d").drawImage(this._sheet, 0, 0);
     this._stop = startPreview(this._preview, this._sheet, n, size, size, 15);
-    this._lastLabel = `${(PALETTES[state.palette] || PALETTES.fire).label.toLowerCase()} · ${n}f`;
+    const shape = BLAST_SHAPES[st.shape] || BLAST_SHAPES.nova;
+    this._lastLabel = `${shape.label.toLowerCase()} · ${(PALETTES[state.palette] || PALETTES.fire).label.toLowerCase()} · ${n}f`;
     return this._sheet;
   },
 

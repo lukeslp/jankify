@@ -23,7 +23,7 @@ const RECIPE_KEYS = {
   sprites: ["seed", "size", "colors", "symmetry", "outline", "scale", "variants", "showName", "bg", "idea", "caBirth", "caDeath", "caSteps"],
   ships: ["seed", "idea", "scale", "fleet", "battle", "outline", "color1", "color2", "glow"],
   effects: ["seed", "fx", "frames", "size", "px", "color1", "color2"],
-  explosions: ["seed", "palette", "frames", "size", "power", "debris", "px", "shockwave", "smoke"],
+  explosions: ["seed", "shape", "palette", "frames", "size", "power", "debris", "px", "shockwave", "smoke"],
 };
 
 const els = {

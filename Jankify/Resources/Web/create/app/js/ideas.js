@@ -92,15 +92,22 @@ export function varyState(modeId, state, { reseed = false, amount = 0.35 } = {})
     // same composition, new palette
     next.pal = Math.floor(rng() * 1e9);
   } else if (modeId === "effects") {
-    // same motion, new energy colors
+    // Switch archetypes as well as energy: a remix should never be only paint.
+    const effects = ["bolt", "zap", "flash", "shield", "plume", "warp"];
+    const current = effects.indexOf(next.fx);
+    next.fx = effects[(Math.max(0, current) + 1 + Math.floor(rng() * (effects.length - 1))) % effects.length];
     const pal = cosinePalette(2, rng);
     next.color1 = hexFromRgb(pal[0].map((c) => Math.min(1, c * 1.2 + 0.2)));
     next.color2 = hexFromRgb(pal[1].map((c) => Math.min(1, c * 0.6 + 0.4)));
   } else if (modeId === "explosions") {
-    // same blast shape, different energy
+    // Move to a new silhouette, then tune its energy and debris.
+    const shapes = ["nova", "ring", "cone", "cluster"];
+    const current = shapes.indexOf(next.shape);
+    next.shape = shapes[(Math.max(0, current) + 1 + Math.floor(rng() * (shapes.length - 1))) % shapes.length];
     const pals = ["fire", "plasma", "void", "emp"];
     next.palette = pals[(pals.indexOf(next.palette) + 1 + Math.floor(rng() * 3)) % pals.length];
     next.power = jitter(next.power ?? 1, 0.4, 2, amount);
+    next.debris = Math.round(jitter(next.debris ?? 18, 0, 48, amount));
   }
 
   next.seed = next.seed ?? state.seed;
