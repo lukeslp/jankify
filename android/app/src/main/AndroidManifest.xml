@@ -3,7 +3,17 @@
   Primary Functions: Register the WebView activity and cache-only export FileProvider.
   Inputs/Outputs: Consumed by Android packaging; declares no runtime permissions.
 -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Jankify is a touch-first editor with no D-pad navigation model. Require
+         a physical touchscreen so Amazon does not offer this tablet build on
+         Fire TV. The resulting reach reduction is deliberate. -->
+    <uses-feature
+        android:name="android.hardware.touchscreen"
+        android:required="true"
+        tools:ignore="UnnecessaryRequiredFeature" />
+
     <application
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
