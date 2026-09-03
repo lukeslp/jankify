@@ -23,6 +23,7 @@ sync_bundle() {
     s{<script\s+data-goatcounter=.*?</script>\s*}{}gs;
     s{</head>}{<link rel="stylesheet" href="offline.css">\n</head>};
     s{</body>}{<script src="$ENV{BRIDGE_SCRIPT}"></script>\n</body>};
+    s{href="https://jankify\.app/create/"}{href="create/app/index.html#/effects"}g;
   ' "$temporary_html"
   if [ "$strip_app_store_link" = "true" ]; then
     perl -0pi -e 's{\n  <a class="btn" id="store-link" href="https://apps\.apple\.com/app/id6782693852"[^>]*>.*?</a>\n}{}s' "$temporary_html"
@@ -36,4 +37,10 @@ android_web_dir="$repo_root/android/app/src/main/assets"
 if [ -d "$repo_root/android" ]; then
   cp "$repo_root/Jankify/Resources/Web/offline.css" "$android_web_dir/offline.css"
   sync_bundle "$android_web_dir" "android-bridge.js" "false"
+  if [ ! -d "$repo_root/Jankify/Resources/Web/create" ]; then
+    echo "Missing bundled Create workspace; run scripts/sync-spacejank.sh first." >&2
+    exit 1
+  fi
+  rm -rf "$android_web_dir/create"
+  cp -R "$repo_root/Jankify/Resources/Web/create" "$android_web_dir/create"
 fi

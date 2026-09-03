@@ -1,0 +1,85 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const test = require("node:test");
+const vm = require("node:vm");
+
+const iosRoot = "Jankify/Resources/Web";
+const androidRoot = "android/app/src/main/assets";
+const modes = [
+  "backgrounds",
+  "effects",
+  "explosions",
+  "planets",
+  "ships",
+  "sprites",
+  "starscapes",
+];
+
+test("Create is bundled identically on iOS and Android", () => {
+  const iosFiles = fs.readdirSync(path.join(iosRoot, "create"), { recursive: true })
+    .filter(file => fs.statSync(path.join(iosRoot, "create", file)).isFile())
+    .sort();
+  const androidFiles = fs.readdirSync(path.join(androidRoot, "create"), { recursive: true })
+    .filter(file => fs.statSync(path.join(androidRoot, "create", file)).isFile())
+    .sort();
+
+  assert.deepEqual(androidFiles, iosFiles);
+  for (const file of iosFiles) {
+    assert.deepEqual(
+      fs.readFileSync(path.join(androidRoot, "create", file)),
+      fs.readFileSync(path.join(iosRoot, "create", file)),
+      file,
+    );
+  }
+});
+
+test("Create has all seven modes and no hosted executable dependencies", () => {
+  const html = fs.readFileSync(path.join(iosRoot, "create/app/index.html"), "utf8");
+  assert.match(html, /\.\.\/native-shell\.js/);
+  assert.doesNotMatch(html, /stats\.dr\.eamer\.dev|<script[^>]+https?:\/\//i);
+  assert.match(html, /href="\.\.\/\.\.\/index\.html"/);
+  for (const mode of modes) {
+    assert.ok(fs.existsSync(path.join(iosRoot, `create/app/js/modes/${mode}.js`)), mode);
+  }
+  assert.ok(fs.existsSync(path.join(iosRoot, "create/Starscapes/p5.min.js")));
+  assert.ok(fs.existsSync(path.join(iosRoot, "create/SOURCE.json")));
+});
+
+test("native adapter maps SpaceJank share and copy actions onto the iOS bridge", async () => {
+  const source = fs.readFileSync(path.join(iosRoot, "create/native-shell.js"), "utf8");
+  const messages = [];
+  const sandbox = {
+    window: {
+      webkit: { messageHandlers: { jankify: { postMessage: message => messages.push(message) } } },
+    },
+  };
+  vm.runInNewContext(source, sandbox);
+
+  await sandbox.window.jankifyShell.shareDataURL(
+    "data:image/png;base64,iVBORw==",
+    "spacejank-effects-42.png",
+  );
+  await sandbox.window.jankifyShell.copyText("https://jankify.app/create/app/#/effects?seed=42");
+
+  assert.equal(messages[0].action, "share");
+  assert.equal(messages[0].payload.mimeType, "image/png");
+  assert.equal(messages[0].payload.base64, "iVBORw==");
+  assert.equal(messages[1].action, "copyText");
+});
+
+test("native adapter emits JSON for Android and rejects non-PNG data", async () => {
+  const source = fs.readFileSync(path.join(androidRoot, "create/native-shell.js"), "utf8");
+  const messages = [];
+  const sandbox = {
+    window: { JankifyAndroid: { postMessage: message => messages.push(JSON.parse(message)) } },
+  };
+  vm.runInNewContext(source, sandbox);
+
+  await sandbox.window.jankifyShell.copyText("recipe");
+  assert.deepEqual(messages, [{ action: "copyText", payload: { text: "recipe" } }]);
+  await assert.rejects(
+    sandbox.window.jankifyShell.shareDataURL("data:text/plain;base64,SGk=", "bad.txt"),
+    /Only PNG exports/,
+  );
+});

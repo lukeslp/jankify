@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Starscapes</title>
+  <style>
+    body { padding: 0; margin: 0; font-family: "Avenir Next", "Avenir", "Seravek", "Segoe UI", system-ui, sans-serif; background: #111; color: #eee; }
+    .left { float: left; padding-right: 20px; padding-left: 8px; }
+    #container { clear: both; position: relative; }
+    label { margin-left: 4px; }
+    #progress {
+      position: sticky; top: 0; z-index: 20; clear: both;
+      background: #0d1118; border-bottom: 1px solid #2a3342;
+      padding: 8px 12px; font-size: 13px;
+    }
+    #progress[hidden] { display: none !important; }
+    #progress .bar {
+      height: 6px; background: #1a2230; border-radius: 2px; margin-top: 6px; overflow: hidden;
+    }
+    #progress .bar > i {
+      display: block; height: 100%; width: 0%;
+      background: linear-gradient(90deg, #6ee7ff, #7dffa3);
+      transition: width 0.15s ease-out;
+    }
+    #progress .label { color: #8b97a8; letter-spacing: 0.04em; }
+    #progress .label strong { color: #e6edf5; font-weight: 600; }
+    button:disabled { opacity: 0.5; cursor: wait; }
+    /* Embedded in the PixelGen shell: shell owns the controls, show art + progress only */
+    html.embedded .left { display: none; }
+    html.embedded #container { display: flex; justify-content: center; }
+    /* Scale down on narrow frames instead of clipping */
+    html.embedded canvas { max-width: 100%; height: auto !important; display: block; }
+  </style>
+  <script>
+    if (new URLSearchParams(location.search).has("embed")) {
+      document.documentElement.classList.add("embedded");
+    }
+  </script>
+</head>
+<body>
+  <div id="progress" hidden aria-live="polite">
+    <div class="label"><strong id="progress-text">Generating…</strong> <span id="progress-detail"></span></div>
+    <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress-bar"><i id="progress-fill"></i></div>
+  </div>
+  <div class="left">
+      <h4>Colors</h4>
+      <table>
+          <tbody>
+            <tr><td>Sky color 1</td><td><input type="color" id="skyColor1"/></td></tr>
+            <tr><td>Sky color 2</td><td><input type="color" id="skyColor2"/></td></tr>
+            <tr><td>Sky accent 1</td><td><input type="color" id="skyAccentColor1"/></td></tr>
+            <tr><td>Sky accent 2</td><td><input type="color" id="skyAccentColor2"/></td></tr>
+            <tr><td>Star color 1</td><td><input type="color" id="starColor1"/></td></tr>
+            <tr><td>Star color 2</td><td><input type="color" id="starColor2"/></td></tr>
+            <tr><td>Mountain color 1</td><td><input type="color" id="mountainColor1"/></td></tr>
+            <tr><td>Mountain color 2</td><td><input type="color" id="mountainColor2"/></td></tr>
+            <tr><td>Cloud color</td><td><input type="color" id="cloudColor1"/></td></tr>
+          </tbody>
+        </table>
+    </div>
+  <div class="left">
+      <h4>Seed</h4>
+      <input type="number" name="mode" value="0" id="seedText">
+      <button type="button" onclick="generate()">Generate</button>
+      <button type="button" onclick="generateRandom()">Generate random</button>
+    </div>
+  <div class="left">
+    <h4>Mode</h4>
+    <input type="radio" name="mode" value="lines" id="modeSelectLines">
+    <label for="modeSelectLines">Lines</label><br>
+    <input type="radio" name="mode" value="circles" id="modeSelectCircles" checked>
+    <label for="modeSelectCircles">Circles</label><br>
+  </div>
+  <div class="left">
+    <h4>Resolution</h4>
+    <input type="number" name="width" value="600" min="1" id="resolutionX">
+    <label for="resolutionX">Width</label><br>
+    <input type="number" name="height" value="900" min="1" id="resolutionY">
+    <label for="resolutionY">Height</label><br>
+  </div>
+  <div class="left">
+      <h4>Details</h4>
+      <input type="number" name="mountain-detail" value="5" style="width: 40px" min="1" id="mountainDetail">
+      <label for="mountainDetail">Mountain</label><br>
+      <input type="number" name="particle-detail" value="18" style="width: 40px" min="8" id="particleDetail">
+      <label for="particleDetail">Particles</label><br>
+      <div>
+        The lower you go the more detailed it gets, with 1 being max details. Recommended to not go much lower on these unless you have a powerful machine. Page might tell you that a script is slowing it down, but if you wait it will complete eventually.
+      </div>
+    </div>
+  <div id="container"></div>
+  <!-- willReadFrequently patch MUST load before p5 -->
+  <!-- ?v= busts stale caches — bump when any of these files change -->
+  <script src="willReadFrequently.js?v=16"></script>
+  <script src="p5.min.js?v=16"></script>
+  <script src="PaintParticle.js?v=16"></script>
+  <script src="StarParticle.js?v=16"></script>
+  <script src="FieldDrawer.js?v=16"></script>
+  <script src="fields.js?v=16"></script>
+  <script src="index.js?v=16"></script>
+  <script src="sketch.js?v=16"></script>
+</body>
+</html>
+

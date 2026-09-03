@@ -18,7 +18,6 @@ import android.provider.OpenableColumns
 import android.webkit.JavascriptInterface
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
-import android.webkit.MimeTypeMap
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
@@ -122,7 +121,7 @@ class MainActivity : Activity() {
                 backCallback
             )
         }
-        webView.loadUrl(APP_URL)
+        webView.loadUrl(BridgePolicy.APP_URL)
         DirectUpdateChecker.check(this)
     }
 
@@ -267,7 +266,7 @@ class MainActivity : Activity() {
         @JavascriptInterface
         fun postMessage(message: String) {
             runOnUiThread {
-                if (webView.url != APP_URL) return@runOnUiThread
+                if (!BridgePolicy.isAllowedMainDocumentUrl(webView.url)) return@runOnUiThread
                 runCatching { BridgePolicy.decode(message) }
                     .onSuccess { decoded ->
                         when (decoded) {
@@ -284,8 +283,10 @@ class MainActivity : Activity() {
     private inner class OfflineWebViewClient : WebViewClient() {
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
             val uri = request.url
-            if (request.isForMainFrame && uri.toString() == APP_URL) return false
-            if (request.isForMainFrame) openExternal(uri)
+            val isLocalAsset = BridgePolicy.assetPathForUrl(uri.toString()) != null
+            if (!request.isForMainFrame) return !isLocalAsset
+            if (BridgePolicy.isAllowedMainDocumentUrl(uri.toString())) return false
+            openExternal(uri)
             return true
         }
 
@@ -294,16 +295,17 @@ class MainActivity : Activity() {
             request: WebResourceRequest
         ): WebResourceResponse? {
             val uri = request.url
-            if (uri.scheme != "https" || uri.host != APP_HOST) {
-                return forbiddenResponse()
-            }
-            val assetName = uri.path?.removePrefix("/assets/") ?: return forbiddenResponse()
-            if (assetName !in ALLOWED_ASSETS) return forbiddenResponse()
+            val assetName = BridgePolicy.assetPathForUrl(uri.toString()) ?: return forbiddenResponse()
             return runCatching {
-                val mimeType = MimeTypeMap.getSingleton()
-                    .getMimeTypeFromExtension(assetName.substringAfterLast('.'))
-                    ?: "application/octet-stream"
-                WebResourceResponse(mimeType, "UTF-8", assets.open(assetName))
+                val mimeType = BridgePolicy.mimeTypeForAsset(assetName)
+                WebResourceResponse(
+                    mimeType,
+                    if (mimeType.startsWith("text/") || mimeType.contains("json")) "UTF-8" else null,
+                    200,
+                    "OK",
+                    mapOf("Content-Security-Policy" to BridgePolicy.contentSecurityPolicy),
+                    assets.open(assetName)
+                )
             }.getOrElse { forbiddenResponse() }
         }
 
@@ -320,11 +322,8 @@ class MainActivity : Activity() {
     }
 
     private companion object {
-        const val APP_HOST = "appassets.androidplatform.net"
-        const val APP_URL = "https://$APP_HOST/assets/index.html"
         const val BRIDGE_NAME = "JankifyAndroid"
         const val PICK_IMAGE_REQUEST = 1001
         const val FILE_CHOOSER_REQUEST = 1002
-        val ALLOWED_ASSETS = setOf("index.html", "offline.css", "android-bridge.js")
     }
 }

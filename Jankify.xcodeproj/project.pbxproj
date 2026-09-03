@@ -12,6 +12,7 @@
 		15780366C7DF7435A56D0837 /* JankifyLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A684B9271A4C20152F59673 /* JankifyLaunchTests.swift */; };
 		16F94E438BF47EB9FE2CE519 /* Web in Resources */ = {isa = PBXBuildFile; fileRef = 8BE8D52AC55E9D49A9C163FD /* Web */; };
 		1A3EEA29433EAAAE43E1DB14 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7A1B139A5D1193A4975CB834 /* PrivacyInfo.xcprivacy */; };
+		1F099D7DA1DAAE84566A8EEC /* BundleResourceResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E373352B544EE78C01A492B9 /* BundleResourceResolverTests.swift */; };
 		1F634EAE80702FD505D06CBD /* ReviewPromptPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C5E8B1D77E553BB2C814A9C /* ReviewPromptPolicy.swift */; };
 		22F6B900844D8E21147DB118 /* BridgeController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72602A0B0B31EF37DBF5FCC7 /* BridgeController.swift */; };
 		33C89906521E3A5DEA8719AF /* load-functions.js in Resources */ = {isa = PBXBuildFile; fileRef = B0A2CF9F08500606B776AC14 /* load-functions.js */; };
@@ -21,6 +22,7 @@
 		8D3B995613E7B156CE8F8AB1 /* JankifyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2130B3009F48E20CA3B6F5C6 /* JankifyApp.swift */; };
 		9613A47765F5D663CE8EBF88 /* JankifyWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5166A5A443C7CCFF4D829D61 /* JankifyWebView.swift */; };
 		B0F0BFE42F5B82CB97126ADE /* BundleContentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 889993F79861DB410EFB3934 /* BundleContentTests.swift */; };
+		BB59E8CEB20727FB2B7FD218 /* BundleResourceResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ED867FE3A117753228526A2 /* BundleResourceResolver.swift */; };
 		C22D75F2B8ED75F9B74F7487 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C0093D0BAD33913D88C8175D /* Assets.xcassets */; };
 		C93F4C4D0DE2C7CE8A12CE02 /* ReviewPromptPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E8793D50BEDF75B626E7DD5 /* ReviewPromptPolicyTests.swift */; };
 		E721E38C48FEB9B4EE0C54CC /* AppConfigurationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CD772F5184DFAB1457F9128 /* AppConfigurationTests.swift */; };
@@ -61,10 +63,12 @@
 		889993F79861DB410EFB3934 /* BundleContentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundleContentTests.swift; sourceTree = "<group>"; };
 		8BE8D52AC55E9D49A9C163FD /* Web */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Web; path = Jankify/Resources/Web; sourceTree = SOURCE_ROOT; };
 		942E5D9DE0CEC940134DA164 /* BridgeMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeMessage.swift; sourceTree = "<group>"; };
+		9ED867FE3A117753228526A2 /* BundleResourceResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundleResourceResolver.swift; sourceTree = "<group>"; };
 		B0A2CF9F08500606B776AC14 /* load-functions.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "load-functions.js"; sourceTree = "<group>"; };
 		BA0FC0D4D8AA8AF639D1A48B /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		C0093D0BAD33913D88C8175D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		D432C8609C24F406533CCFE3 /* JankifyTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = JankifyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E373352B544EE78C01A492B9 /* BundleResourceResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundleResourceResolverTests.swift; sourceTree = "<group>"; };
 		E4AD38BD93FE4A36A340B7F0 /* external-lzw.gif */ = {isa = PBXFileReference; lastKnownFileType = image.gif; path = "external-lzw.gif"; sourceTree = "<group>"; };
 		EF85C574843E75E19AC24295 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -87,6 +91,7 @@
 				72602A0B0B31EF37DBF5FCC7 /* BridgeController.swift */,
 				942E5D9DE0CEC940134DA164 /* BridgeMessage.swift */,
 				33E71E9CFAEFB9F0303BCFE6 /* BundleContent.swift */,
+				9ED867FE3A117753228526A2 /* BundleResourceResolver.swift */,
 				BA0FC0D4D8AA8AF639D1A48B /* ContentView.swift */,
 				EF85C574843E75E19AC24295 /* Info.plist */,
 				2130B3009F48E20CA3B6F5C6 /* JankifyApp.swift */,
@@ -141,6 +146,7 @@
 				7A2168EAF7D7BF6E2EAA26BA /* BridgeControllerTests.swift */,
 				56D9EFFD728EC1F2A536A8E0 /* BridgeMessageTests.swift */,
 				889993F79861DB410EFB3934 /* BundleContentTests.swift */,
+				E373352B544EE78C01A492B9 /* BundleResourceResolverTests.swift */,
 				6E8793D50BEDF75B626E7DD5 /* ReviewPromptPolicyTests.swift */,
 			);
 			path = JankifyTests;
@@ -296,6 +302,7 @@
 				F706E18B819D4FE2A7C5C2F7 /* BridgeControllerTests.swift in Sources */,
 				02C40EC16B4C1DECA06D5A14 /* BridgeMessageTests.swift in Sources */,
 				B0F0BFE42F5B82CB97126ADE /* BundleContentTests.swift in Sources */,
+				1F099D7DA1DAAE84566A8EEC /* BundleResourceResolverTests.swift in Sources */,
 				C93F4C4D0DE2C7CE8A12CE02 /* ReviewPromptPolicyTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -315,6 +322,7 @@
 				22F6B900844D8E21147DB118 /* BridgeController.swift in Sources */,
 				7EF7301D066A0FCA6455EF40 /* BridgeMessage.swift in Sources */,
 				58997609743BE7BEE168E014 /* BundleContent.swift in Sources */,
+				BB59E8CEB20727FB2B7FD218 /* BundleResourceResolver.swift in Sources */,
 				490E6A2E7EC832F513D71286 /* ContentView.swift in Sources */,
 				8D3B995613E7B156CE8F8AB1 /* JankifyApp.swift in Sources */,
 				9613A47765F5D663CE8EBF88 /* JankifyWebView.swift in Sources */,
@@ -390,7 +398,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 59;
+				CURRENT_PROJECT_VERSION = 60;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 596T7J7FB6;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -541,7 +549,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 59;
+				CURRENT_PROJECT_VERSION = 60;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 596T7J7FB6;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;

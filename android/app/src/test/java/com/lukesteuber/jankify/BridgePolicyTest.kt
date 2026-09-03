@@ -46,4 +46,42 @@ class BridgePolicyTest {
             BridgePolicy.maxEncodedChars
         )
     }
+
+    @Test
+    fun resolvesReviewedNestedAssetsAndRejectsTraversal() {
+        assertEquals(
+            "create/app/js/modes/effects.js",
+            BridgePolicy.assetPathForUrl(
+                "https://appassets.androidplatform.net/assets/create/app/js/modes/effects.js?v=17"
+            )
+        )
+        assertEquals(
+            "create/Starscapes/index.html",
+            BridgePolicy.assetPathForUrl(
+                "https://appassets.androidplatform.net/assets/create/Starscapes/index.html?embed=1"
+            )
+        )
+        assertEquals(
+            null,
+            BridgePolicy.assetPathForUrl(
+                "https://appassets.androidplatform.net/assets/create/%2e%2e/index.html"
+            )
+        )
+        assertEquals(
+            null,
+            BridgePolicy.assetPathForUrl("https://example.com/assets/create/app/index.html")
+        )
+    }
+
+    @Test
+    fun mainFramePolicyAllowsOnlyEditAndCreateDocuments() {
+        assertTrue(BridgePolicy.isAllowedMainDocumentUrl(BridgePolicy.APP_URL))
+        assertTrue(BridgePolicy.isAllowedMainDocumentUrl(BridgePolicy.CREATE_URL + "#/ships?seed=42"))
+        assertFalse(
+            BridgePolicy.isAllowedMainDocumentUrl(
+                "https://appassets.androidplatform.net/assets/create/Starscapes/index.html"
+            )
+        )
+        assertFalse(BridgePolicy.isAllowedMainDocumentUrl("https://jankify.app/create/app/"))
+    }
 }
