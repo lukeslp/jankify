@@ -23,15 +23,20 @@ class SystemBarsTest {
             val insets = checkNotNull(ViewCompat.getRootWindowInsets(shell)).getInsets(
                 WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
             )
+            val shellLocation = IntArray(2).also(shell::getLocationOnScreen)
+            val decor = activity.window.decorView
+            val topClearance = shellLocation[1] + shell.paddingTop
+            val bottomClearance = decor.height -
+                (shellLocation[1] + shell.height - shell.paddingBottom)
 
             assertTrue("No status-bar inset was reported", insets.top > 0)
             assertTrue(
-                "Web shell padding ${shell.paddingTop} did not clear status bar ${insets.top}",
-                shell.paddingTop >= insets.top,
+                "Web shell clearance $topClearance did not clear status bar ${insets.top}",
+                topClearance >= insets.top,
             )
             assertTrue(
-                "Web shell padding ${shell.paddingBottom} did not clear navigation bar ${insets.bottom}",
-                shell.paddingBottom >= insets.bottom,
+                "Web shell clearance $bottomClearance did not clear navigation bar ${insets.bottom}",
+                bottomClearance >= insets.bottom,
             )
         }
     }
