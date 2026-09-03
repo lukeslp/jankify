@@ -49,7 +49,7 @@ internal object BridgePolicy {
         if (!rawPath.startsWith(prefix)) return null
         val encodedAsset = rawPath.removePrefix(prefix)
         val asset = runCatching {
-            URLDecoder.decode(encodedAsset.replace("+", "%2B"), StandardCharsets.UTF_8)
+            URLDecoder.decode(encodedAsset.replace("+", "%2B"), StandardCharsets.UTF_8.name())
         }.getOrNull() ?: return null
         if (asset.isEmpty() || asset.contains('\\') || asset.any { it.code < 0x20 || it.code == 0x7f }) {
             return null
