@@ -1,1 +1,1 @@
-gif,video,sprite,pixel,ascii,emoji,dither,retro,glitch,animation,mosaic,filter,lofi,sketch
+pixel,space,ship,planet,sprite,effects,explosion,gif,video,ascii,emoji,glitch,animation,retro

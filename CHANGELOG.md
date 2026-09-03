@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- Seeded effects and explosions now vary their geometry, motion, details, and debris instead of repeating one shape with different colors.
 - The header App Store button is hidden inside the iOS and Android apps; it only renders on the web.
 - GIF LZW decode/encode code-size growth now matches the GIF89a bit-width rules, so Make GIF works on real third-party GIFs (not only self-encoded round-trips).
 - Native shells sniff GIF magic bytes and name the imported file `*.gif`, so the GIF export button appears on iOS the same way it does on Android/web.
@@ -11,6 +12,8 @@
 
 ### Added
 
+- A fully bundled Create workspace on iOS and Android with seven SpaceJank generators, offline recipe navigation, native PNG sharing, and public recipe-link copying.
+- An in-app Edit/Create switcher across the editor and creator.
 - Local MP4, MOV, M4V, and WebM import with bounded duration and frame sampling.
 - Animated GIF, PNG sprite-sheet, and processed-video exports from GIF or video sources.
 - Configurable animation duration, frame rate, sheet columns, and detailed progress feedback.
@@ -24,6 +27,7 @@
 
 ### Changed
 
+- Native Create opens on the Effects generator and remains inside the app when switching workspaces.
 - Mobile web synchronization now generates both iOS and Android bundles from canonical `index.html`.
 - Offline typography and icon fallbacks are shared across both native bundles.
 

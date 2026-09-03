@@ -1,8 +1,8 @@
 # Jankify
 
-Jankify transforms photos into pixel art, Lite Brite boards, ASCII, emoji mosaics, hatching, rough sketches, polygons, and Voronoi art. The canonical browser app is `index.html`; native iOS and Android shells bundle synchronized offline copies.
+Jankify creates seeded pixel-art space scenes and transforms photos into pixel art, Lite Brite boards, ASCII, emoji mosaics, hatching, rough sketches, polygons, and Voronoi art. The canonical browser editor is `index.html`; native iOS and Android shells bundle synchronized offline copies of both workspaces.
 
-The Edit/Create workspace switcher connects the editor to the SpaceJank creator at `https://jankify.app/create/`. Editing remains fully bundled in the native apps; Create opens the browser-hosted generator collection.
+The Edit/Create workspace switcher joins the photo editor with seven SpaceJank generators: backgrounds, starscapes, planets, sprites, ships, effects, and explosions. Both workspaces stay inside the native apps and run without a network connection. Public recipe links use `https://jankify.app/create/` so someone opening a shared recipe can reproduce it on the web.
 
 ## Web
 
@@ -26,7 +26,7 @@ After changing `index.html`, `Jankify/Resources/Web/offline.css`, or either nati
 ./scripts/sync-web.sh
 ```
 
-The script removes hosted fonts, icons, and analytics from mobile copies, adds the offline stylesheet, and injects the matching iOS or Android bridge.
+The script removes hosted fonts, icons, and analytics from mobile copies, adds the offline stylesheet, injects the matching iOS or Android bridge, and mirrors the pinned Create bundle. To update Create from its upstream checkout first, run `./scripts/sync-spacejank.sh` and then `./scripts/sync-web.sh`.
 
 ## iOS
 
@@ -86,7 +86,7 @@ The script tests and builds the signed APK and AAB, verifies both signatures, an
 ## Android security and privacy
 
 - The manifest requests no runtime or sensitive permissions, including no network or media-library permission.
-- Only `index.html`, `offline.css`, and `android-bridge.js` are served from the private synthetic app origin.
+- Only allowlisted editor and Create assets are served from the private synthetic app origin.
 - File and content URL access, cleartext traffic, mixed content, and untrusted in-WebView navigation are blocked.
 - Web links open in the system browser.
 - Media selection uses Android's system document picker and reads only the selected image or video.
@@ -95,7 +95,7 @@ The script tests and builds the signed APK and AAB, verifies both signatures, an
 
 ## Accessibility
 
-The canonical interface uses semantic labels, visible keyboard focus, live status regions, light/dark themes, responsive layouts, reduced-motion handling, and a photosensitivity warning for animated output. The Android shell exposes the WebView as Jankify image editor, follows system font scaling up to 200%, supports pinch zoom, and preserves system picker and share-sheet accessibility.
+The canonical interfaces use semantic labels, visible keyboard focus, live status regions, responsive layouts, reduced-motion handling, and a photosensitivity warning for animated output. The native shells expose the WebView as the Jankify editor and creator, follow system font scaling, support pinch zoom, and preserve system picker and share-sheet accessibility.
 
 ## Author
 

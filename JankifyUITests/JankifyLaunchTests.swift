@@ -29,7 +29,7 @@ final class JankifyLaunchTests: XCTestCase {
         XCTAssertTrue(webView.staticTexts["Effects"].waitForExistence(timeout: 10))
         XCTAssertTrue(webView.buttons["Export PNG"].waitForExistence(timeout: 10))
 
-        let edit = webView.links["Edit"]
+        let edit = webView.links["EDIT"]
         XCTAssertTrue(edit.waitForExistence(timeout: 10))
         edit.tap()
 
