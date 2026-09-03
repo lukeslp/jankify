@@ -27,6 +27,7 @@ import android.widget.Toast
 import android.widget.FrameLayout
 import android.window.OnBackInvokedCallback
 import android.window.OnBackInvokedDispatcher
+import androidx.annotation.RequiresApi
 import androidx.core.content.FileProvider
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -41,7 +42,7 @@ import java.util.concurrent.Executors
 class MainActivity : Activity() {
     private lateinit var webView: WebView
     private val bridgeExecutor = Executors.newSingleThreadExecutor()
-    private val backCallback = OnBackInvokedCallback(::handleBack)
+    private var backCallback: Any? = null
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -116,10 +117,7 @@ class MainActivity : Activity() {
         setContentView(shell)
         ViewCompat.requestApplyInsets(shell)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            onBackInvokedDispatcher.registerOnBackInvokedCallback(
-                OnBackInvokedDispatcher.PRIORITY_DEFAULT,
-                backCallback
-            )
+            backCallback = BackNavigationApi33.register(this, ::handleBack)
         }
         webView.loadUrl(BridgePolicy.APP_URL)
         DirectUpdateChecker.check(this)
@@ -155,7 +153,7 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            onBackInvokedDispatcher.unregisterOnBackInvokedCallback(backCallback)
+            backCallback?.let { BackNavigationApi33.unregister(this, it) }
         }
         webView.removeJavascriptInterface(BRIDGE_NAME)
         webView.stopLoading()
@@ -325,5 +323,23 @@ class MainActivity : Activity() {
         const val BRIDGE_NAME = "JankifyAndroid"
         const val PICK_IMAGE_REQUEST = 1001
         const val FILE_CHOOSER_REQUEST = 1002
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+private object BackNavigationApi33 {
+    fun register(activity: Activity, onBack: () -> Unit): Any {
+        val callback = OnBackInvokedCallback(onBack)
+        activity.onBackInvokedDispatcher.registerOnBackInvokedCallback(
+            OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+            callback,
+        )
+        return callback
+    }
+
+    fun unregister(activity: Activity, callback: Any) {
+        activity.onBackInvokedDispatcher.unregisterOnBackInvokedCallback(
+            callback as OnBackInvokedCallback,
+        )
     }
 }
