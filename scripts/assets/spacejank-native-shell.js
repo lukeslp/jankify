@@ -31,4 +31,8 @@
       post("copyText", { text: String(text) });
     }
   });
+
+  if (!window.location.hash) {
+    window.location.hash = "#/effects";
+  }
 })();

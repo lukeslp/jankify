@@ -52,9 +52,12 @@ test("native adapter maps SpaceJank share and copy actions onto the iOS bridge",
   const sandbox = {
     window: {
       webkit: { messageHandlers: { jankify: { postMessage: message => messages.push(message) } } },
+      location: { hash: "" },
     },
   };
   vm.runInNewContext(source, sandbox);
+
+  assert.equal(sandbox.window.location.hash, "#/effects");
 
   await sandbox.window.jankifyShell.shareDataURL(
     "data:image/png;base64,iVBORw==",
@@ -72,7 +75,10 @@ test("native adapter emits JSON for Android and rejects non-PNG data", async () 
   const source = fs.readFileSync(path.join(androidRoot, "create/native-shell.js"), "utf8");
   const messages = [];
   const sandbox = {
-    window: { JankifyAndroid: { postMessage: message => messages.push(JSON.parse(message)) } },
+    window: {
+      JankifyAndroid: { postMessage: message => messages.push(JSON.parse(message)) },
+      location: { hash: "#/ships?seed=42" },
+    },
   };
   vm.runInNewContext(source, sandbox);
 
