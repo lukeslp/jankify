@@ -73,7 +73,7 @@
 // Native shell marker. Inside the iOS app the WKWebView exposes the
 // "jankify" message handler and inside the Android app the JankifyAndroid
 // bridge exists; both are present at document start. Mark <html> so CSS can
-// hide web-only chrome (the App Store button) before first paint.
+// hide web-only store links before first paint.
 (function () {
   var native = '';
   try {
@@ -83,7 +83,7 @@
   if (native) document.documentElement.setAttribute('data-native', native);
 })();
 </script>
-<style>html[data-native] #store-link { display: none !important; }</style>
+<style>html[data-native] #store-link, html[data-native] #android-link { display: none !important; }</style>
 <style>
 :root {
   --bg:        #fafaf7;
@@ -532,6 +532,10 @@ input[type=file] {
   <a class="btn" id="store-link" href="https://apps.apple.com/app/id6782693852" target="_blank" rel="noreferrer" title="Jankify on the App Store">
     <i class="fa-solid fa-mobile-screen-button" aria-hidden="true"></i>
     App Store
+  </a>
+  <a class="btn" id="android-link" href="/downloads/android/Jankify-1.0.9.apk" title="Download Jankify for Android">
+    <i class="fa-brands fa-android" aria-hidden="true"></i>
+    Android APK
   </a>
 
   <div class="mode-select">
