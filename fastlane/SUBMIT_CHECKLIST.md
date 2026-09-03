@@ -1,7 +1,7 @@
 # Jankify 1.1.3 — release checklist
 
 The App Store record already exists (`com.lukesteuber.jankify`, Apple ID
-6782693852). These steps stage build 60 and its listing without submitting the
+6782693852). These steps stage build 61 and its listing without submitting the
 release for review.
 
 ## Automated staging
@@ -13,13 +13,13 @@ release for review.
 - `fastlane ios stage` performs both operations and leaves the version staged
   with no review submission.
 - `fastlane ios upload_build ipa:/path/to/Jankify.ipa` uploads the signed
-  1.1.3 (60) build without distributing it. Allow time for Apple to process it.
-- `fastlane ios attach_build build:60` pairs the processed build with version
+  1.1.3 (61) build without distributing it. Allow time for Apple to process it.
+- `fastlane ios attach_build build:61` pairs the processed build with version
   1.1.3 without submitting it for review.
 
 ## App Store Connect checks
 
-- [ ] Confirm version 1.1.3 and build 60 are paired under **App Store → 1.1.3**.
+- [ ] Confirm version 1.1.3 and build 61 are paired under **App Store → 1.1.3**.
 - [ ] Confirm the age rating remains 4+ and the app remains free in all intended
       territories.
 - [ ] Confirm App Privacy remains **Data Not Collected**.
