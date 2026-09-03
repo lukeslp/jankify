@@ -48,6 +48,10 @@ Android builds are distributed directly from the project download page. Release
 artifacts use the established Jankify signing identity and are verified before
 publication.
 
+The current signed release is [Jankify 1.0.9 for Android](https://jankify.app/downloads/android/Jankify-1.0.9.apk).
+Its [SHA-256 checksums](https://jankify.app/downloads/android/Jankify-1.0.9-SHA256SUMS)
+are published alongside the download.
+
 Requirements:
 
 - Android SDK Platform 36 and Build Tools 36

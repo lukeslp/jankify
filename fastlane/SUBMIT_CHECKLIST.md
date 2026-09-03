@@ -1,8 +1,13 @@
 # Jankify 1.1.3 — release checklist
 
 The App Store record already exists (`com.lukesteuber.jankify`, Apple ID
-6782693852). These steps stage build 61 and its listing without submitting the
-release for review.
+6782693852). Build 61 and its listing were submitted to Apple for review on
+2026-09-03.
+
+## Current App Store Connect state
+
+- Version 1.1.3 is **WAITING_FOR_REVIEW** with valid build 61 selected.
+- The en-US listing has 5 iPhone 6.9-inch and 5 iPad 13-inch screenshots.
 
 ## Automated staging
 
@@ -19,7 +24,7 @@ release for review.
 
 ## App Store Connect checks
 
-- [ ] Confirm version 1.1.3 and build 61 are paired under **App Store → 1.1.3**.
+- [x] Confirm version 1.1.3 and build 61 are paired under **App Store → 1.1.3**.
 - [ ] Confirm the age rating remains 4+ and the app remains free in all intended
       territories.
 - [ ] Confirm App Privacy remains **Data Not Collected**.
@@ -36,4 +41,4 @@ Use this review note if the existing one needs to be refreshed:
 > pick any photo, choose a mode, adjust the controls, then export or share the
 > result. No data is collected.
 
-Submit for review only after every check above is complete.
+The version was submitted for review after the staged listing and build checks.
