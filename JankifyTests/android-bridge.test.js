@@ -17,8 +17,9 @@ const bundledHtml = fs.readFileSync(
   "utf8"
 );
 
-test("Android bundle hides the App Store link before first paint", () => {
+test("Android bundle hides web-only store links before first paint", () => {
   assert.match(bundledHtml, /html\[data-native\] #store-link/);
+  assert.match(bundledHtml, /html\[data-native\] #android-link/);
   assert.match(bundledHtml, /window\.JankifyAndroid/);
 });
 
