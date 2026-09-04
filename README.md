@@ -87,15 +87,31 @@ With those variables set, run:
 
 The script tests and builds the signed APK and AAB, verifies both signatures, and stages versioned copies plus `SHA256SUMS` under `dist/android/vVERSION/`. It does not install, upload, or publish anything.
 
+### Amazon Fire tablet
+
+The signed `1.0.10 (17)` Amazon candidate is device-tested on Fire OS 8 and
+ready for human console setup. Its APK SHA-256 is
+`036acfcef18435a27dd5796091a373c80c488c8b0f19de157e0bc36bb4fb0648`.
+The Amazon listing pack, measured launch/memory evidence, remaining manual
+acceptance checks, and console sequence are in
+[`android/AMAZON-RELEASE.md`](android/AMAZON-RELEASE.md). The Amazon portal
+contained no Jankify record when checked on 2026-09-03.
+
+This does not change the public direct-download channel: `1.0.9 (16)` remains
+the served release until a separate direct publication is verified.
+
 ## Android security and privacy
 
 - The manifest requests no runtime or sensitive permissions, including no network or media-library permission.
+- Store builds do not invoke the retired direct-download update checker.
 - Only allowlisted editor and Create assets are served from the private synthetic app origin.
 - File and content URL access, cleartext traffic, mixed content, and untrusted in-WebView navigation are blocked.
 - Web links open in the system browser.
 - Media selection uses Android's system document picker and reads only the selected image or video.
 - Export MIME types, names, and decoded sizes are validated before cache-only sharing.
 - Web local storage remains enabled and private to the app.
+- Android reports the app fully drawn after the bundled editor document is
+  ready, so ready-to-use latency is observable in device logs.
 
 ## Accessibility
 

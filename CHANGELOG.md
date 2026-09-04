@@ -4,6 +4,9 @@
 
 ### Fixed
 
+- Removed the ineffective direct-download update checker from Android. The app
+  intentionally requests no Internet permission, so the checker could never
+  complete and does not belong in an Amazon or Play build.
 - Seeded effects and explosions now vary their geometry, motion, details, and debris instead of repeating one shape with different colors.
 - The header App Store button is hidden inside the iOS and Android apps; it only renders on the web.
 - GIF LZW decode/encode code-size growth now matches the GIF89a bit-width rules, so Make GIF works on real third-party GIFs (not only self-encoded round-trips).
@@ -12,6 +15,12 @@
 
 ### Added
 
+- A signed Fire-tablet candidate, required-touchscreen manifest filter,
+  Fire-native Amazon listing pack, and three 1280×800 device screenshots.
+- Android's fully-drawn signal after the bundled editor is ready, with repeated
+  first-frame and ready-to-use measurements on Fire OS 8.
+- A physical-device regression test proving the Edit/Create workspace switcher
+  appears in the accessibility service tree.
 - A fully bundled Create workspace on iOS and Android with seven SpaceJank generators, offline recipe navigation, native PNG sharing, and public recipe-link copying.
 - An in-app Edit/Create switcher across the editor and creator.
 - Local MP4, MOV, M4V, and WebM import with bounded duration and frame sampling.

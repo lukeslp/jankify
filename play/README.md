@@ -13,9 +13,10 @@ Search the existing Play Console account for exact package `com.lukesteuber.jank
 ## Engineering gates
 
 - [x] Resolve and commit the native bundle synchronization and release changes.
-- [ ] Add a Play release behavior that disables direct-download update prompts.
+- [x] Remove the direct-download update checker from Android store builds.
 - [ ] Make the privacy policy platform-neutral and accurate for Android.
-- [x] Build, stage, sign, and checksum version 1.0.7 (14) with the established identity.
+- [x] Preserve the historical Play shelf at version 1.0.7 (14) with the established identity.
+- [ ] Stage a fresh Play handoff from current source `1.0.10 (17)` before upload.
 - [x] Inspect package, version, target SDK, permissions, and signatures.
 - [ ] Complete the device/accessibility checks in `play/intake.md`.
 

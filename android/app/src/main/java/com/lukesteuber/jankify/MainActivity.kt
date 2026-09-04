@@ -44,6 +44,7 @@ class MainActivity : Activity() {
     private val bridgeExecutor = Executors.newSingleThreadExecutor()
     private var backCallback: Any? = null
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
+    private var fullyDrawnReported = false
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -120,7 +121,6 @@ class MainActivity : Activity() {
             backCallback = BackNavigationApi33.register(this, ::handleBack)
         }
         webView.loadUrl(BridgePolicy.APP_URL)
-        DirectUpdateChecker.check(this)
     }
 
     @Deprecated("Android callback required for the framework document picker")
@@ -164,6 +164,12 @@ class MainActivity : Activity() {
 
     private fun handleBack() {
         if (webView.canGoBack()) webView.goBack() else finish()
+    }
+
+    private fun reportReadyToUse() {
+        if (fullyDrawnReported) return
+        fullyDrawnReported = true
+        reportFullyDrawn()
     }
 
     private fun pickMedia() {
@@ -279,6 +285,11 @@ class MainActivity : Activity() {
     }
 
     private inner class OfflineWebViewClient : WebViewClient() {
+        override fun onPageFinished(view: WebView, url: String) {
+            super.onPageFinished(view, url)
+            if (BridgePolicy.isAllowedMainDocumentUrl(url)) reportReadyToUse()
+        }
+
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
             val uri = request.url
             val isLocalAsset = BridgePolicy.assetPathForUrl(uri.toString()) != null

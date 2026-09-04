@@ -21,6 +21,7 @@ fastlane/test_output/
 
 # Android generated files and locally staged signed artifacts
 android/.gradle/
+android/.kotlin/
 android/local.properties
 android/**/build/
 dist/
