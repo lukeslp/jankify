@@ -23,12 +23,12 @@ Google Play Services is not linked. The APK contains no native libraries and
 supports small, normal, large, and xlarge screens. minSdk 26 automatically
 filters Fire OS 5 and 6; the tested Fire OS 8 tablet is API 30.
 
-Track state: **ready for human console setup**. The signed candidate, primary
-Edit/Create loop, system integration, responsive layout, listing screenshots,
-automated gates, repeated performance measurements, and VoiceView semantic-tree
-audit are verified on Fire OS. Spoken VoiceView, the full effect/export sweep,
-physical pinch/target-spacing review, and the 30-minute soak remain manual
-acceptance gates before submission.
+Track state: **submitted to Amazon Appstore on 2026-09-04 at 12:18 AM PDT**.
+Amazon accepted the signed candidate, Fire-native listing pack, screenshots,
+targeting, rating, privacy declaration, reviewer instructions, and export
+certification. Luke confirmed the remaining physical-device checks were complete
+before submission. Amazon estimated publication before 12:30 AM PDT on
+2026-09-09.
 
 ## Why 1.0.10
 
@@ -145,21 +145,19 @@ Use the exact signed candidate and record the APK SHA-256.
   `01_starscape-1280x800.png`, `02_planet-1280x800.png`, and
   `03_pixel-edit-1280x800.png`. The later native-only fully-drawn and update
   checker changes do not alter their visible content.
-- **Portal observation:** the Amazon Developer Portal showed one app record,
-  Mandaza, on 2026-09-03. No Jankify record existed in that account.
-- **Manual before submission:** spoken VoiceView traversal, all eight Edit
-  effects, animated media/export, physical pinch zoom and target spacing, and
-  the 30-minute soak.
+- **Amazon record:** app ID
+  `amzn1.devportal.mobileapp.0700f7a5e3ad43bab763732fe4b4fee4`, release ID
+  `amzn1.devportal.apprelease.484a6b5eeebc46259311f4819b943181`, SKU
+  `jankify-fire`. Amazon selected 12 Fire tablets and no Fire TV or Automotive
+  devices.
+- **Submission:** successful at 12:18 AM PDT on 2026-09-04. Amazon estimated
+  publication before 12:30 AM PDT on 2026-09-09.
 
-## Console sequence — human only
+## Amazon update sequence
 
-1. Create the Amazon Developer Console app **Jankify**.
-2. Upload the signed APK and select only the Fire tablet family; inspect the
-   generated supported-device list.
-3. Paste `amazon-listing/en-US/` and upload the two icons plus 3–10 Fire-native
-   screenshots from `amazon-listing/`.
-4. Complete content rating, audience, availability, privacy URL, and the user
-   data privacy questionnaire.
-5. Submit only after every local gate above is recorded.
-
-This repository never logs into Amazon or submits the listing.
+1. Build and re-run the Fire tablet gates against the exact signed update.
+2. Upload the new APK to the existing Amazon record; keep the Fire-tablet-only
+   device boundary and inspect the generated supported-device list.
+3. Update listing copy or assets from `amazon-listing/` when they change.
+4. Reconfirm rating, audience, availability, privacy, user-data, reviewer, and
+   export-compliance answers before submitting an update.

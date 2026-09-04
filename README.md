@@ -89,13 +89,13 @@ The script tests and builds the signed APK and AAB, verifies both signatures, an
 
 ### Amazon Fire tablet
 
-The signed `1.0.10 (17)` Amazon candidate is device-tested on Fire OS 8 and
-ready for human console setup. Its APK SHA-256 is
+The signed `1.0.10 (17)` Fire-tablet build was submitted to Amazon on
+2026-09-04 for 12 compatible tablets. Amazon estimated publication before
+2026-09-09 at 12:30 AM PDT. Its APK SHA-256 is
 `036acfcef18435a27dd5796091a373c80c488c8b0f19de157e0bc36bb4fb0648`.
-The Amazon listing pack, measured launch/memory evidence, remaining manual
-acceptance checks, and console sequence are in
-[`android/AMAZON-RELEASE.md`](android/AMAZON-RELEASE.md). The Amazon portal
-contained no Jankify record when checked on 2026-09-03.
+The Amazon listing pack, measured launch/memory evidence, submission record,
+and update sequence are in
+[`android/AMAZON-RELEASE.md`](android/AMAZON-RELEASE.md).
 
 This does not change the public direct-download channel: `1.0.9 (16)` remains
 the served release until a separate direct publication is verified.
