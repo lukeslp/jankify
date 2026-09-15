@@ -1,0 +1,9 @@
+Jankify 1.1.3 brings Create fully into the app.
+
+- Switch between Create and Edit without leaving Jankify.
+- Make backgrounds, starscapes, planets, sprites, ships, effects, and explosions from seeded recipes.
+- Save Create results as PNGs or copy a public recipe link with native controls.
+- Effects and explosions now change shape, motion, detail, and debris with the seed.
+- Create and Edit both work offline on iPhone and iPad.
+
+Photos, GIFs, and videos still stay entirely on your device.

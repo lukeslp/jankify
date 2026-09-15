@@ -1,0 +1,15 @@
+<!--
+  File Purpose: Define the full-screen system theme for the WebView shell.
+  Primary Functions: Remove the action bar and follow system light/dark colors.
+  Inputs/Outputs: Consumed by Android at launch; styles the activity window.
+-->
+<resources>
+    <style name="Theme.Jankify" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:colorAccent">#C1502E</item>
+        <item name="android:navigationBarColor">#FAFAF7</item>
+        <item name="android:statusBarColor">#FFFFFF</item>
+    </style>
+</resources>

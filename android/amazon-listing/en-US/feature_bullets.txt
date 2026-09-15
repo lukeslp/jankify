@@ -1,0 +1,5 @@
+Eight photo styles, from pixel art and ASCII to hatching and Voronoi
+Seven seeded generators for starscapes, planets, ships, sprites, and effects
+Offline editing with no account and no runtime permissions
+Export still images, vector art, text, GIFs, sprite sheets, and video
+Responsive portrait and landscape layouts with reduced-motion support

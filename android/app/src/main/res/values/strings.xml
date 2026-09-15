@@ -1,0 +1,12 @@
+<!--
+  File Purpose: Define user-visible Android shell strings.
+  Primary Functions: Centralize the app name and accessible status/error messages.
+  Inputs/Outputs: Consumed by Android resources; displayed by system and app UI.
+-->
+<resources>
+    <string name="app_name">Jankify</string>
+    <string name="web_content_description">Jankify image editor</string>
+    <string name="action_failed">That action could not be completed.</string>
+    <string name="image_load_failed">Could not load that image.</string>
+    <string name="no_handler">No compatible app is available for that action.</string>
+</resources>

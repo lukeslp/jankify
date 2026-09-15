@@ -1,0 +1,3 @@
+app_identifier(ENV.fetch("JANKIFY_APP_IDENTIFIER", "com.lukesteuber.jankify"))
+apple_id(ENV["JANKIFY_APPLE_ID"]) if ENV["JANKIFY_APPLE_ID"]
+team_id(ENV["JANKIFY_TEAM_ID"]) if ENV["JANKIFY_TEAM_ID"]

@@ -1,0 +1,99 @@
+name: Jankify
+
+options:
+  bundleIdPrefix: com.lukesteuber.jankify
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    DEVELOPMENT_TEAM: 596T7J7FB6
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    MARKETING_VERSION: "1.1.3"
+    CURRENT_PROJECT_VERSION: "60"
+
+targets:
+  Jankify:
+    type: application
+    platform: iOS
+    sources:
+      - path: Jankify
+        excludes:
+          - Resources/Web
+      - path: Jankify/Resources/Web
+        type: folder
+        buildPhase: resources
+    info:
+      path: Jankify/Info.plist
+      properties:
+        CFBundleDisplayName: Jankify
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        ITSAppUsesNonExemptEncryption: false
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        "UISupportedInterfaceOrientations~ipad":
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.lukesteuber.jankify
+        PRODUCT_NAME: Jankify
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SUPPORTS_MACCATALYST: NO
+
+  JankifyTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: JankifyTests
+        excludes:
+          - "*.js"
+    dependencies:
+      - target: Jankify
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.lukesteuber.jankify.tests
+        GENERATE_INFOPLIST_FILE: YES
+
+  JankifyUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: JankifyUITests
+    dependencies:
+      - target: Jankify
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.lukesteuber.jankify.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Jankify
+
+schemes:
+  Jankify:
+    build:
+      targets:
+        Jankify: all
+        JankifyTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - JankifyTests
+        - JankifyUITests

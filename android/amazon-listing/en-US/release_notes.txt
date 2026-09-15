@@ -1,0 +1,1 @@
+Adds reliable Android 11 and Fire OS 8 support, including fixes for launch-time back navigation compatibility and bundled-editor loading.

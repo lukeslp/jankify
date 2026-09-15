@@ -1,0 +1,163 @@
+# Jankify App Store delivery lanes. See README.md for explicit account configuration.
+
+default_platform(:ios)
+
+APP_IDENTIFIER = ENV.fetch("JANKIFY_APP_IDENTIFIER", "com.lukesteuber.jankify")
+
+def api_key_path
+  File.expand_path(ENV.fetch("JANKIFY_ASC_KEY_JSON"))
+end
+
+def asc_key
+  require "json"
+  cfg = JSON.parse(File.read(api_key_path))
+  app_store_connect_api_key(
+    key_id: cfg["key_id"],
+    issuer_id: cfg["issuer_id"],
+    key_filepath: File.expand_path(cfg["key_filepath"]),
+    in_house: false
+  )
+end
+
+SHOTS = File.expand_path("screenshots", __dir__)
+
+platform :ios do
+  desc "Update text metadata without uploading a binary or submitting for review."
+  lane :upload_listing do
+    deliver(
+      api_key: asc_key,
+      app_version: get_version_number(xcodeproj: "Jankify.xcodeproj", target: "Jankify"),
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      overwrite_screenshots: false,
+      force: true,
+      submit_for_review: false,
+      run_precheck_before_submit: false
+    )
+  end
+
+  desc "Push screenshots only (device class inferred from pixel dimensions)."
+  lane :upload_shots do
+    deliver(
+      api_key: asc_key,
+      app_version: get_version_number(xcodeproj: "Jankify.xcodeproj", target: "Jankify"),
+      skip_binary_upload: true,
+      skip_metadata: true,
+      screenshots_path: SHOTS,
+      overwrite_screenshots: true,
+      force: true,
+      submit_for_review: false,
+      run_precheck_before_submit: false
+    )
+  end
+
+  desc "Push metadata + screenshots, leave the version staged (NO submit)."
+  # NOTE: on a brand-new first version, deliver hits fastlane bug #20538
+  # (fetch_app_store_review_detail returns "No data") and aborts the metadata
+  # run. One-time fix: open App Store Connect → App Review Information, fill in
+  # the contact, and Save. After that this lane runs clean. Until then, push
+  # text with `upload_listing` and screenshots with `upload_shots` separately.
+  lane :stage do
+    deliver(
+      api_key: asc_key,
+      app_version: get_version_number(xcodeproj: "Jankify.xcodeproj", target: "Jankify"),
+      skip_binary_upload: true,
+      screenshots_path: SHOTS,
+      overwrite_screenshots: true,
+      force: true,
+      submit_for_review: false,
+      run_precheck_before_submit: false
+    )
+  end
+
+  desc "Upload a signed IPA to App Store Connect without distributing it."
+  lane :upload_build do |options|
+    ipa_path = File.expand_path(options[:ipa].to_s)
+    UI.user_error!("Pass ipa:/path/to/Jankify.ipa") unless File.file?(ipa_path)
+    upload_to_testflight(
+      api_key: asc_key,
+      ipa: ipa_path,
+      skip_waiting_for_build_processing: true,
+      distribute_external: false
+    )
+  end
+
+  desc "Attach a processed build to the editable App Store version."
+  lane :attach_build do |options|
+    build_number = options[:build].to_s
+    UI.user_error!("Pass build:NUMBER") if build_number.empty?
+    require "json"
+    cfg = JSON.parse(File.read(api_key_path))
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: cfg["key_id"], issuer_id: cfg["issuer_id"],
+      filepath: File.expand_path(cfg["key_filepath"]))
+    app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
+    version = app.get_edit_app_store_version(platform: "IOS")
+    UI.user_error!("No editable App Store version") unless version
+    build = Spaceship::ConnectAPI::Build.all(
+      app_id: app.id, version: version.version_string,
+      build_number: build_number, platform: "IOS"
+    ).first
+    UI.user_error!("Build #{version.version_string} (#{build_number}) is not available") unless build
+    UI.user_error!("Build #{build_number} is #{build.processing_state}") unless build.processing_state == "VALID"
+    version.select_build(build_id: build.id)
+    UI.success("Attached build #{version.version_string} (#{build_number})")
+  end
+
+  desc "Delete duplicate screenshots (same filename) left by flaky-API re-uploads."
+  lane :dedup_shots do
+    require "json"
+    cfg = JSON.parse(File.read(api_key_path))
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: cfg["key_id"], issuer_id: cfg["issuer_id"],
+      filepath: File.expand_path(cfg["key_filepath"]))
+    app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
+    version = app.get_edit_app_store_version(platform: "IOS")
+    version.get_app_store_version_localizations.each do |loc|
+      loc.get_app_screenshot_sets.each do |set|
+        seen = {}
+        set.app_screenshots.each do |sc|
+          key = sc.file_name
+          if seen[key]
+            UI.message("  deleting duplicate #{set.screenshot_display_type}/#{key}")
+            sc.delete!
+          else
+            seen[key] = true
+          end
+        end
+      end
+    end
+    UI.success("dedup complete")
+  end
+
+  desc "Print the current App Store listing state (version, name, screenshot counts)."
+  lane :status do
+    require "json"
+    cfg = JSON.parse(File.read(api_key_path))
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: cfg["key_id"], issuer_id: cfg["issuer_id"],
+      filepath: File.expand_path(cfg["key_filepath"]))
+    app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
+    UI.header("Jankify (#{app.id})")
+    version = app.get_edit_app_store_version(platform: "IOS")
+    UI.message("Edit version: #{version&.version_string} — #{version&.app_store_state}")
+    if version
+      begin
+        selected_build = version.get_build
+      rescue RuntimeError => error
+        raise unless error.message == "No data"
+        selected_build = nil
+      end
+      UI.message("Selected build: #{selected_build&.version || 'none'}")
+      version.get_app_store_version_localizations.each do |loc|
+        UI.message("  [#{loc.locale}] name set? #{!app.name.to_s.empty?}  desc #{loc.description.to_s.length} chars  keywords:#{loc.keywords}")
+        sets = loc.get_app_screenshot_sets
+        sets.each { |s| UI.message("    #{s.screenshot_display_type}: #{s.app_screenshots.count} shots") }
+      end
+    end
+    build_filter = version ? { "preReleaseVersion.version" => version.version_string } : {}
+    app.get_builds(filter: build_filter, includes: "preReleaseVersion", sort: "-uploadedDate").each do |build|
+      UI.message("Build #{build.app_version} (#{build.version}) — #{build.processing_state} — uploaded #{build.uploaded_date}")
+    end
+  end
+end

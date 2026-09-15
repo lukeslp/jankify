@@ -1,0 +1,28 @@
+.claude/
+.DS_Store
+*.swp
+*.bak
+.playwright-mcp/
+.build/
+icon-variants/
+xcuserdata/
+/jankify-brite-default.png
+/jankify-brite-classic.png
+/brite-classic-bright.png
+/brite-neon-default.png
+/brite-classic-4x3.png
+
+# fastlane generated artifacts (keep Fastfile/Appfile/Deliverfile/metadata/screenshots)
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/*.html
+fastlane/.env
+fastlane/test_output/
+
+# Android generated files and locally staged signed artifacts
+android/.gradle/
+android/.kotlin/
+android/local.properties
+android/**/build/
+dist/
+artifacts/google-play/

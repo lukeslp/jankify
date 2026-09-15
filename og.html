@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Jankify OG</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Serif:ital,wght@1,500;1,600&display=swap">
+<style>
+:root {
+  --bg:     #f4ede0;
+  --ink:    #1a1714;
+  --muted:  #6b6862;
+  --accent: #c1502e;
+  --line:   #d8cfbd;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { width: 1200px; height: 630px; }
+body { width: 1200px; min-height: 630px; height: 630px; overflow: hidden; position: relative; }
+body {
+  background: var(--bg);
+  font-family: "IBM Plex Sans", sans-serif;
+  color: var(--ink);
+  position: relative;
+}
+
+/* Paper-grain background via repeating dots */
+body::before {
+  content: "";
+  position: absolute; inset: 0;
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(26,23,20,0.04) 1px, transparent 0);
+  background-size: 8px 8px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.frame {
+  position: absolute; inset: 28px;
+  border: 1px solid var(--line);
+  z-index: 1;
+}
+
+/* Mosaic panel (right side) */
+.mosaic {
+  position: absolute;
+  top: 28px; right: 28px; bottom: 28px;
+  width: 470px;
+  overflow: hidden;
+  z-index: 2;
+  border-left: 1px solid var(--line);
+}
+.mosaic svg { width: 100%; height: 100%; display: block; }
+
+/* Top label strip */
+.strip {
+  position: absolute;
+  top: 56px; left: 64px; right: 526px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #3a352d;
+  z-index: 3;
+}
+.strip .mark { color: var(--accent); font-weight: 600; margin-right: 2px; }
+.strip .right { color: var(--muted); }
+
+/* Main type block */
+.block {
+  position: absolute;
+  left: 64px;
+  bottom: 140px;
+  right: 528px;
+  z-index: 3;
+}
+.wordmark {
+  display: flex;
+  align-items: baseline;
+  gap: 18px;
+  margin-bottom: 28px;
+}
+.wordmark .tri {
+  font-size: 96px;
+  line-height: 1;
+  color: var(--accent);
+  transform: translateY(6px);
+}
+.wordmark h1 {
+  font-family: "IBM Plex Sans", sans-serif;
+  font-weight: 700;
+  font-size: 132px;
+  line-height: 0.92;
+  letter-spacing: -0.045em;
+  color: var(--ink);
+}
+
+.tag {
+  font-family: "IBM Plex Sans", sans-serif;
+  font-weight: 500;
+  font-size: 40px;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+.tag .strike {
+  position: relative;
+  font-family: "IBM Plex Serif", serif;
+  font-style: italic;
+  font-weight: 600;
+  color: var(--accent);
+  padding: 0 4px;
+}
+.tag .strike::after {
+  content: "";
+  position: absolute;
+  left: -2px; right: -2px;
+  top: 54%;
+  height: 4px;
+  background: var(--accent);
+  transform: rotate(-2deg);
+  opacity: 0.85;
+}
+
+/* Bottom byline */
+.byline {
+  position: absolute;
+  left: 64px;
+  top: 555px;
+  width: 600px;
+  height: 24px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 24px;
+  color: #2a2520;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  z-index: 10;
+}
+.byline .dot { color: var(--accent); font-weight: 700; padding: 0 6px; }
+.byline .rule {
+  display: inline-block;
+  width: 32px; height: 2px;
+  background: var(--accent);
+  vertical-align: middle;
+  margin: -2px 14px 0 0;
+}
+</style>
+</head>
+<body>
+  <div class="frame"></div>
+
+  <div class="mosaic">
+    <svg viewBox="0 0 470 574" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+      <!-- Hand-placed Delaunay-style triangulation. Palette = warm earth tones with sharp accent breaks. -->
+      <defs>
+        <linearGradient id="vignette" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="rgba(0,0,0,0)"/>
+          <stop offset="100%" stop-color="rgba(26,23,20,0.18)"/>
+        </linearGradient>
+      </defs>
+
+      <!-- background base -->
+      <rect width="470" height="574" fill="#e8dfcb"/>
+
+      <!-- triangles (warm to deep, abstract figure suggestion) -->
+      <g shape-rendering="geometricPrecision">
+        <polygon points="0,0 120,0 0,90"        fill="#d6c8a9"/>
+        <polygon points="120,0 240,0 0,90"      fill="#c1502e"/>
+        <polygon points="240,0 360,0 240,80"    fill="#e8c9a1"/>
+        <polygon points="240,0 470,0 360,0"     fill="#a83e22"/>
+        <polygon points="470,0 360,0 470,110"   fill="#d4b48a"/>
+        <polygon points="360,0 240,80 470,110"  fill="#8c6243"/>
+
+        <polygon points="0,90 240,80 90,180"    fill="#b88f6a"/>
+        <polygon points="240,80 470,110 320,170" fill="#e07a52"/>
+        <polygon points="240,80 320,170 90,180" fill="#3a2d22"/>
+        <polygon points="470,110 320,170 470,260" fill="#c79766"/>
+
+        <polygon points="0,90 90,180 0,260"     fill="#7a5638"/>
+        <polygon points="90,180 200,260 0,260"  fill="#d6a87a"/>
+        <polygon points="90,180 320,170 200,260" fill="#c1502e"/>
+        <polygon points="320,170 380,260 200,260" fill="#a86f48"/>
+        <polygon points="320,170 470,260 380,260" fill="#523a28"/>
+
+        <polygon points="0,260 200,260 110,380" fill="#8a5e3d"/>
+        <polygon points="200,260 380,260 240,380" fill="#e07a52"/>
+        <polygon points="380,260 470,260 380,380" fill="#c1502e"/>
+        <polygon points="200,260 240,380 110,380" fill="#c79766"/>
+        <polygon points="380,260 380,380 240,380" fill="#3a2d22"/>
+
+        <polygon points="0,260 110,380 0,470"   fill="#c79766"/>
+        <polygon points="110,380 240,380 80,470" fill="#5c4030"/>
+        <polygon points="240,380 380,380 220,470" fill="#d6a87a"/>
+        <polygon points="380,380 470,380 380,470" fill="#8a5e3d"/>
+        <polygon points="240,380 220,470 80,470" fill="#a83e22"/>
+        <polygon points="380,380 380,470 220,470" fill="#c1502e"/>
+        <polygon points="470,380 470,470 380,470" fill="#3a2d22"/>
+
+        <polygon points="0,470 80,470 0,574"    fill="#3a2d22"/>
+        <polygon points="80,470 200,574 0,574"  fill="#7a5638"/>
+        <polygon points="80,470 220,470 200,574" fill="#c79766"/>
+        <polygon points="220,470 340,574 200,574" fill="#a83e22"/>
+        <polygon points="220,470 380,470 340,574" fill="#523a28"/>
+        <polygon points="380,470 470,574 340,574" fill="#d6a87a"/>
+        <polygon points="380,470 470,470 470,574" fill="#c1502e"/>
+      </g>
+
+      <!-- subtle edge strokes -->
+      <g stroke="rgba(26,23,20,0.10)" stroke-width="0.6" fill="none">
+        <polyline points="0,90 240,80 470,110"/>
+        <polyline points="0,260 200,260 380,260 470,260"/>
+        <polyline points="0,470 80,470 220,470 380,470 470,470"/>
+        <polyline points="90,180 320,170"/>
+        <polyline points="110,380 240,380 380,380"/>
+      </g>
+
+      <rect width="470" height="574" fill="url(#vignette)"/>
+    </svg>
+  </div>
+
+  <div class="strip">
+    <span><span class="mark">▲</span> Image transformer</span>
+    <span class="right">lukesteuber.com</span>
+  </div>
+
+  <div class="block">
+    <div class="wordmark">
+      <span class="tri">▲</span>
+      <h1>Jankify</h1>
+    </div>
+    <p class="tag">
+      Screw up your photos,<br>
+      without <span class="strike">AI</span>.
+    </p>
+  </div>
+
+  <div class="byline"><span class="rule"></span>Pixel<span class="dot">·</span>Brite<span class="dot">·</span>ASCII<span class="dot">·</span>Emoji<span class="dot">·</span>Hatch<span class="dot">·</span>Rough<span class="dot">·</span>Polygon<span class="dot">·</span>Voronoi</div>
+<script data-goatcounter="https://stats.dr.eamer.dev/count"
+        async src="https://stats.dr.eamer.dev/count.js"></script>
+</body>
+</html>

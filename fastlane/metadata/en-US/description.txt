@@ -1,0 +1,41 @@
+Jankify gives you two ways to make a mess: build pixel-art space oddities from scratch, or feed it a photo, GIF, or video and break it beautifully.
+
+CREATE SOMETHING FROM NOTHING
+
+Roll a seed and get a new piece of a tiny universe:
+
+- Backgrounds and deep starscapes
+- Rocky planets and strange little worlds
+- Symmetrical creatures and sprites
+- Ships in six classes, from scouts to dreadnoughts
+- Pixel effects and animated explosions
+
+Every seed makes a repeatable recipe. Keep the part you like, vary the rest, save a PNG, or copy a recipe link to share it.
+
+Effects and explosions are properly unruly: the seed changes their shape, motion, detail, and debris instead of merely repainting the same result.
+
+EDIT A PHOTO, GIF, OR VIDEO
+
+Choose from eight handmade looks. Pixel goes chunky, with optional retro palettes and quantized color. Lite Brite rebuilds your photo as glowing pegs on a black board. ASCII turns it into text, while Emoji makes a mosaic from thousands of real emoji.
+
+Want something sketchier? Hatch adds tonal pen-and-ink cross-hatching, and Rough draws loose outlines. Polygon and Voronoi shatter the picture into triangles or cells.
+
+Drag a few sliders, hit a button, and see what happens. Save a crisp PNG or export clean SVG vectors from most modes. Pixel mode can also produce box-shadow CSS, an HTML table, Unicode blocks, JSON, or plain text.
+
+MAKE IT MOVE
+
+Turn an animated GIF or short video into looping pixel art, glowing pegs, ASCII, emoji, hatching, or a rough sketch. Set the duration and frame rate, then export an animated GIF, a PNG sprite sheet, or processed video.
+
+Jankify trims and scales long clips to keep things responsive. It bounds animation timing, respects reduced-motion preferences, and warns before producing rapid animation.
+
+BUILT TO RESPECT YOU
+
+- Create and Edit both work fully offline.
+- Photos, GIFs, and videos never leave your device.
+- No account, sign-up, tracking, or ads.
+- No data collected, full stop.
+- Universal app for iPhone and iPad.
+
+Make a world. Wreck a photo. Keep what gets weird.
+
+Made by Luke Steuber.

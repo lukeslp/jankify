@@ -1,0 +1,6 @@
+# App Store categories (Graphics & Design primary, Photo & Video secondary).
+# All localized text + URLs live under metadata/. Screenshots are pushed by
+# the upload_shots / stage lanes. Age rating, pricing, and App Privacy are set
+# in the App Store Connect UI (see fastlane/SUBMIT_CHECKLIST.md).
+primary_category "GRAPHICS_AND_DESIGN"
+secondary_category "PHOTO_AND_VIDEO"

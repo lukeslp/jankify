@@ -1,0 +1,628 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		02C40EC16B4C1DECA06D5A14 /* BridgeMessageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56D9EFFD728EC1F2A536A8E0 /* BridgeMessageTests.swift */; };
+		052A13706779553813820304 /* external-lzw.gif in Resources */ = {isa = PBXBuildFile; fileRef = E4AD38BD93FE4A36A340B7F0 /* external-lzw.gif */; };
+		15780366C7DF7435A56D0837 /* JankifyLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A684B9271A4C20152F59673 /* JankifyLaunchTests.swift */; };
+		16F94E438BF47EB9FE2CE519 /* Web in Resources */ = {isa = PBXBuildFile; fileRef = 8BE8D52AC55E9D49A9C163FD /* Web */; };
+		1A3EEA29433EAAAE43E1DB14 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7A1B139A5D1193A4975CB834 /* PrivacyInfo.xcprivacy */; };
+		1F099D7DA1DAAE84566A8EEC /* BundleResourceResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E373352B544EE78C01A492B9 /* BundleResourceResolverTests.swift */; };
+		1F634EAE80702FD505D06CBD /* ReviewPromptPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C5E8B1D77E553BB2C814A9C /* ReviewPromptPolicy.swift */; };
+		22F6B900844D8E21147DB118 /* BridgeController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72602A0B0B31EF37DBF5FCC7 /* BridgeController.swift */; };
+		33C89906521E3A5DEA8719AF /* load-functions.js in Resources */ = {isa = PBXBuildFile; fileRef = B0A2CF9F08500606B776AC14 /* load-functions.js */; };
+		490E6A2E7EC832F513D71286 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA0FC0D4D8AA8AF639D1A48B /* ContentView.swift */; };
+		58997609743BE7BEE168E014 /* BundleContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33E71E9CFAEFB9F0303BCFE6 /* BundleContent.swift */; };
+		7EF7301D066A0FCA6455EF40 /* BridgeMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 942E5D9DE0CEC940134DA164 /* BridgeMessage.swift */; };
+		8D3B995613E7B156CE8F8AB1 /* JankifyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2130B3009F48E20CA3B6F5C6 /* JankifyApp.swift */; };
+		9613A47765F5D663CE8EBF88 /* JankifyWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5166A5A443C7CCFF4D829D61 /* JankifyWebView.swift */; };
+		B0F0BFE42F5B82CB97126ADE /* BundleContentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 889993F79861DB410EFB3934 /* BundleContentTests.swift */; };
+		BB59E8CEB20727FB2B7FD218 /* BundleResourceResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ED867FE3A117753228526A2 /* BundleResourceResolver.swift */; };
+		C22D75F2B8ED75F9B74F7487 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C0093D0BAD33913D88C8175D /* Assets.xcassets */; };
+		C93F4C4D0DE2C7CE8A12CE02 /* ReviewPromptPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E8793D50BEDF75B626E7DD5 /* ReviewPromptPolicyTests.swift */; };
+		E721E38C48FEB9B4EE0C54CC /* AppConfigurationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CD772F5184DFAB1457F9128 /* AppConfigurationTests.swift */; };
+		F706E18B819D4FE2A7C5C2F7 /* BridgeControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A2168EAF7D7BF6E2EAA26BA /* BridgeControllerTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		853AB2C1EFCFC44AD81CDB86 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5FC244556D68728F3FD51E5A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 9C7FA3098A811A80FD5159B0;
+			remoteInfo = Jankify;
+		};
+		AFF124B2BA1E8E301056BA1C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5FC244556D68728F3FD51E5A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 9C7FA3098A811A80FD5159B0;
+			remoteInfo = Jankify;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		2130B3009F48E20CA3B6F5C6 /* JankifyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JankifyApp.swift; sourceTree = "<group>"; };
+		2CD772F5184DFAB1457F9128 /* AppConfigurationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfigurationTests.swift; sourceTree = "<group>"; };
+		33E71E9CFAEFB9F0303BCFE6 /* BundleContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundleContent.swift; sourceTree = "<group>"; };
+		4C5E8B1D77E553BB2C814A9C /* ReviewPromptPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewPromptPolicy.swift; sourceTree = "<group>"; };
+		4E474D50FDD932FEC6DD7A10 /* Jankify.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Jankify.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5166A5A443C7CCFF4D829D61 /* JankifyWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JankifyWebView.swift; sourceTree = "<group>"; };
+		56D9EFFD728EC1F2A536A8E0 /* BridgeMessageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeMessageTests.swift; sourceTree = "<group>"; };
+		6A1266DF779C2F0927660463 /* JankifyUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = JankifyUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		6A684B9271A4C20152F59673 /* JankifyLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JankifyLaunchTests.swift; sourceTree = "<group>"; };
+		6E8793D50BEDF75B626E7DD5 /* ReviewPromptPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewPromptPolicyTests.swift; sourceTree = "<group>"; };
+		72602A0B0B31EF37DBF5FCC7 /* BridgeController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeController.swift; sourceTree = "<group>"; };
+		7A1B139A5D1193A4975CB834 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		7A2168EAF7D7BF6E2EAA26BA /* BridgeControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeControllerTests.swift; sourceTree = "<group>"; };
+		889993F79861DB410EFB3934 /* BundleContentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundleContentTests.swift; sourceTree = "<group>"; };
+		8BE8D52AC55E9D49A9C163FD /* Web */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Web; path = Jankify/Resources/Web; sourceTree = SOURCE_ROOT; };
+		942E5D9DE0CEC940134DA164 /* BridgeMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeMessage.swift; sourceTree = "<group>"; };
+		9ED867FE3A117753228526A2 /* BundleResourceResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundleResourceResolver.swift; sourceTree = "<group>"; };
+		B0A2CF9F08500606B776AC14 /* load-functions.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "load-functions.js"; sourceTree = "<group>"; };
+		BA0FC0D4D8AA8AF639D1A48B /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		C0093D0BAD33913D88C8175D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		D432C8609C24F406533CCFE3 /* JankifyTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = JankifyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E373352B544EE78C01A492B9 /* BundleResourceResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundleResourceResolverTests.swift; sourceTree = "<group>"; };
+		E4AD38BD93FE4A36A340B7F0 /* external-lzw.gif */ = {isa = PBXFileReference; lastKnownFileType = image.gif; path = "external-lzw.gif"; sourceTree = "<group>"; };
+		EF85C574843E75E19AC24295 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		1C21CD3CA38DB53B1546C8F3 /* JankifyUITests */ = {
+			isa = PBXGroup;
+			children = (
+				6A684B9271A4C20152F59673 /* JankifyLaunchTests.swift */,
+			);
+			path = JankifyUITests;
+			sourceTree = "<group>";
+		};
+		32AAE25E453E81AE3819BB99 /* Jankify */ = {
+			isa = PBXGroup;
+			children = (
+				7B794697448A5697861D08F6 /* Resources */,
+				FB2D2F477BE564353300C104 /* Reviews */,
+				C0093D0BAD33913D88C8175D /* Assets.xcassets */,
+				72602A0B0B31EF37DBF5FCC7 /* BridgeController.swift */,
+				942E5D9DE0CEC940134DA164 /* BridgeMessage.swift */,
+				33E71E9CFAEFB9F0303BCFE6 /* BundleContent.swift */,
+				9ED867FE3A117753228526A2 /* BundleResourceResolver.swift */,
+				BA0FC0D4D8AA8AF639D1A48B /* ContentView.swift */,
+				EF85C574843E75E19AC24295 /* Info.plist */,
+				2130B3009F48E20CA3B6F5C6 /* JankifyApp.swift */,
+				5166A5A443C7CCFF4D829D61 /* JankifyWebView.swift */,
+				7A1B139A5D1193A4975CB834 /* PrivacyInfo.xcprivacy */,
+			);
+			path = Jankify;
+			sourceTree = "<group>";
+		};
+		7B794697448A5697861D08F6 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				8BE8D52AC55E9D49A9C163FD /* Web */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		9642F814ADB267E84A4FF738 = {
+			isa = PBXGroup;
+			children = (
+				32AAE25E453E81AE3819BB99 /* Jankify */,
+				C85B59FBCD3F7CCCBA01A28C /* JankifyTests */,
+				1C21CD3CA38DB53B1546C8F3 /* JankifyUITests */,
+				A70FCF6C7496161D1B04A812 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A70FCF6C7496161D1B04A812 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				4E474D50FDD932FEC6DD7A10 /* Jankify.app */,
+				D432C8609C24F406533CCFE3 /* JankifyTests.xctest */,
+				6A1266DF779C2F0927660463 /* JankifyUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		C0C564CEC4D6C5D2DB05D894 /* fixtures */ = {
+			isa = PBXGroup;
+			children = (
+				E4AD38BD93FE4A36A340B7F0 /* external-lzw.gif */,
+			);
+			path = fixtures;
+			sourceTree = "<group>";
+		};
+		C85B59FBCD3F7CCCBA01A28C /* JankifyTests */ = {
+			isa = PBXGroup;
+			children = (
+				C0C564CEC4D6C5D2DB05D894 /* fixtures */,
+				F387DFEB32451057E9290D26 /* helpers */,
+				2CD772F5184DFAB1457F9128 /* AppConfigurationTests.swift */,
+				7A2168EAF7D7BF6E2EAA26BA /* BridgeControllerTests.swift */,
+				56D9EFFD728EC1F2A536A8E0 /* BridgeMessageTests.swift */,
+				889993F79861DB410EFB3934 /* BundleContentTests.swift */,
+				E373352B544EE78C01A492B9 /* BundleResourceResolverTests.swift */,
+				6E8793D50BEDF75B626E7DD5 /* ReviewPromptPolicyTests.swift */,
+			);
+			path = JankifyTests;
+			sourceTree = "<group>";
+		};
+		F387DFEB32451057E9290D26 /* helpers */ = {
+			isa = PBXGroup;
+			children = (
+				B0A2CF9F08500606B776AC14 /* load-functions.js */,
+			);
+			path = helpers;
+			sourceTree = "<group>";
+		};
+		FB2D2F477BE564353300C104 /* Reviews */ = {
+			isa = PBXGroup;
+			children = (
+				4C5E8B1D77E553BB2C814A9C /* ReviewPromptPolicy.swift */,
+			);
+			path = Reviews;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		50CEFD88F12BD671E6053659 /* JankifyUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 49D42044D1688819281D32A6 /* Build configuration list for PBXNativeTarget "JankifyUITests" */;
+			buildPhases = (
+				374764FF44C14DB237168493 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				6C80479D9687381F7105CAEB /* PBXTargetDependency */,
+			);
+			name = JankifyUITests;
+			packageProductDependencies = (
+			);
+			productName = JankifyUITests;
+			productReference = 6A1266DF779C2F0927660463 /* JankifyUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		591A77EADD9433A9382FFE40 /* JankifyTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 729C58E7292B73EC1380E7E9 /* Build configuration list for PBXNativeTarget "JankifyTests" */;
+			buildPhases = (
+				2FEF8035BAC50A0DFF614BD5 /* Sources */,
+				31E54DBDB725F78A8981BD12 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D4C7A070316C2EF75FCDD324 /* PBXTargetDependency */,
+			);
+			name = JankifyTests;
+			packageProductDependencies = (
+			);
+			productName = JankifyTests;
+			productReference = D432C8609C24F406533CCFE3 /* JankifyTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		9C7FA3098A811A80FD5159B0 /* Jankify */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 10B3C469AE32EFE2A1AC2717 /* Build configuration list for PBXNativeTarget "Jankify" */;
+			buildPhases = (
+				A3804C810D5F689AFDDCD89C /* Sources */,
+				5272208F2431162036B3035B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Jankify;
+			packageProductDependencies = (
+			);
+			productName = Jankify;
+			productReference = 4E474D50FDD932FEC6DD7A10 /* Jankify.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		5FC244556D68728F3FD51E5A /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					50CEFD88F12BD671E6053659 = {
+						DevelopmentTeam = 596T7J7FB6;
+						ProvisioningStyle = Automatic;
+						TestTargetID = 9C7FA3098A811A80FD5159B0;
+					};
+					591A77EADD9433A9382FFE40 = {
+						DevelopmentTeam = 596T7J7FB6;
+						ProvisioningStyle = Automatic;
+					};
+					9C7FA3098A811A80FD5159B0 = {
+						DevelopmentTeam = 596T7J7FB6;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = A3A9D44DA5FF313B03688A8F /* Build configuration list for PBXProject "Jankify" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 9642F814ADB267E84A4FF738;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = A70FCF6C7496161D1B04A812 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				9C7FA3098A811A80FD5159B0 /* Jankify */,
+				591A77EADD9433A9382FFE40 /* JankifyTests */,
+				50CEFD88F12BD671E6053659 /* JankifyUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		31E54DBDB725F78A8981BD12 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				052A13706779553813820304 /* external-lzw.gif in Resources */,
+				33C89906521E3A5DEA8719AF /* load-functions.js in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5272208F2431162036B3035B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C22D75F2B8ED75F9B74F7487 /* Assets.xcassets in Resources */,
+				1A3EEA29433EAAAE43E1DB14 /* PrivacyInfo.xcprivacy in Resources */,
+				16F94E438BF47EB9FE2CE519 /* Web in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		2FEF8035BAC50A0DFF614BD5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E721E38C48FEB9B4EE0C54CC /* AppConfigurationTests.swift in Sources */,
+				F706E18B819D4FE2A7C5C2F7 /* BridgeControllerTests.swift in Sources */,
+				02C40EC16B4C1DECA06D5A14 /* BridgeMessageTests.swift in Sources */,
+				B0F0BFE42F5B82CB97126ADE /* BundleContentTests.swift in Sources */,
+				1F099D7DA1DAAE84566A8EEC /* BundleResourceResolverTests.swift in Sources */,
+				C93F4C4D0DE2C7CE8A12CE02 /* ReviewPromptPolicyTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		374764FF44C14DB237168493 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				15780366C7DF7435A56D0837 /* JankifyLaunchTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A3804C810D5F689AFDDCD89C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				22F6B900844D8E21147DB118 /* BridgeController.swift in Sources */,
+				7EF7301D066A0FCA6455EF40 /* BridgeMessage.swift in Sources */,
+				58997609743BE7BEE168E014 /* BundleContent.swift in Sources */,
+				BB59E8CEB20727FB2B7FD218 /* BundleResourceResolver.swift in Sources */,
+				490E6A2E7EC832F513D71286 /* ContentView.swift in Sources */,
+				8D3B995613E7B156CE8F8AB1 /* JankifyApp.swift in Sources */,
+				9613A47765F5D663CE8EBF88 /* JankifyWebView.swift in Sources */,
+				1F634EAE80702FD505D06CBD /* ReviewPromptPolicy.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		6C80479D9687381F7105CAEB /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 9C7FA3098A811A80FD5159B0 /* Jankify */;
+			targetProxy = 853AB2C1EFCFC44AD81CDB86 /* PBXContainerItemProxy */;
+		};
+		D4C7A070316C2EF75FCDD324 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 9C7FA3098A811A80FD5159B0 /* Jankify */;
+			targetProxy = AFF124B2BA1E8E301056BA1C /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		13E8580356288AD92E93957D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.lukesteuber.jankify.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Jankify;
+			};
+			name = Debug;
+		};
+		14B2EB9AEB9E0D0506C179EB /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 61;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 596T7J7FB6;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.1.3;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		19D3B61917A1C9C3846F46E7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.lukesteuber.jankify.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Jankify.app/Jankify";
+			};
+			name = Release;
+		};
+		1E1CE89A02D87C907375FF8A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = Jankify/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.lukesteuber.jankify;
+				PRODUCT_NAME = Jankify;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		40EB240A09D8938223D5D43B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = Jankify/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.lukesteuber.jankify;
+				PRODUCT_NAME = Jankify;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		65DBDC6D050F9BC75B84FFFC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.lukesteuber.jankify.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Jankify.app/Jankify";
+			};
+			name = Debug;
+		};
+		C1CCF838D46D86CEF02231CA /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.lukesteuber.jankify.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Jankify;
+			};
+			name = Release;
+		};
+		D6CEBC8FE8AE9102998E7B95 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 61;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 596T7J7FB6;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.1.3;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		10B3C469AE32EFE2A1AC2717 /* Build configuration list for PBXNativeTarget "Jankify" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				40EB240A09D8938223D5D43B /* Debug */,
+				1E1CE89A02D87C907375FF8A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		49D42044D1688819281D32A6 /* Build configuration list for PBXNativeTarget "JankifyUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				13E8580356288AD92E93957D /* Debug */,
+				C1CCF838D46D86CEF02231CA /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		729C58E7292B73EC1380E7E9 /* Build configuration list for PBXNativeTarget "JankifyTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				65DBDC6D050F9BC75B84FFFC /* Debug */,
+				19D3B61917A1C9C3846F46E7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		A3A9D44DA5FF313B03688A8F /* Build configuration list for PBXProject "Jankify" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D6CEBC8FE8AE9102998E7B95 /* Debug */,
+				14B2EB9AEB9E0D0506C179EB /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 5FC244556D68728F3FD51E5A /* Project object */;
+}

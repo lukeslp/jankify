@@ -1,0 +1,9 @@
+Jankify is a playful offline studio for transforming photos and making original space art.
+
+Choose a photo or video, then turn it into pixel art, a Lite Brite-style board, ASCII art, an emoji mosaic, hatching, a rough sketch, polygons, or Voronoi art. Tune the look with straightforward controls and export finished work as images, vector files, text, sprite sheets, animated GIFs, or processed video where supported.
+
+Switch to Create to build backgrounds, starscapes, planets, sprites, ships, effects, and explosions from reusable seeds. Save the result as a PNG or share a recipe so someone else can reproduce the same scene.
+
+The editor and creator are bundled in the app. Your media stays on the device, the core tools work without a network connection, and Jankify requests no camera, microphone, location, account, or media-library permission. It reads only files you choose with the system picker and sends exports only when you open the system share sheet.
+
+Accessibility features include semantic labels, visible keyboard focus, live status updates, responsive portrait and landscape layouts, pinch zoom, system font scaling, reduced-motion handling, and a photosensitivity warning for animated output.

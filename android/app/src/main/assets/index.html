@@ -1,0 +1,3884 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jankify</title>
+<meta name="description" content="Screw up your photos, without AI.">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="Jankify">
+<meta property="og:description" content="Screw up your photos, without AI.">
+<meta property="og:image" content="https://jankify.app/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Jankify wordmark beside a warm polygon mosaic; tagline reads &quot;Screw up your photos, without AI.&quot;">
+<meta property="og:url" content="https://jankify.app/">
+<meta property="og:site_name" content="lukesteuber.com">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Jankify">
+<meta name="twitter:description" content="Screw up your photos, without AI.">
+<meta name="twitter:image" content="https://jankify.app/og.png">
+<meta name="twitter:image:alt" content="Jankify wordmark beside a warm polygon mosaic; tagline reads &quot;Screw up your photos, without AI.&quot;">
+
+<link rel="canonical" href="https://jankify.app/">
+<!--
+================================================================================
+  Jankify - Image to Geometric / Mosaic / Text / Pixel / Sketch Art
+================================================================================
+  File Purpose
+    Browser-based image transformation tool. Eight rendering modes share a
+    common pipeline. Each mode supports one or more export formats.
+
+  Modes
+    pixel     Pixel-art rendering with optional median-cut quantization.
+              Exports: CSS box-shadow, SVG rect grid, HTML <table>, Unicode
+              blocks (colored or mono), JSON 2D array, plain text grid.
+    brite     Lite Brite pegboard with the authentic 8-peg Hasbro palette.
+    ascii     Character density mapping; brightness ramp, optional color.
+    emoji     Emoji mosaic via LAB color matching with rejection tolerance.
+    hatch     Pen cross-hatch; line density tracks tone, optional source ink.
+    rough     Hand-drawn sketch mosaic via rough.js (vendored inline).
+    polygon   Delaunay triangulation with edge-aware point placement.
+    voronoi   Voronoi cells: dual graph of the same Delaunay output.
+
+  Primary Functions
+    sobel, generatePoints, delaunay, voronoiCells       Geometry
+    rgbToLab, deltaE94                                  Color science
+    buildEmojiPalette                                   Emoji probing
+    nearestBritePeg                                     Lite Brite palette match
+    avgRgbRect, avgBrightRect, avgRgbaRect              Area sampling
+    medianCutPalette                                    Color quantization
+    computeHatch                                        Tone-driven hatching
+    renderRough, svgRough                               rough.js sketch mosaic
+    formatPixelsAs<Format>                              7 pixel exporters
+    runPipeline                                         Orchestrator
+
+  Inputs
+    Any browser-decodable image or video (JPEG, PNG, WebP, GIF, MP4, MOV, …)
+    Animated GIF and video sources unlock animation asset exports.
+    Controls vary by mode — see sidebar.
+
+  Outputs
+    Inline canvas. Per-mode downloads (PNG always; SVG / TXT / CSS / HTML
+    / JSON depending on mode). Clipboard copy for text outputs.
+    Animation exports: looping GIF, PNG sprite sheet, and browser-recorded video.
+    Video sources are sampled locally; no media is uploaded.
+
+  Run: open in any modern browser. No build, no server, no network at runtime.
+================================================================================
+-->
+<script>
+// Native shell marker. Inside the iOS app the WKWebView exposes the
+// "jankify" message handler and inside the Android app the JankifyAndroid
+// bridge exists; both are present at document start. Mark <html> so CSS can
+// hide web-only store links before first paint.
+(function () {
+  var native = '';
+  try {
+    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.jankify) native = 'ios';
+    else if (window.JankifyAndroid) native = 'android';
+  } catch (e) {}
+  if (native) document.documentElement.setAttribute('data-native', native);
+})();
+</script>
+<style>html[data-native] #store-link, html[data-native] #android-link { display: none !important; }</style>
+<style>
+:root {
+  --bg:        #fafaf7;
+  --surface:   #ffffff;
+  --fg:        #1a1a1a;
+  --fg-muted:  #6b6862;
+  --border:    #e4e1d8;
+  --accent:    #c1502e;
+  --accent-fg: #ffffff;
+  --focus:     #2d6cdf;
+  --shadow:    0 1px 2px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.04);
+  --radius:    6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:       #16140f;
+    --surface:  #1f1c16;
+    --fg:       #f0ebe0;
+    --fg-muted: #9b958a;
+    --border:   #2e2a22;
+    --accent:   #e07a52;
+    --focus:    #6ea1ff;
+    --shadow:   0 1px 2px rgba(0,0,0,0.3), 0 2px 8px rgba(0,0,0,0.2);
+  }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; padding: 0; height: 100%; }
+body {
+  font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+  font-size: 14px;
+  line-height: 1.45;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 100vh;
+}
+
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+header h1 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+header h1 .accent { color: var(--accent); }
+header .spacer { flex: 1; }
+
+.workspace-switcher {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.workspace-switcher a,
+.workspace-switcher [aria-current="page"] {
+  padding: 4px 9px;
+  border-radius: calc(var(--radius) - 3px);
+  color: var(--fg-muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+}
+.workspace-switcher a:hover { color: var(--fg); }
+.workspace-switcher a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.workspace-switcher [aria-current="page"] {
+  background: var(--surface);
+  color: var(--fg);
+  box-shadow: 0 1px 2px var(--shadow);
+}
+
+.mode-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.mode-select label {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fg-muted);
+}
+.mode-select select {
+  font: inherit;
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  color: var(--fg);
+  padding: 2px 4px;
+  cursor: pointer;
+}
+.mode-select select:focus { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+}
+.btn:hover { background: var(--bg); border-color: var(--fg-muted); }
+.btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+}
+.btn-primary:hover { background: var(--accent); filter: brightness(1.08); }
+.btn i { font-size: 12px; }
+.btn.copy-flash { background: var(--accent); color: var(--accent-fg); }
+
+main {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  min-height: 0;
+}
+@media (max-width: 800px) {
+  main { grid-template-columns: 1fr; grid-template-rows: auto auto; }
+  /* Canvas first on mobile — controls follow */
+  .canvas-area { order: 1; min-height: 60vh; }
+  aside {
+    order: 2;
+    border-right: none !important;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+  }
+  /* Hide the redundant header Upload button on mobile while no image is loaded —
+     the placeholder is now the primary affordance. JS re-shows it after upload. */
+  header label[for="file-input"].hide-mobile-empty { display: none; }
+}
+
+aside {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 20px;
+  overflow-y: auto;
+}
+.control { margin-bottom: 18px; }
+.control:last-child { margin-bottom: 0; }
+.control label.field-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fg);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.control label.field-label .value {
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 500;
+  color: var(--accent);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 13px;
+}
+.control .hint {
+  font-size: 11px;
+  color: var(--fg-muted);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.mode-section[hidden] { display: none; }
+#gif-warning[hidden] { display: none !important; }
+#gif-warning:not([hidden]) {
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.62);
+}
+.mode-section h3 {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-muted);
+  margin: 0 0 12px 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+input[type=range] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 24px;
+  background: transparent; cursor: pointer; margin: 0;
+}
+input[type=range]:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+input[type=range]:disabled { opacity: 0.35; cursor: not-allowed; }
+input[type=range]::-webkit-slider-runnable-track { height: 3px; background: var(--border); border-radius: 2px; }
+input[type=range]::-moz-range-track { height: 3px; background: var(--border); border-radius: 2px; }
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 16px; height: 16px;
+  background: var(--accent);
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  margin-top: -7px;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+input[type=range]::-moz-range-thumb {
+  width: 16px; height: 16px;
+  background: var(--accent);
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+
+.radio-group, .checkbox-group {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.radio-group label, .checkbox-group label {
+  display: flex; align-items: center; gap: 8px;
+  cursor: pointer; font-size: 13px; padding: 4px 0;
+}
+.radio-group input, .checkbox-group input {
+  accent-color: var(--accent);
+  width: 16px; height: 16px; cursor: pointer;
+}
+.radio-group input:focus-visible, .checkbox-group input:focus-visible {
+  outline: 2px solid var(--focus); outline-offset: 2px;
+}
+
+.row { display: flex; gap: 10px; align-items: center; }
+.row input[type=color] {
+  width: 32px; height: 32px; padding: 0;
+  border: 1px solid var(--border); border-radius: 4px;
+  cursor: pointer; background: transparent;
+}
+
+.control select, .control input[type=text] {
+  font: inherit; font-size: 13px;
+  width: 100%; padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg); color: var(--fg);
+}
+.control select:focus, .control input[type=text]:focus {
+  outline: 2px solid var(--focus); outline-offset: 1px;
+}
+.control input[type=text].mono {
+  font-family: "IBM Plex Mono", monospace;
+  letter-spacing: 0.02em;
+}
+
+.divider { height: 1px; background: var(--border); margin: 18px 0; border: 0; }
+
+.canvas-area {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    repeating-conic-gradient(var(--border) 0% 25%, transparent 0% 50%) 0 0 / 16px 16px;
+  background-color: var(--bg);
+  min-height: 400px;
+  overflow: auto;
+}
+.canvas-area canvas {
+  max-width: 100%;
+  max-height: calc(100vh - 140px);
+  display: block;
+  box-shadow: var(--shadow);
+  background: #000;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--fg-muted);
+  padding: 48px 28px;
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  width: min(520px, 92%);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.06s ease-out;
+  -webkit-tap-highlight-color: transparent;
+}
+.placeholder:hover {
+  border-color: var(--accent);
+  color: var(--fg);
+}
+.placeholder:active { transform: scale(0.995); }
+.placeholder:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
+.placeholder.drag-over {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+  transform: scale(1.005);
+}
+.placeholder .icon {
+  font-size: 36px;
+  color: var(--accent);
+  margin-bottom: 14px;
+  line-height: 1;
+}
+.placeholder h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 6px 0;
+  color: var(--fg);
+  letter-spacing: -0.01em;
+}
+.placeholder .cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-radius: var(--radius);
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  margin: 14px 0 8px;
+  pointer-events: none; /* clicks bubble to the label */
+}
+.placeholder .cta i { font-size: 13px; }
+.placeholder .hint-line { margin: 6px 0 0; font-size: 12px; color: var(--fg-muted); }
+.placeholder .hint-line kbd {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: var(--fg);
+}
+.placeholder .modes-line {
+  margin-top: 18px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  white-space: normal;
+  word-spacing: 2px;
+}
+.placeholder .modes-line .dot { color: var(--accent); padding: 0 3px; }
+@media (max-width: 800px) {
+  .placeholder { padding: 32px 18px; }
+  .placeholder .hint-desktop { display: none; }
+  .placeholder .hint-mobile { display: block; }
+  .placeholder .modes-line { font-size: 10px; letter-spacing: 0.06em; }
+}
+@media (min-width: 801px) {
+  .placeholder .hint-mobile { display: none; }
+}
+
+.loading {
+  position: absolute; inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  display: none;
+  align-items: center; justify-content: center;
+  flex-direction: column; gap: 12px;
+  z-index: 5;
+}
+.loading.active { display: flex; }
+.loading .label { font-size: 14px; font-weight: 500; }
+.loading .detail {
+  min-height: 1.2em;
+  color: rgba(255,255,255,0.78);
+  font: 12px/1.4 "IBM Plex Mono", monospace;
+}
+.loading .progress-bar {
+  width: 220px; height: 3px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 2px; overflow: hidden;
+}
+.loading .progress-bar-fill {
+  height: 100%; background: var(--accent); width: 0%;
+  transition: width 0.15s ease-out;
+}
+
+.status {
+  padding: 8px 20px;
+  font-size: 12px;
+  color: var(--fg-muted);
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  font-family: "IBM Plex Mono", monospace;
+  white-space: nowrap; overflow-x: auto;
+}
+
+input[type=file] {
+  position: absolute; width: 1px; height: 1px;
+  opacity: 0; pointer-events: none;
+}
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+</style>
+<link rel="stylesheet" href="offline.css">
+</head>
+<body>
+
+<header>
+  <h1><span class="accent">▲</span> Jankify</h1>
+
+  <nav class="workspace-switcher" aria-label="Jankify workspace">
+    <span aria-current="page">Edit</span>
+    <a href="create/app/index.html#/effects" title="Open the SpaceJank creator">Create</a>
+  </nav>
+
+  <a class="btn" id="store-link" href="https://apps.apple.com/app/id6782693852" target="_blank" rel="noreferrer" title="Jankify on the App Store">
+    <i class="fa-solid fa-mobile-screen-button" aria-hidden="true"></i>
+    App Store
+  </a>
+  <a class="btn" id="android-link" href="/downloads/android/Jankify-1.0.9.apk" title="Download Jankify for Android">
+    <i class="fa-brands fa-android" aria-hidden="true"></i>
+    Android APK
+  </a>
+
+  <div class="mode-select">
+    <label for="mode">Mode</label>
+    <select id="mode" aria-label="Rendering mode">
+      <option value="pixel" selected>Pixel</option>
+      <option value="brite">Lite Brite</option>
+      <option value="ascii">ASCII</option>
+      <option value="emoji">Emoji</option>
+      <option value="hatch">Hatch</option>
+      <option value="rough">Rough</option>
+      <option value="polygon">Polygon</option>
+      <option value="voronoi">Voronoi</option>
+    </select>
+  </div>
+
+  <div class="spacer"></div>
+
+  <label for="file-input" class="btn btn-primary hide-mobile-empty" id="upload-btn">
+    <i class="fa-solid fa-upload" aria-hidden="true"></i>
+    <span id="upload-btn-label">Upload</span>
+  </label>
+  <input type="file" id="file-input" accept="image/*,video/*,.mp4,.mov,.m4v,.webm" aria-label="Choose a photo, animated GIF, or video from your device">
+
+  <button class="btn" id="reseed-btn" disabled title="Re-randomize">
+    <i class="fa-solid fa-shuffle" aria-hidden="true"></i>
+    Reseed
+  </button>
+
+  <button class="btn" id="random-btn" disabled title="Random mode + settings (surprise me)">
+    <i class="fa-solid fa-dice" aria-hidden="true"></i>
+    Random
+  </button>
+
+  <button class="btn" id="download-png" disabled>
+    <i class="fa-solid fa-image" aria-hidden="true"></i>
+    PNG
+  </button>
+
+  <button class="btn" id="make-gif" disabled hidden title="Jankify every frame of this GIF, then download" aria-label="Make animated GIF from every frame">
+    <i class="fa-solid fa-film" aria-hidden="true"></i>
+    GIF
+  </button>
+
+  <button class="btn" id="make-sheet" disabled hidden title="Export processed frames as a sprite sheet" aria-label="Make a sprite sheet from processed frames">
+    <i class="fa-solid fa-border-all" aria-hidden="true"></i>
+    Sheet
+  </button>
+
+  <button class="btn" id="make-video" disabled hidden title="Export processed frames as a video" aria-label="Make a video from processed frames">
+    <i class="fa-solid fa-video" aria-hidden="true"></i>
+    Video
+  </button>
+
+  <button class="btn" id="download-vector" disabled>
+    <i class="fa-solid fa-bezier-curve" aria-hidden="true"></i>
+    <span id="download-vector-label">SVG</span>
+  </button>
+
+  <button class="btn" id="copy-output" disabled hidden>
+    <i class="fa-solid fa-clipboard" aria-hidden="true"></i>
+    Copy
+  </button>
+</header>
+
+<main>
+  <aside aria-label="Controls">
+
+    <!-- POLYGON / VORONOI -->
+    <div class="mode-section" data-modes="polygon voronoi" hidden>
+      <h3>Geometry</h3>
+
+      <div class="control">
+        <label class="field-label" for="cell-size">
+          <span>Cell size</span>
+          <span class="value" id="cell-size-value">30</span>
+        </label>
+        <input type="range" id="cell-size" min="8" max="120" value="30" step="1">
+        <div class="hint">Base grid spacing in pixels. Smaller = more detail.</div>
+      </div>
+
+      <div class="control">
+        <label class="field-label" for="edge-sensitivity">
+          <span>Edge sensitivity</span>
+          <span class="value" id="edge-sensitivity-value">60%</span>
+        </label>
+        <input type="range" id="edge-sensitivity" min="0" max="200" value="60" step="5">
+        <div class="hint">Extra points on detected edges, as % of grid count.</div>
+      </div>
+
+      <div class="control">
+        <span class="field-label" style="display:block">Color sampling</span>
+        <div class="radio-group" role="radiogroup">
+          <label><input type="radio" name="color-mode" value="centroid" checked>Centroid <span style="color:var(--fg-muted);font-size:12px">— fast</span></label>
+          <label><input type="radio" name="color-mode" value="average">Average <span style="color:var(--fg-muted);font-size:12px">— smoother</span></label>
+        </div>
+      </div>
+
+      <div class="control">
+        <div class="checkbox-group">
+          <label><input type="checkbox" id="show-stroke">Show cell edges</label>
+        </div>
+        <div class="row" style="margin-top:8px" id="stroke-controls" hidden>
+          <input type="color" id="stroke-color" value="#000000" aria-label="Stroke color">
+          <input type="range" id="stroke-opacity" min="0" max="100" value="40" aria-label="Stroke opacity">
+          <span class="value" id="stroke-opacity-value" style="font-family:'IBM Plex Mono',monospace;font-size:12px;min-width:36px">40%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- EMOJI -->
+    <div class="mode-section" data-modes="emoji" hidden>
+      <h3>Emoji</h3>
+
+      <div class="control">
+        <label class="field-label" for="emoji-window">
+          <span>Analysis window</span>
+          <span class="value" id="emoji-window-value">7px</span>
+        </label>
+        <input type="range" id="emoji-window" min="1" max="50" value="7" step="1">
+        <div class="hint">Source pixel block per emoji. Smaller = more detail, slower.</div>
+      </div>
+
+      <div class="control">
+        <label class="field-label" for="emoji-scale">
+          <span>Output cell size</span>
+          <span class="value" id="emoji-scale-value">14px</span>
+        </label>
+        <input type="range" id="emoji-scale" min="4" max="40" value="14" step="1">
+        <div class="hint">Size of each rendered emoji.</div>
+      </div>
+
+      <div class="control">
+        <label class="field-label" for="emoji-tolerance">
+          <span>Match tolerance</span>
+          <span class="value" id="emoji-tolerance-value">8</span>
+        </label>
+        <input type="range" id="emoji-tolerance" min="1" max="30" value="8" step="1">
+        <div class="hint">Lower = more accurate color, less variety.</div>
+      </div>
+
+      <div class="control">
+        <label class="field-label" for="emoji-empty">
+          <span>Allowed empty space</span>
+          <span class="value" id="emoji-empty-value">70%</span>
+        </label>
+        <input type="range" id="emoji-empty" min="40" max="100" value="70" step="2">
+        <div class="hint">Higher = include sparse glyphs (❗) alongside solid (🟥).</div>
+      </div>
+
+      <div class="control">
+        <div class="checkbox-group">
+          <label><input type="checkbox" id="emoji-hide-black">Hide black/transparent regions</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- ASCII -->
+    <div class="mode-section" data-modes="ascii" hidden>
+      <h3>ASCII</h3>
+
+      <div class="control">
+        <label class="field-label" for="ascii-cell">
+          <span>Cell size</span>
+          <span class="value" id="ascii-cell-value">10px</span>
+        </label>
+        <input type="range" id="ascii-cell" min="4" max="30" value="10" step="1">
+        <div class="hint">Pixel block per character.</div>
+      </div>
+
+      <div class="control">
+        <label class="field-label" for="ascii-ramp">
+          <span>Character ramp</span>
+        </label>
+        <select id="ascii-ramp">
+          <option value=" .:-=+*#%@" selected>Standard (10 levels)</option>
+          <option value=" .'`,^:;Il!i&gt;&lt;~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&amp;8%B@$">Extended (70 levels)</option>
+          <option value=" ░▒▓█">Blocks (5 levels)</option>
+          <option value=" .oO@">Minimal (5 levels)</option>
+          <option value=" ·•◦●">Dots (5 levels)</option>
+        </select>
+        <div class="hint">Light to dark.</div>
+      </div>
+
+      <div class="control">
+        <label class="field-label" for="ascii-ramp-custom">
+          <span>Custom ramp</span>
+        </label>
+        <input type="text" id="ascii-ramp-custom" class="mono" placeholder="(or type your own, light → dark)">
+      </div>
+
+      <div class="control">
+        <span class="field-label" style="display:block">Color</span>
+        <div class="radio-group" role="radiogroup">
+          <label><input type="radio" name="ascii-color" value="mono" checked>Monochrome</label>
+          <label><input type="radio" name="ascii-color" value="source">Source colors</label>
+        </div>
+      </div>
+
+      <div class="row">
+        <input type="color" id="ascii-fg" value="#f0ebe0" aria-label="ASCII foreground color">
+        <span style="font-size:12px;color:var(--fg-muted)">Foreground (mono only)</span>
+      </div>
+    </div>
+
+    <!-- PIXEL -->
+    <div class="mode-section" data-modes="pixel">
+      <h3>Pixel Art</h3>
+
+      <div class="control">
+        <label class="field-label" for="pixel-grid">
+          <span>Grid resolution</span>
+          <span class="value" id="pixel-grid-value">64</span>
+        </label>
+        <input type="range" id="pixel-grid" min="8" max="256" value="64" step="1">
+        <div class="hint">Wider dimension of the output grid. Aspect ratio preserved.</div>
+      </div>
+
+      <div class="control">
+        <label class="field-label" for="pixel-display">
+          <span>Display size</span>
+          <span class="value" id="pixel-display-value">8px</span>
+        </label>
+        <input type="range" id="pixel-display" min="1" max="40" value="8" step="1">
+        <div class="hint">Rendered size of each pixel in preview.</div>
+      </div>
+
+      <div class="control">
+        <label class="field-label" for="pixel-quantize">
+          <span>Palette size</span>
+          <span class="value" id="pixel-quantize-value">unlimited</span>
+        </label>
+        <input type="range" id="pixel-quantize" min="0" max="256" value="0" step="1">
+        <div class="hint">0 = no quantization. Median-cut reduces unique colors → smaller output.</div>
+      </div>
+
+      <div class="control">
+        <label class="field-label" for="pixel-format">
+          <span>Output format</span>
+        </label>
+        <select id="pixel-format">
+          <option value="css" selected>CSS box-shadow</option>
+          <option value="svg">SVG &lt;rect&gt; grid</option>
+          <option value="html">HTML &lt;table&gt;</option>
+          <option value="blocks-html">Unicode blocks (HTML, colored)</option>
+          <option value="blocks-ansi">Unicode blocks (ANSI terminal)</option>
+          <option value="blocks-mono">Unicode blocks (mono)</option>
+          <option value="json">JSON 2D array</option>
+          <option value="text">Plain text (coords)</option>
+        </select>
+        <div class="hint">Download / Copy uses this format. Canvas preview always available as PNG.</div>
+      </div>
+
+      <div class="control">
+        <div class="checkbox-group">
+          <label><input type="checkbox" id="pixel-grid-lines">Show grid lines</label>
+          <label><input type="checkbox" id="pixel-skip-alpha" checked>Skip transparent pixels</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- LITE BRITE -->
+    <div class="mode-section" data-modes="brite" hidden>
+      <h3>Lite Brite</h3>
+
+      <div class="control">
+        <div class="checkbox-group">
+          <label><input type="checkbox" id="brite-classic">Classic 9×12 board</label>
+        </div>
+        <div class="hint">Locks output to authentic Hasbro 12:9 aspect (4:3 landscape, 3:4 portrait). Disables the sliders below.</div>
+      </div>
+
+      <div class="control">
+        <label class="field-label" for="brite-peg">
+          <span>Peg size</span>
+          <span class="value" id="brite-peg-value">20px</span>
+        </label>
+        <input type="range" id="brite-peg" min="8" max="48" value="20" step="1">
+        <div class="hint">Bigger pegs, coarser image. Floor of 8 keeps it readable on phones.</div>
+      </div>
+
+      <div class="control">
+        <label class="field-label" for="brite-pitch">
+          <span>Peg spacing</span>
+          <span class="value" id="brite-pitch-value">170%</span>
+        </label>
+        <input type="range" id="brite-pitch" min="100" max="300" value="170" step="5">
+        <div class="hint">Center-to-center distance, as % of peg diameter. 100% = pegs touching.</div>
+      </div>
+
+      <div class="control">
+        <label class="field-label" for="brite-glow">
+          <span>Bulb glow</span>
+          <span class="value" id="brite-glow-value">85%</span>
+        </label>
+        <input type="range" id="brite-glow" min="0" max="100" value="85" step="5">
+        <div class="hint">Backlit halo behind the pegs. 0 = unlit template.</div>
+      </div>
+
+      <div class="control">
+        <span class="field-label" style="display:block">Palette</span>
+        <div id="brite-palette-swatches" style="display:flex;gap:4px;margin-top:6px" aria-label="Lite Brite palette colors"></div>
+        <div class="hint">Authentic 8-peg Hasbro set. Cells below the luminance floor render as empty holes.</div>
+      </div>
+    </div>
+
+    <!-- HATCH -->
+    <div class="mode-section" data-modes="hatch" hidden>
+      <h3>Hatch</h3>
+
+      <div class="control">
+        <label class="field-label" for="hatch-spacing">
+          <span>Line spacing</span>
+          <span class="value" id="hatch-spacing-value">6px</span>
+        </label>
+        <input type="range" id="hatch-spacing" min="3" max="30" value="6" step="1">
+        <div class="hint">Gap between hatch lines. Smaller = denser, more detail.</div>
+      </div>
+
+      <div class="control">
+        <label class="field-label" for="hatch-width">
+          <span>Stroke width</span>
+          <span class="value" id="hatch-width-value">1.4px</span>
+        </label>
+        <input type="range" id="hatch-width" min="0.5" max="6" value="1.4" step="0.1">
+        <div class="hint">Thickness of each pen stroke.</div>
+      </div>
+
+      <div class="control">
+        <label class="field-label" for="hatch-angle">
+          <span>Base angle</span>
+          <span class="value" id="hatch-angle-value">45°</span>
+        </label>
+        <input type="range" id="hatch-angle" min="0" max="180" value="45" step="1">
+        <div class="hint">Angle of the first hatch layer.</div>
+      </div>
+
+      <div class="control">
+        <label class="field-label" for="hatch-levels">
+          <span>Cross-hatch layers</span>
+          <span class="value" id="hatch-levels-value">3</span>
+        </label>
+        <input type="range" id="hatch-levels" min="1" max="4" value="3" step="1">
+        <div class="hint">Darker tones add layers: 1 hatch → 4 cross-hatched.</div>
+      </div>
+
+      <div class="control">
+        <label class="field-label" for="hatch-jitter">
+          <span>Hand wobble</span>
+          <span class="value" id="hatch-jitter-value">30%</span>
+        </label>
+        <input type="range" id="hatch-jitter" min="0" max="100" value="30" step="5">
+        <div class="hint">Per-line angle and offset jitter. 0 = mechanical.</div>
+      </div>
+
+      <div class="control">
+        <div class="checkbox-group">
+          <label><input type="checkbox" id="hatch-ink-source">Ink from source colors</label>
+        </div>
+      </div>
+
+      <div class="control">
+        <div class="row">
+          <input type="color" id="hatch-ink" value="#1a1a1a" aria-label="Ink color">
+          <span style="font-size:12px;color:var(--fg-muted)">Ink (mono)</span>
+          <input type="color" id="hatch-paper" value="#f7f4ec" aria-label="Paper color">
+          <span style="font-size:12px;color:var(--fg-muted)">Paper</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROUGH -->
+    <div class="mode-section" data-modes="rough" hidden>
+      <h3>Rough Sketch</h3>
+
+      <div class="control">
+        <label class="field-label" for="rough-cell">
+          <span>Cell size</span>
+          <span class="value" id="rough-cell-value">28px</span>
+        </label>
+        <input type="range" id="rough-cell" min="8" max="60" value="28" step="1">
+        <div class="hint">Source block per sketched shape. Smaller = more shapes, slower.</div>
+      </div>
+
+      <div class="control">
+        <label class="field-label" for="rough-fill">
+          <span>Fill style</span>
+        </label>
+        <select id="rough-fill">
+          <option value="hachure" selected>Hachure</option>
+          <option value="cross-hatch">Cross-hatch</option>
+          <option value="zigzag">Zigzag</option>
+          <option value="dots">Dots</option>
+          <option value="solid">Solid</option>
+        </select>
+        <div class="hint">How each shape is filled.</div>
+      </div>
+
+      <div class="control">
+        <label class="field-label" for="rough-roughness">
+          <span>Roughness</span>
+          <span class="value" id="rough-roughness-value">1.2</span>
+        </label>
+        <input type="range" id="rough-roughness" min="0" max="4" value="1.2" step="0.1">
+        <div class="hint">How sketchy the strokes are. 0 = clean.</div>
+      </div>
+
+      <div class="control">
+        <label class="field-label" for="rough-bowing">
+          <span>Bowing</span>
+          <span class="value" id="rough-bowing-value">1</span>
+        </label>
+        <input type="range" id="rough-bowing" min="0" max="6" value="1" step="0.5">
+        <div class="hint">How much straight lines bend.</div>
+      </div>
+
+      <div class="control">
+        <label class="field-label" for="rough-gap">
+          <span>Fill gap</span>
+          <span class="value" id="rough-gap-value">6px</span>
+        </label>
+        <input type="range" id="rough-gap" min="2" max="20" value="6" step="1">
+        <div class="hint">Spacing of hachure / dot fill lines.</div>
+      </div>
+
+      <div class="control">
+        <div class="checkbox-group">
+          <label><input type="checkbox" id="rough-outline">Outline cells</label>
+        </div>
+      </div>
+
+      <div class="control">
+        <div class="row">
+          <input type="color" id="rough-paper" value="#ffffff" aria-label="Paper color">
+          <span style="font-size:12px;color:var(--fg-muted)">Paper</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- BACKGROUND (emoji + ascii + pixel) -->
+    <div class="mode-section" data-modes="emoji ascii pixel">
+      <hr class="divider">
+      <div class="control">
+        <div class="row">
+          <input type="checkbox" id="bg-enabled" checked>
+          <label for="bg-color" style="font-size:13px">Background</label>
+          <input type="color" id="bg-color" value="#16140f" aria-label="Background color">
+        </div>
+      </div>
+    </div>
+
+    <!-- ANIMATED SOURCE -->
+    <div id="animation-guide" hidden>
+      <hr class="divider">
+      <div class="control">
+        <div class="field-label"><span>Animation workshop</span></div>
+        <div class="hint">
+          Preview shows the first frame. Tune it, then export a looping GIF, a game-ready PNG sprite sheet, or a video when your browser supports recording. Pixel, Lite Brite, ASCII, Emoji, Hatch, and Rough support animation.
+        </div>
+      </div>
+      <div class="control" id="clip-seconds-control">
+        <label class="field-label" for="clip-seconds">
+          <span>Animation length</span>
+          <span class="value" id="clip-seconds-value">6s</span>
+        </label>
+        <input type="range" id="clip-seconds" min="1" max="10" value="6" step="1">
+        <div class="hint">Uses the first seconds of an uploaded GIF or video. Trim on your phone first to choose a different moment.</div>
+      </div>
+      <div class="control">
+        <label class="field-label" for="animation-fps">
+          <span>Frames per second</span>
+          <span class="value" id="animation-fps-value">12 fps</span>
+        </label>
+        <input type="range" id="animation-fps" min="2" max="30" value="12" step="1">
+        <div class="hint">More frames look smoother but take longer and make larger files.</div>
+      </div>
+      <div class="control">
+        <label class="field-label" for="sheet-columns">
+          <span>Sheet columns</span>
+          <span class="value" id="sheet-columns-value">6</span>
+        </label>
+        <input type="range" id="sheet-columns" min="1" max="10" value="6" step="1">
+      </div>
+    </div>
+
+    <!-- UNIVERSAL -->
+    <hr class="divider">
+    <div class="control">
+      <label class="field-label" for="max-dim">
+        <span>Max working size</span>
+        <span class="value" id="max-dim-value">1000px</span>
+      </label>
+      <input type="range" id="max-dim" min="400" max="2400" value="1000" step="100">
+      <div class="hint">Large images are downscaled before processing.</div>
+    </div>
+
+  </aside>
+
+  <div class="canvas-area" id="canvas-area">
+    <label class="placeholder" id="placeholder" for="file-input">
+      <span class="icon" aria-hidden="true"><i class="fa-solid fa-cloud-arrow-up"></i></span>
+      <h2>Add a photo or video to jankify</h2>
+      <span class="cta">
+        <i class="fa-solid fa-image" aria-hidden="true"></i>
+        Choose media
+      </span>
+      <p class="hint-line hint-desktop">or drop one anywhere here · paste with <kbd>⌘ V</kbd></p>
+      <p class="hint-line hint-mobile">photos, screenshots, GIFs, or videos from your camera roll</p>
+      <p class="hint-line">Video or GIF in → animated GIF, sprite sheet, or video out</p>
+      <p class="modes-line">
+        Pixel<span class="dot">·</span>Lite Brite<span class="dot">·</span>ASCII<span class="dot">·</span>Emoji<span class="dot">·</span>Hatch<span class="dot">·</span>Rough<span class="dot">·</span>Polygon<span class="dot">·</span>Voronoi
+      </p>
+    </label>
+    <div class="loading" id="loading" role="status" aria-live="polite">
+      <div class="label" id="loading-label">Processing…</div>
+      <div class="progress-bar"><div class="progress-bar-fill" id="progress-fill"></div></div>
+      <div class="detail" id="loading-detail">0% · 0s</div>
+      <button class="btn" id="cancel-anim" hidden style="margin-top:12px;">Cancel</button>
+    </div>
+  </div>
+</main>
+
+<div class="status" id="status" aria-live="polite">Ready. No image loaded.</div>
+
+<div id="gif-warning" role="dialog" aria-modal="true" aria-labelledby="gif-warning-title" aria-describedby="gif-warning-desc" hidden tabindex="-1">
+  <div style="max-width:430px;margin:18px;background:#16181d;color:#e9eaee;border:1px solid #2b2f37;border-radius:14px;padding:22px;box-shadow:0 18px 50px rgba(0,0,0,.55);">
+    <h2 id="gif-warning-title" style="margin:0 0 10px;font-size:1.08rem;">Make animated media</h2>
+    <div id="gif-warning-desc">
+      <p style="margin:0 0 12px;font-size:.92rem;line-height:1.5;color:#b7bcc6;">This runs your current mode on sampled frames from the source, then packs the results into your chosen animation asset. Still-image exports stay available separately.</p>
+      <p style="margin:0 0 16px;font-size:.92rem;line-height:1.5;color:#b7bcc6;">Animated output flashes and loops. Flashing imagery can trigger seizures in people with photosensitive epilepsy. The safe speed keeps frames slow; the flash rate is checked and slowed automatically.</p>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+      <button class="btn" id="gif-warning-cancel" type="button">Cancel</button>
+      <button class="btn" id="gif-warning-fast" type="button">Keep source speed</button>
+      <button class="btn btn-primary" id="gif-warning-safe" type="button">Use safer speed</button>
+    </div>
+  </div>
+</div>
+
+<!-- rough.js v4.6.6 (MIT, https://github.com/rough-stuff/rough): vendored inline for offline use -->
+<script>
+var rough=function(){"use strict";function t(t,e,s){if(t&&t.length){const[n,o]=e,a=Math.PI/180*s,h=Math.cos(a),r=Math.sin(a);for(const e of t){const[t,s]=e;e[0]=(t-n)*h-(s-o)*r+n,e[1]=(t-n)*r+(s-o)*h+o}}}function e(t,e){return t[0]===e[0]&&t[1]===e[1]}function s(s,n,o,a=1){const h=o,r=Math.max(n,.1),i=s[0]&&s[0][0]&&"number"==typeof s[0][0]?[s]:s,c=[0,0];if(h)for(const e of i)t(e,c,h);const l=function(t,s,n){const o=[];for(const s of t){const t=[...s];e(t[0],t[t.length-1])||t.push([t[0][0],t[0][1]]),t.length>2&&o.push(t)}const a=[];s=Math.max(s,.1);const h=[];for(const t of o)for(let e=0;e<t.length-1;e++){const s=t[e],n=t[e+1];if(s[1]!==n[1]){const t=Math.min(s[1],n[1]);h.push({ymin:t,ymax:Math.max(s[1],n[1]),x:t===s[1]?s[0]:n[0],islope:(n[0]-s[0])/(n[1]-s[1])})}}if(h.sort(((t,e)=>t.ymin<e.ymin?-1:t.ymin>e.ymin?1:t.x<e.x?-1:t.x>e.x?1:t.ymax===e.ymax?0:(t.ymax-e.ymax)/Math.abs(t.ymax-e.ymax))),!h.length)return a;let r=[],i=h[0].ymin,c=0;for(;r.length||h.length;){if(h.length){let t=-1;for(let e=0;e<h.length&&!(h[e].ymin>i);e++)t=e;h.splice(0,t+1).forEach((t=>{r.push({s:i,edge:t})}))}if(r=r.filter((t=>!(t.edge.ymax<=i))),r.sort(((t,e)=>t.edge.x===e.edge.x?0:(t.edge.x-e.edge.x)/Math.abs(t.edge.x-e.edge.x))),(1!==n||c%s==0)&&r.length>1)for(let t=0;t<r.length;t+=2){const e=t+1;if(e>=r.length)break;const s=r[t].edge,n=r[e].edge;a.push([[Math.round(s.x),i],[Math.round(n.x),i]])}i+=n,r.forEach((t=>{t.edge.x=t.edge.x+n*t.edge.islope})),c++}return a}(i,r,a);if(h){for(const e of i)t(e,c,-h);!function(e,s,n){const o=[];e.forEach((t=>o.push(...t))),t(o,s,n)}(l,c,-h)}return l}function n(t,e){var n;const o=e.hachureAngle+90;let a=e.hachureGap;a<0&&(a=4*e.strokeWidth),a=Math.round(Math.max(a,.1));let h=1;return e.roughness>=1&&((null===(n=e.randomizer)||void 0===n?void 0:n.next())||Math.random())>.7&&(h=a),s(t,a,o,h||1)}class o{constructor(t){this.helper=t}fillPolygons(t,e){return this._fillPolygons(t,e)}_fillPolygons(t,e){const s=n(t,e);return{type:"fillSketch",ops:this.renderLines(s,e)}}renderLines(t,e){const s=[];for(const n of t)s.push(...this.helper.doubleLineOps(n[0][0],n[0][1],n[1][0],n[1][1],e));return s}}function a(t){const e=t[0],s=t[1];return Math.sqrt(Math.pow(e[0]-s[0],2)+Math.pow(e[1]-s[1],2))}class h extends o{fillPolygons(t,e){let s=e.hachureGap;s<0&&(s=4*e.strokeWidth),s=Math.max(s,.1);const o=n(t,Object.assign({},e,{hachureGap:s})),h=Math.PI/180*e.hachureAngle,r=[],i=.5*s*Math.cos(h),c=.5*s*Math.sin(h);for(const[t,e]of o)a([t,e])&&r.push([[t[0]-i,t[1]+c],[...e]],[[t[0]+i,t[1]-c],[...e]]);return{type:"fillSketch",ops:this.renderLines(r,e)}}}class r extends o{fillPolygons(t,e){const s=this._fillPolygons(t,e),n=Object.assign({},e,{hachureAngle:e.hachureAngle+90}),o=this._fillPolygons(t,n);return s.ops=s.ops.concat(o.ops),s}}class i{constructor(t){this.helper=t}fillPolygons(t,e){const s=n(t,e=Object.assign({},e,{hachureAngle:0}));return this.dotsOnLines(s,e)}dotsOnLines(t,e){const s=[];let n=e.hachureGap;n<0&&(n=4*e.strokeWidth),n=Math.max(n,.1);let o=e.fillWeight;o<0&&(o=e.strokeWidth/2);const h=n/4;for(const r of t){const t=a(r),i=t/n,c=Math.ceil(i)-1,l=t-c*n,u=(r[0][0]+r[1][0])/2-n/4,p=Math.min(r[0][1],r[1][1]);for(let t=0;t<c;t++){const a=p+l+t*n,r=u-h+2*Math.random()*h,i=a-h+2*Math.random()*h,c=this.helper.ellipse(r,i,o,o,e);s.push(...c.ops)}}return{type:"fillSketch",ops:s}}}class c{constructor(t){this.helper=t}fillPolygons(t,e){const s=n(t,e);return{type:"fillSketch",ops:this.dashedLine(s,e)}}dashedLine(t,e){const s=e.dashOffset<0?e.hachureGap<0?4*e.strokeWidth:e.hachureGap:e.dashOffset,n=e.dashGap<0?e.hachureGap<0?4*e.strokeWidth:e.hachureGap:e.dashGap,o=[];return t.forEach((t=>{const h=a(t),r=Math.floor(h/(s+n)),i=(h+n-r*(s+n))/2;let c=t[0],l=t[1];c[0]>l[0]&&(c=t[1],l=t[0]);const u=Math.atan((l[1]-c[1])/(l[0]-c[0]));for(let t=0;t<r;t++){const a=t*(s+n),h=a+s,r=[c[0]+a*Math.cos(u)+i*Math.cos(u),c[1]+a*Math.sin(u)+i*Math.sin(u)],l=[c[0]+h*Math.cos(u)+i*Math.cos(u),c[1]+h*Math.sin(u)+i*Math.sin(u)];o.push(...this.helper.doubleLineOps(r[0],r[1],l[0],l[1],e))}})),o}}class l{constructor(t){this.helper=t}fillPolygons(t,e){const s=e.hachureGap<0?4*e.strokeWidth:e.hachureGap,o=e.zigzagOffset<0?s:e.zigzagOffset,a=n(t,e=Object.assign({},e,{hachureGap:s+o}));return{type:"fillSketch",ops:this.zigzagLines(a,o,e)}}zigzagLines(t,e,s){const n=[];return t.forEach((t=>{const o=a(t),h=Math.round(o/(2*e));let r=t[0],i=t[1];r[0]>i[0]&&(r=t[1],i=t[0]);const c=Math.atan((i[1]-r[1])/(i[0]-r[0]));for(let t=0;t<h;t++){const o=2*t*e,a=2*(t+1)*e,h=Math.sqrt(2*Math.pow(e,2)),i=[r[0]+o*Math.cos(c),r[1]+o*Math.sin(c)],l=[r[0]+a*Math.cos(c),r[1]+a*Math.sin(c)],u=[i[0]+h*Math.cos(c+Math.PI/4),i[1]+h*Math.sin(c+Math.PI/4)];n.push(...this.helper.doubleLineOps(i[0],i[1],u[0],u[1],s),...this.helper.doubleLineOps(u[0],u[1],l[0],l[1],s))}})),n}}const u={};class p{constructor(t){this.seed=t}next(){return this.seed?(2**31-1&(this.seed=Math.imul(48271,this.seed)))/2**31:Math.random()}}const f=0,d=1,g=2,M={A:7,a:7,C:6,c:6,H:1,h:1,L:2,l:2,M:2,m:2,Q:4,q:4,S:4,s:4,T:2,t:2,V:1,v:1,Z:0,z:0};function k(t,e){return t.type===e}function b(t){const e=[],s=function(t){const e=new Array;for(;""!==t;)if(t.match(/^([ \t\r\n,]+)/))t=t.substr(RegExp.$1.length);else if(t.match(/^([aAcChHlLmMqQsStTvVzZ])/))e[e.length]={type:f,text:RegExp.$1},t=t.substr(RegExp.$1.length);else{if(!t.match(/^(([-+]?[0-9]+(\.[0-9]*)?|[-+]?\.[0-9]+)([eE][-+]?[0-9]+)?)/))return[];e[e.length]={type:d,text:`${parseFloat(RegExp.$1)}`},t=t.substr(RegExp.$1.length)}return e[e.length]={type:g,text:""},e}(t);let n="BOD",o=0,a=s[o];for(;!k(a,g);){let h=0;const r=[];if("BOD"===n){if("M"!==a.text&&"m"!==a.text)return b("M0,0"+t);o++,h=M[a.text],n=a.text}else k(a,d)?h=M[n]:(o++,h=M[a.text],n=a.text);if(!(o+h<s.length))throw new Error("Path data ended short");for(let t=o;t<o+h;t++){const e=s[t];if(!k(e,d))throw new Error("Param not a number: "+n+","+e.text);r[r.length]=+e.text}if("number"!=typeof M[n])throw new Error("Bad segment: "+n);{const t={key:n,data:r};e.push(t),o+=h,a=s[o],"M"===n&&(n="L"),"m"===n&&(n="l")}}return e}function y(t){let e=0,s=0,n=0,o=0;const a=[];for(const{key:h,data:r}of t)switch(h){case"M":a.push({key:"M",data:[...r]}),[e,s]=r,[n,o]=r;break;case"m":e+=r[0],s+=r[1],a.push({key:"M",data:[e,s]}),n=e,o=s;break;case"L":a.push({key:"L",data:[...r]}),[e,s]=r;break;case"l":e+=r[0],s+=r[1],a.push({key:"L",data:[e,s]});break;case"C":a.push({key:"C",data:[...r]}),e=r[4],s=r[5];break;case"c":{const t=r.map(((t,n)=>n%2?t+s:t+e));a.push({key:"C",data:t}),e=t[4],s=t[5];break}case"Q":a.push({key:"Q",data:[...r]}),e=r[2],s=r[3];break;case"q":{const t=r.map(((t,n)=>n%2?t+s:t+e));a.push({key:"Q",data:t}),e=t[2],s=t[3];break}case"A":a.push({key:"A",data:[...r]}),e=r[5],s=r[6];break;case"a":e+=r[5],s+=r[6],a.push({key:"A",data:[r[0],r[1],r[2],r[3],r[4],e,s]});break;case"H":a.push({key:"H",data:[...r]}),e=r[0];break;case"h":e+=r[0],a.push({key:"H",data:[e]});break;case"V":a.push({key:"V",data:[...r]}),s=r[0];break;case"v":s+=r[0],a.push({key:"V",data:[s]});break;case"S":a.push({key:"S",data:[...r]}),e=r[2],s=r[3];break;case"s":{const t=r.map(((t,n)=>n%2?t+s:t+e));a.push({key:"S",data:t}),e=t[2],s=t[3];break}case"T":a.push({key:"T",data:[...r]}),e=r[0],s=r[1];break;case"t":e+=r[0],s+=r[1],a.push({key:"T",data:[e,s]});break;case"Z":case"z":a.push({key:"Z",data:[]}),e=n,s=o}return a}function m(t){const e=[];let s="",n=0,o=0,a=0,h=0,r=0,i=0;for(const{key:c,data:l}of t){switch(c){case"M":e.push({key:"M",data:[...l]}),[n,o]=l,[a,h]=l;break;case"C":e.push({key:"C",data:[...l]}),n=l[4],o=l[5],r=l[2],i=l[3];break;case"L":e.push({key:"L",data:[...l]}),[n,o]=l;break;case"H":n=l[0],e.push({key:"L",data:[n,o]});break;case"V":o=l[0],e.push({key:"L",data:[n,o]});break;case"S":{let t=0,a=0;"C"===s||"S"===s?(t=n+(n-r),a=o+(o-i)):(t=n,a=o),e.push({key:"C",data:[t,a,...l]}),r=l[0],i=l[1],n=l[2],o=l[3];break}case"T":{const[t,a]=l;let h=0,c=0;"Q"===s||"T"===s?(h=n+(n-r),c=o+(o-i)):(h=n,c=o);const u=n+2*(h-n)/3,p=o+2*(c-o)/3,f=t+2*(h-t)/3,d=a+2*(c-a)/3;e.push({key:"C",data:[u,p,f,d,t,a]}),r=h,i=c,n=t,o=a;break}case"Q":{const[t,s,a,h]=l,c=n+2*(t-n)/3,u=o+2*(s-o)/3,p=a+2*(t-a)/3,f=h+2*(s-h)/3;e.push({key:"C",data:[c,u,p,f,a,h]}),r=t,i=s,n=a,o=h;break}case"A":{const t=Math.abs(l[0]),s=Math.abs(l[1]),a=l[2],h=l[3],r=l[4],i=l[5],c=l[6];if(0===t||0===s)e.push({key:"C",data:[n,o,i,c,i,c]}),n=i,o=c;else if(n!==i||o!==c){x(n,o,i,c,t,s,a,h,r).forEach((function(t){e.push({key:"C",data:t})})),n=i,o=c}break}case"Z":e.push({key:"Z",data:[]}),n=a,o=h}s=c}return e}function w(t,e,s){return[t*Math.cos(s)-e*Math.sin(s),t*Math.sin(s)+e*Math.cos(s)]}function x(t,e,s,n,o,a,h,r,i,c){const l=(u=h,Math.PI*u/180);var u;let p=[],f=0,d=0,g=0,M=0;if(c)[f,d,g,M]=c;else{[t,e]=w(t,e,-l),[s,n]=w(s,n,-l);const h=(t-s)/2,c=(e-n)/2;let u=h*h/(o*o)+c*c/(a*a);u>1&&(u=Math.sqrt(u),o*=u,a*=u);const p=o*o,k=a*a,b=p*k-p*c*c-k*h*h,y=p*c*c+k*h*h,m=(r===i?-1:1)*Math.sqrt(Math.abs(b/y));g=m*o*c/a+(t+s)/2,M=m*-a*h/o+(e+n)/2,f=Math.asin(parseFloat(((e-M)/a).toFixed(9))),d=Math.asin(parseFloat(((n-M)/a).toFixed(9))),t<g&&(f=Math.PI-f),s<g&&(d=Math.PI-d),f<0&&(f=2*Math.PI+f),d<0&&(d=2*Math.PI+d),i&&f>d&&(f-=2*Math.PI),!i&&d>f&&(d-=2*Math.PI)}let k=d-f;if(Math.abs(k)>120*Math.PI/180){const t=d,e=s,r=n;d=i&&d>f?f+120*Math.PI/180*1:f+120*Math.PI/180*-1,p=x(s=g+o*Math.cos(d),n=M+a*Math.sin(d),e,r,o,a,h,0,i,[d,t,g,M])}k=d-f;const b=Math.cos(f),y=Math.sin(f),m=Math.cos(d),P=Math.sin(d),v=Math.tan(k/4),S=4/3*o*v,O=4/3*a*v,L=[t,e],T=[t+S*y,e-O*b],D=[s+S*P,n-O*m],A=[s,n];if(T[0]=2*L[0]-T[0],T[1]=2*L[1]-T[1],c)return[T,D,A].concat(p);{p=[T,D,A].concat(p);const t=[];for(let e=0;e<p.length;e+=3){const s=w(p[e][0],p[e][1],l),n=w(p[e+1][0],p[e+1][1],l),o=w(p[e+2][0],p[e+2][1],l);t.push([s[0],s[1],n[0],n[1],o[0],o[1]])}return t}}const P={randOffset:function(t,e){return G(t,e)},randOffsetWithRange:function(t,e,s){return E(t,e,s)},ellipse:function(t,e,s,n,o){const a=T(s,n,o);return D(t,e,o,a).opset},doubleLineOps:function(t,e,s,n,o){return $(t,e,s,n,o,!0)}};function v(t,e,s,n,o){return{type:"path",ops:$(t,e,s,n,o)}}function S(t,e,s){const n=(t||[]).length;if(n>2){const o=[];for(let e=0;e<n-1;e++)o.push(...$(t[e][0],t[e][1],t[e+1][0],t[e+1][1],s));return e&&o.push(...$(t[n-1][0],t[n-1][1],t[0][0],t[0][1],s)),{type:"path",ops:o}}return 2===n?v(t[0][0],t[0][1],t[1][0],t[1][1],s):{type:"path",ops:[]}}function O(t,e,s,n,o){return function(t,e){return S(t,!0,e)}([[t,e],[t+s,e],[t+s,e+n],[t,e+n]],o)}function L(t,e){if(t.length){const s="number"==typeof t[0][0]?[t]:t,n=j(s[0],1*(1+.2*e.roughness),e),o=e.disableMultiStroke?[]:j(s[0],1.5*(1+.22*e.roughness),z(e));for(let t=1;t<s.length;t++){const a=s[t];if(a.length){const t=j(a,1*(1+.2*e.roughness),e),s=e.disableMultiStroke?[]:j(a,1.5*(1+.22*e.roughness),z(e));for(const e of t)"move"!==e.op&&n.push(e);for(const t of s)"move"!==t.op&&o.push(t)}}return{type:"path",ops:n.concat(o)}}return{type:"path",ops:[]}}function T(t,e,s){const n=Math.sqrt(2*Math.PI*Math.sqrt((Math.pow(t/2,2)+Math.pow(e/2,2))/2)),o=Math.ceil(Math.max(s.curveStepCount,s.curveStepCount/Math.sqrt(200)*n)),a=2*Math.PI/o;let h=Math.abs(t/2),r=Math.abs(e/2);const i=1-s.curveFitting;return h+=G(h*i,s),r+=G(r*i,s),{increment:a,rx:h,ry:r}}function D(t,e,s,n){const[o,a]=F(n.increment,t,e,n.rx,n.ry,1,n.increment*E(.1,E(.4,1,s),s),s);let h=q(o,null,s);if(!s.disableMultiStroke&&0!==s.roughness){const[o]=F(n.increment,t,e,n.rx,n.ry,1.5,0,s),a=q(o,null,s);h=h.concat(a)}return{estimatedPoints:a,opset:{type:"path",ops:h}}}function A(t,e,s,n,o,a,h,r,i){const c=t,l=e;let u=Math.abs(s/2),p=Math.abs(n/2);u+=G(.01*u,i),p+=G(.01*p,i);let f=o,d=a;for(;f<0;)f+=2*Math.PI,d+=2*Math.PI;d-f>2*Math.PI&&(f=0,d=2*Math.PI);const g=2*Math.PI/i.curveStepCount,M=Math.min(g/2,(d-f)/2),k=V(M,c,l,u,p,f,d,1,i);if(!i.disableMultiStroke){const t=V(M,c,l,u,p,f,d,1.5,i);k.push(...t)}return h&&(r?k.push(...$(c,l,c+u*Math.cos(f),l+p*Math.sin(f),i),...$(c,l,c+u*Math.cos(d),l+p*Math.sin(d),i)):k.push({op:"lineTo",data:[c,l]},{op:"lineTo",data:[c+u*Math.cos(f),l+p*Math.sin(f)]})),{type:"path",ops:k}}function _(t,e){const s=m(y(b(t))),n=[];let o=[0,0],a=[0,0];for(const{key:t,data:h}of s)switch(t){case"M":a=[h[0],h[1]],o=[h[0],h[1]];break;case"L":n.push(...$(a[0],a[1],h[0],h[1],e)),a=[h[0],h[1]];break;case"C":{const[t,s,o,r,i,c]=h;n.push(...Z(t,s,o,r,i,c,a,e)),a=[i,c];break}case"Z":n.push(...$(a[0],a[1],o[0],o[1],e)),a=[o[0],o[1]]}return{type:"path",ops:n}}function I(t,e){const s=[];for(const n of t)if(n.length){const t=e.maxRandomnessOffset||0,o=n.length;if(o>2){s.push({op:"move",data:[n[0][0]+G(t,e),n[0][1]+G(t,e)]});for(let a=1;a<o;a++)s.push({op:"lineTo",data:[n[a][0]+G(t,e),n[a][1]+G(t,e)]})}}return{type:"fillPath",ops:s}}function C(t,e){return function(t,e){let s=t.fillStyle||"hachure";if(!u[s])switch(s){case"zigzag":u[s]||(u[s]=new h(e));break;case"cross-hatch":u[s]||(u[s]=new r(e));break;case"dots":u[s]||(u[s]=new i(e));break;case"dashed":u[s]||(u[s]=new c(e));break;case"zigzag-line":u[s]||(u[s]=new l(e));break;default:s="hachure",u[s]||(u[s]=new o(e))}return u[s]}(e,P).fillPolygons(t,e)}function z(t){const e=Object.assign({},t);return e.randomizer=void 0,t.seed&&(e.seed=t.seed+1),e}function W(t){return t.randomizer||(t.randomizer=new p(t.seed||0)),t.randomizer.next()}function E(t,e,s,n=1){return s.roughness*n*(W(s)*(e-t)+t)}function G(t,e,s=1){return E(-t,t,e,s)}function $(t,e,s,n,o,a=!1){const h=a?o.disableMultiStrokeFill:o.disableMultiStroke,r=R(t,e,s,n,o,!0,!1);if(h)return r;const i=R(t,e,s,n,o,!0,!0);return r.concat(i)}function R(t,e,s,n,o,a,h){const r=Math.pow(t-s,2)+Math.pow(e-n,2),i=Math.sqrt(r);let c=1;c=i<200?1:i>500?.4:-.0016668*i+1.233334;let l=o.maxRandomnessOffset||0;l*l*100>r&&(l=i/10);const u=l/2,p=.2+.2*W(o);let f=o.bowing*o.maxRandomnessOffset*(n-e)/200,d=o.bowing*o.maxRandomnessOffset*(t-s)/200;f=G(f,o,c),d=G(d,o,c);const g=[],M=()=>G(u,o,c),k=()=>G(l,o,c),b=o.preserveVertices;return a&&(h?g.push({op:"move",data:[t+(b?0:M()),e+(b?0:M())]}):g.push({op:"move",data:[t+(b?0:G(l,o,c)),e+(b?0:G(l,o,c))]})),h?g.push({op:"bcurveTo",data:[f+t+(s-t)*p+M(),d+e+(n-e)*p+M(),f+t+2*(s-t)*p+M(),d+e+2*(n-e)*p+M(),s+(b?0:M()),n+(b?0:M())]}):g.push({op:"bcurveTo",data:[f+t+(s-t)*p+k(),d+e+(n-e)*p+k(),f+t+2*(s-t)*p+k(),d+e+2*(n-e)*p+k(),s+(b?0:k()),n+(b?0:k())]}),g}function j(t,e,s){if(!t.length)return[];const n=[];n.push([t[0][0]+G(e,s),t[0][1]+G(e,s)]),n.push([t[0][0]+G(e,s),t[0][1]+G(e,s)]);for(let o=1;o<t.length;o++)n.push([t[o][0]+G(e,s),t[o][1]+G(e,s)]),o===t.length-1&&n.push([t[o][0]+G(e,s),t[o][1]+G(e,s)]);return q(n,null,s)}function q(t,e,s){const n=t.length,o=[];if(n>3){const a=[],h=1-s.curveTightness;o.push({op:"move",data:[t[1][0],t[1][1]]});for(let e=1;e+2<n;e++){const s=t[e];a[0]=[s[0],s[1]],a[1]=[s[0]+(h*t[e+1][0]-h*t[e-1][0])/6,s[1]+(h*t[e+1][1]-h*t[e-1][1])/6],a[2]=[t[e+1][0]+(h*t[e][0]-h*t[e+2][0])/6,t[e+1][1]+(h*t[e][1]-h*t[e+2][1])/6],a[3]=[t[e+1][0],t[e+1][1]],o.push({op:"bcurveTo",data:[a[1][0],a[1][1],a[2][0],a[2][1],a[3][0],a[3][1]]})}if(e&&2===e.length){const t=s.maxRandomnessOffset;o.push({op:"lineTo",data:[e[0]+G(t,s),e[1]+G(t,s)]})}}else 3===n?(o.push({op:"move",data:[t[1][0],t[1][1]]}),o.push({op:"bcurveTo",data:[t[1][0],t[1][1],t[2][0],t[2][1],t[2][0],t[2][1]]})):2===n&&o.push(...R(t[0][0],t[0][1],t[1][0],t[1][1],s,!0,!0));return o}function F(t,e,s,n,o,a,h,r){const i=[],c=[];if(0===r.roughness){t/=4,c.push([e+n*Math.cos(-t),s+o*Math.sin(-t)]);for(let a=0;a<=2*Math.PI;a+=t){const t=[e+n*Math.cos(a),s+o*Math.sin(a)];i.push(t),c.push(t)}c.push([e+n*Math.cos(0),s+o*Math.sin(0)]),c.push([e+n*Math.cos(t),s+o*Math.sin(t)])}else{const l=G(.5,r)-Math.PI/2;c.push([G(a,r)+e+.9*n*Math.cos(l-t),G(a,r)+s+.9*o*Math.sin(l-t)]);const u=2*Math.PI+l-.01;for(let h=l;h<u;h+=t){const t=[G(a,r)+e+n*Math.cos(h),G(a,r)+s+o*Math.sin(h)];i.push(t),c.push(t)}c.push([G(a,r)+e+n*Math.cos(l+2*Math.PI+.5*h),G(a,r)+s+o*Math.sin(l+2*Math.PI+.5*h)]),c.push([G(a,r)+e+.98*n*Math.cos(l+h),G(a,r)+s+.98*o*Math.sin(l+h)]),c.push([G(a,r)+e+.9*n*Math.cos(l+.5*h),G(a,r)+s+.9*o*Math.sin(l+.5*h)])}return[c,i]}function V(t,e,s,n,o,a,h,r,i){const c=a+G(.1,i),l=[];l.push([G(r,i)+e+.9*n*Math.cos(c-t),G(r,i)+s+.9*o*Math.sin(c-t)]);for(let a=c;a<=h;a+=t)l.push([G(r,i)+e+n*Math.cos(a),G(r,i)+s+o*Math.sin(a)]);return l.push([e+n*Math.cos(h),s+o*Math.sin(h)]),l.push([e+n*Math.cos(h),s+o*Math.sin(h)]),q(l,null,i)}function Z(t,e,s,n,o,a,h,r){const i=[],c=[r.maxRandomnessOffset||1,(r.maxRandomnessOffset||1)+.3];let l=[0,0];const u=r.disableMultiStroke?1:2,p=r.preserveVertices;for(let f=0;f<u;f++)0===f?i.push({op:"move",data:[h[0],h[1]]}):i.push({op:"move",data:[h[0]+(p?0:G(c[0],r)),h[1]+(p?0:G(c[0],r))]}),l=p?[o,a]:[o+G(c[f],r),a+G(c[f],r)],i.push({op:"bcurveTo",data:[t+G(c[f],r),e+G(c[f],r),s+G(c[f],r),n+G(c[f],r),l[0],l[1]]});return i}function Q(t){return[...t]}function H(t,e=0){const s=t.length;if(s<3)throw new Error("A curve must have at least three points.");const n=[];if(3===s)n.push(Q(t[0]),Q(t[1]),Q(t[2]),Q(t[2]));else{const s=[];s.push(t[0],t[0]);for(let e=1;e<t.length;e++)s.push(t[e]),e===t.length-1&&s.push(t[e]);const o=[],a=1-e;n.push(Q(s[0]));for(let t=1;t+2<s.length;t++){const e=s[t];o[0]=[e[0],e[1]],o[1]=[e[0]+(a*s[t+1][0]-a*s[t-1][0])/6,e[1]+(a*s[t+1][1]-a*s[t-1][1])/6],o[2]=[s[t+1][0]+(a*s[t][0]-a*s[t+2][0])/6,s[t+1][1]+(a*s[t][1]-a*s[t+2][1])/6],o[3]=[s[t+1][0],s[t+1][1]],n.push(o[1],o[2],o[3])}}return n}function N(t,e){return Math.pow(t[0]-e[0],2)+Math.pow(t[1]-e[1],2)}function B(t,e,s){const n=N(e,s);if(0===n)return N(t,e);let o=((t[0]-e[0])*(s[0]-e[0])+(t[1]-e[1])*(s[1]-e[1]))/n;return o=Math.max(0,Math.min(1,o)),N(t,J(e,s,o))}function J(t,e,s){return[t[0]+(e[0]-t[0])*s,t[1]+(e[1]-t[1])*s]}function K(t,e,s,n){const o=n||[];if(function(t,e){const s=t[e+0],n=t[e+1],o=t[e+2],a=t[e+3];let h=3*n[0]-2*s[0]-a[0];h*=h;let r=3*n[1]-2*s[1]-a[1];r*=r;let i=3*o[0]-2*a[0]-s[0];i*=i;let c=3*o[1]-2*a[1]-s[1];return c*=c,h<i&&(h=i),r<c&&(r=c),h+r}(t,e)<s){const s=t[e+0];if(o.length){(a=o[o.length-1],h=s,Math.sqrt(N(a,h)))>1&&o.push(s)}else o.push(s);o.push(t[e+3])}else{const n=.5,a=t[e+0],h=t[e+1],r=t[e+2],i=t[e+3],c=J(a,h,n),l=J(h,r,n),u=J(r,i,n),p=J(c,l,n),f=J(l,u,n),d=J(p,f,n);K([a,c,p,d],0,s,o),K([d,f,u,i],0,s,o)}var a,h;return o}function U(t,e){return X(t,0,t.length,e)}function X(t,e,s,n,o){const a=o||[],h=t[e],r=t[s-1];let i=0,c=1;for(let n=e+1;n<s-1;++n){const e=B(t[n],h,r);e>i&&(i=e,c=n)}return Math.sqrt(i)>n?(X(t,e,c+1,n,a),X(t,c,s,n,a)):(a.length||a.push(h),a.push(r)),a}function Y(t,e=.15,s){const n=[],o=(t.length-1)/3;for(let s=0;s<o;s++){K(t,3*s,e,n)}return s&&s>0?X(n,0,n.length,s):n}const tt="none";class et{constructor(t){this.defaultOptions={maxRandomnessOffset:2,roughness:1,bowing:1,stroke:"#000",strokeWidth:1,curveTightness:0,curveFitting:.95,curveStepCount:9,fillStyle:"hachure",fillWeight:-1,hachureAngle:-41,hachureGap:-1,dashOffset:-1,dashGap:-1,zigzagOffset:-1,seed:0,disableMultiStroke:!1,disableMultiStrokeFill:!1,preserveVertices:!1,fillShapeRoughnessGain:.8},this.config=t||{},this.config.options&&(this.defaultOptions=this._o(this.config.options))}static newSeed(){return Math.floor(Math.random()*2**31)}_o(t){return t?Object.assign({},this.defaultOptions,t):this.defaultOptions}_d(t,e,s){return{shape:t,sets:e||[],options:s||this.defaultOptions}}line(t,e,s,n,o){const a=this._o(o);return this._d("line",[v(t,e,s,n,a)],a)}rectangle(t,e,s,n,o){const a=this._o(o),h=[],r=O(t,e,s,n,a);if(a.fill){const o=[[t,e],[t+s,e],[t+s,e+n],[t,e+n]];"solid"===a.fillStyle?h.push(I([o],a)):h.push(C([o],a))}return a.stroke!==tt&&h.push(r),this._d("rectangle",h,a)}ellipse(t,e,s,n,o){const a=this._o(o),h=[],r=T(s,n,a),i=D(t,e,a,r);if(a.fill)if("solid"===a.fillStyle){const s=D(t,e,a,r).opset;s.type="fillPath",h.push(s)}else h.push(C([i.estimatedPoints],a));return a.stroke!==tt&&h.push(i.opset),this._d("ellipse",h,a)}circle(t,e,s,n){const o=this.ellipse(t,e,s,s,n);return o.shape="circle",o}linearPath(t,e){const s=this._o(e);return this._d("linearPath",[S(t,!1,s)],s)}arc(t,e,s,n,o,a,h=!1,r){const i=this._o(r),c=[],l=A(t,e,s,n,o,a,h,!0,i);if(h&&i.fill)if("solid"===i.fillStyle){const h=Object.assign({},i);h.disableMultiStroke=!0;const r=A(t,e,s,n,o,a,!0,!1,h);r.type="fillPath",c.push(r)}else c.push(function(t,e,s,n,o,a,h){const r=t,i=e;let c=Math.abs(s/2),l=Math.abs(n/2);c+=G(.01*c,h),l+=G(.01*l,h);let u=o,p=a;for(;u<0;)u+=2*Math.PI,p+=2*Math.PI;p-u>2*Math.PI&&(u=0,p=2*Math.PI);const f=(p-u)/h.curveStepCount,d=[];for(let t=u;t<=p;t+=f)d.push([r+c*Math.cos(t),i+l*Math.sin(t)]);return d.push([r+c*Math.cos(p),i+l*Math.sin(p)]),d.push([r,i]),C([d],h)}(t,e,s,n,o,a,i));return i.stroke!==tt&&c.push(l),this._d("arc",c,i)}curve(t,e){const s=this._o(e),n=[],o=L(t,s);if(s.fill&&s.fill!==tt)if("solid"===s.fillStyle){const e=L(t,Object.assign(Object.assign({},s),{disableMultiStroke:!0,roughness:s.roughness?s.roughness+s.fillShapeRoughnessGain:0}));n.push({type:"fillPath",ops:this._mergedShape(e.ops)})}else{const e=[],o=t;if(o.length){const t="number"==typeof o[0][0]?[o]:o;for(const n of t)n.length<3?e.push(...n):3===n.length?e.push(...Y(H([n[0],n[0],n[1],n[2]]),10,(1+s.roughness)/2)):e.push(...Y(H(n),10,(1+s.roughness)/2))}e.length&&n.push(C([e],s))}return s.stroke!==tt&&n.push(o),this._d("curve",n,s)}polygon(t,e){const s=this._o(e),n=[],o=S(t,!0,s);return s.fill&&("solid"===s.fillStyle?n.push(I([t],s)):n.push(C([t],s))),s.stroke!==tt&&n.push(o),this._d("polygon",n,s)}path(t,e){const s=this._o(e),n=[];if(!t)return this._d("path",n,s);t=(t||"").replace(/\n/g," ").replace(/(-\s)/g,"-").replace("/(ss)/g"," ");const o=s.fill&&"transparent"!==s.fill&&s.fill!==tt,a=s.stroke!==tt,h=!!(s.simplification&&s.simplification<1),r=function(t,e,s){const n=m(y(b(t))),o=[];let a=[],h=[0,0],r=[];const i=()=>{r.length>=4&&a.push(...Y(r,e)),r=[]},c=()=>{i(),a.length&&(o.push(a),a=[])};for(const{key:t,data:e}of n)switch(t){case"M":c(),h=[e[0],e[1]],a.push(h);break;case"L":i(),a.push([e[0],e[1]]);break;case"C":if(!r.length){const t=a.length?a[a.length-1]:h;r.push([t[0],t[1]])}r.push([e[0],e[1]]),r.push([e[2],e[3]]),r.push([e[4],e[5]]);break;case"Z":i(),a.push([h[0],h[1]])}if(c(),!s)return o;const l=[];for(const t of o){const e=U(t,s);e.length&&l.push(e)}return l}(t,1,h?4-4*(s.simplification||1):(1+s.roughness)/2),i=_(t,s);if(o)if("solid"===s.fillStyle)if(1===r.length){const e=_(t,Object.assign(Object.assign({},s),{disableMultiStroke:!0,roughness:s.roughness?s.roughness+s.fillShapeRoughnessGain:0}));n.push({type:"fillPath",ops:this._mergedShape(e.ops)})}else n.push(I(r,s));else n.push(C(r,s));return a&&(h?r.forEach((t=>{n.push(S(t,!1,s))})):n.push(i)),this._d("path",n,s)}opsToPath(t,e){let s="";for(const n of t.ops){const t="number"==typeof e&&e>=0?n.data.map((t=>+t.toFixed(e))):n.data;switch(n.op){case"move":s+=`M${t[0]} ${t[1]} `;break;case"bcurveTo":s+=`C${t[0]} ${t[1]}, ${t[2]} ${t[3]}, ${t[4]} ${t[5]} `;break;case"lineTo":s+=`L${t[0]} ${t[1]} `}}return s.trim()}toPaths(t){const e=t.sets||[],s=t.options||this.defaultOptions,n=[];for(const t of e){let e=null;switch(t.type){case"path":e={d:this.opsToPath(t),stroke:s.stroke,strokeWidth:s.strokeWidth,fill:tt};break;case"fillPath":e={d:this.opsToPath(t),stroke:tt,strokeWidth:0,fill:s.fill||tt};break;case"fillSketch":e=this.fillSketch(t,s)}e&&n.push(e)}return n}fillSketch(t,e){let s=e.fillWeight;return s<0&&(s=e.strokeWidth/2),{d:this.opsToPath(t),stroke:e.fill||tt,strokeWidth:s,fill:tt}}_mergedShape(t){return t.filter(((t,e)=>0===e||"move"!==t.op))}}class st{constructor(t,e){this.canvas=t,this.ctx=this.canvas.getContext("2d"),this.gen=new et(e)}draw(t){const e=t.sets||[],s=t.options||this.getDefaultOptions(),n=this.ctx,o=t.options.fixedDecimalPlaceDigits;for(const a of e)switch(a.type){case"path":n.save(),n.strokeStyle="none"===s.stroke?"transparent":s.stroke,n.lineWidth=s.strokeWidth,s.strokeLineDash&&n.setLineDash(s.strokeLineDash),s.strokeLineDashOffset&&(n.lineDashOffset=s.strokeLineDashOffset),this._drawToContext(n,a,o),n.restore();break;case"fillPath":{n.save(),n.fillStyle=s.fill||"";const e="curve"===t.shape||"polygon"===t.shape||"path"===t.shape?"evenodd":"nonzero";this._drawToContext(n,a,o,e),n.restore();break}case"fillSketch":this.fillSketch(n,a,s)}}fillSketch(t,e,s){let n=s.fillWeight;n<0&&(n=s.strokeWidth/2),t.save(),s.fillLineDash&&t.setLineDash(s.fillLineDash),s.fillLineDashOffset&&(t.lineDashOffset=s.fillLineDashOffset),t.strokeStyle=s.fill||"",t.lineWidth=n,this._drawToContext(t,e,s.fixedDecimalPlaceDigits),t.restore()}_drawToContext(t,e,s,n="nonzero"){t.beginPath();for(const n of e.ops){const e="number"==typeof s&&s>=0?n.data.map((t=>+t.toFixed(s))):n.data;switch(n.op){case"move":t.moveTo(e[0],e[1]);break;case"bcurveTo":t.bezierCurveTo(e[0],e[1],e[2],e[3],e[4],e[5]);break;case"lineTo":t.lineTo(e[0],e[1])}}"fillPath"===e.type?t.fill(n):t.stroke()}get generator(){return this.gen}getDefaultOptions(){return this.gen.defaultOptions}line(t,e,s,n,o){const a=this.gen.line(t,e,s,n,o);return this.draw(a),a}rectangle(t,e,s,n,o){const a=this.gen.rectangle(t,e,s,n,o);return this.draw(a),a}ellipse(t,e,s,n,o){const a=this.gen.ellipse(t,e,s,n,o);return this.draw(a),a}circle(t,e,s,n){const o=this.gen.circle(t,e,s,n);return this.draw(o),o}linearPath(t,e){const s=this.gen.linearPath(t,e);return this.draw(s),s}polygon(t,e){const s=this.gen.polygon(t,e);return this.draw(s),s}arc(t,e,s,n,o,a,h=!1,r){const i=this.gen.arc(t,e,s,n,o,a,h,r);return this.draw(i),i}curve(t,e){const s=this.gen.curve(t,e);return this.draw(s),s}path(t,e){const s=this.gen.path(t,e);return this.draw(s),s}}const nt="http://www.w3.org/2000/svg";class ot{constructor(t,e){this.svg=t,this.gen=new et(e)}draw(t){const e=t.sets||[],s=t.options||this.getDefaultOptions(),n=this.svg.ownerDocument||window.document,o=n.createElementNS(nt,"g"),a=t.options.fixedDecimalPlaceDigits;for(const h of e){let e=null;switch(h.type){case"path":e=n.createElementNS(nt,"path"),e.setAttribute("d",this.opsToPath(h,a)),e.setAttribute("stroke",s.stroke),e.setAttribute("stroke-width",s.strokeWidth+""),e.setAttribute("fill","none"),s.strokeLineDash&&e.setAttribute("stroke-dasharray",s.strokeLineDash.join(" ").trim()),s.strokeLineDashOffset&&e.setAttribute("stroke-dashoffset",`${s.strokeLineDashOffset}`);break;case"fillPath":e=n.createElementNS(nt,"path"),e.setAttribute("d",this.opsToPath(h,a)),e.setAttribute("stroke","none"),e.setAttribute("stroke-width","0"),e.setAttribute("fill",s.fill||""),"curve"!==t.shape&&"polygon"!==t.shape||e.setAttribute("fill-rule","evenodd");break;case"fillSketch":e=this.fillSketch(n,h,s)}e&&o.appendChild(e)}return o}fillSketch(t,e,s){let n=s.fillWeight;n<0&&(n=s.strokeWidth/2);const o=t.createElementNS(nt,"path");return o.setAttribute("d",this.opsToPath(e,s.fixedDecimalPlaceDigits)),o.setAttribute("stroke",s.fill||""),o.setAttribute("stroke-width",n+""),o.setAttribute("fill","none"),s.fillLineDash&&o.setAttribute("stroke-dasharray",s.fillLineDash.join(" ").trim()),s.fillLineDashOffset&&o.setAttribute("stroke-dashoffset",`${s.fillLineDashOffset}`),o}get generator(){return this.gen}getDefaultOptions(){return this.gen.defaultOptions}opsToPath(t,e){return this.gen.opsToPath(t,e)}line(t,e,s,n,o){const a=this.gen.line(t,e,s,n,o);return this.draw(a)}rectangle(t,e,s,n,o){const a=this.gen.rectangle(t,e,s,n,o);return this.draw(a)}ellipse(t,e,s,n,o){const a=this.gen.ellipse(t,e,s,n,o);return this.draw(a)}circle(t,e,s,n){const o=this.gen.circle(t,e,s,n);return this.draw(o)}linearPath(t,e){const s=this.gen.linearPath(t,e);return this.draw(s)}polygon(t,e){const s=this.gen.polygon(t,e);return this.draw(s)}arc(t,e,s,n,o,a,h=!1,r){const i=this.gen.arc(t,e,s,n,o,a,h,r);return this.draw(i)}curve(t,e){const s=this.gen.curve(t,e);return this.draw(s)}path(t,e){const s=this.gen.path(t,e);return this.draw(s)}}return{canvas:(t,e)=>new st(t,e),svg:(t,e)=>new ot(t,e),generator:t=>new et(t),newSeed:()=>et.newSeed()}}();
+</script>
+<script>
+// =============================================================================
+// jankify script
+// =============================================================================
+"use strict";
+
+const state = {
+  mode: "pixel",
+  imageData: null,
+  width: 0, height: 0,
+
+  points: null, triangles: null, triColors: null,
+  voronoi: null,
+  edgeMap: null,
+
+  emojiPalette: null, emojiGrid: null, emojiFontPx: null,
+
+  asciiGrid: null, asciiFontPx: null, asciiCols: 0, asciiRows: 0,
+
+  pixelGrid: null, pixelCols: 0, pixelRows: 0, pixelDisplay: 0,
+
+  briteGrid: null,
+
+  hatchSegments: null, hatchParams: null,
+
+  roughGrid: null, roughMeta: null,
+
+  seed: Date.now(),
+  renderPending: false,
+  sourceAnimation: null,
+  lastAnimationFrames: null,
+};
+
+let sourceImage = null;
+const $ = id => document.getElementById(id);
+
+// -----------------------------------------------------------------------------
+// PRNG
+// -----------------------------------------------------------------------------
+function makeRng(seed) {
+  let a = seed | 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// -----------------------------------------------------------------------------
+// Color space: sRGB → CIE L*a*b* (D65, 2° observer)
+// -----------------------------------------------------------------------------
+function srgbToLinear(c) {
+  c = c / 255;
+  return c > 0.04045 ? Math.pow((c + 0.055) / 1.055, 2.4) : c / 12.92;
+}
+function rgbToXyz(r, g, b) {
+  const rl = srgbToLinear(r) * 100;
+  const gl = srgbToLinear(g) * 100;
+  const bl = srgbToLinear(b) * 100;
+  return [
+    rl * 0.4124 + gl * 0.3576 + bl * 0.1805,
+    rl * 0.2126 + gl * 0.7152 + bl * 0.0722,
+    rl * 0.0193 + gl * 0.1192 + bl * 0.9505,
+  ];
+}
+function xyzToLab(x, y, z) {
+  const refX = 95.047, refY = 100, refZ = 108.883;
+  const f = t => t > 0.008856 ? Math.pow(t, 1/3) : (7.787 * t) + (16/116);
+  const fx = f(x / refX), fy = f(y / refY), fz = f(z / refZ);
+  return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+}
+function rgbToLab(r, g, b) {
+  const xyz = rgbToXyz(r, g, b);
+  return xyzToLab(xyz[0], xyz[1], xyz[2]);
+}
+function deltaE94(a, b) {
+  const dL = a[0] - b[0];
+  const dA = a[1] - b[1];
+  const dB = a[2] - b[2];
+  const c1 = Math.sqrt(a[1]*a[1] + a[2]*a[2]);
+  const c2 = Math.sqrt(b[1]*b[1] + b[2]*b[2]);
+  const dC = c1 - c2;
+  let dH = dA*dA + dB*dB - dC*dC;
+  dH = dH < 0 ? 0 : Math.sqrt(dH);
+  const sc = 1 + 0.045 * c1, sh = 1 + 0.015 * c1;
+  const ti = dL*dL + (dC/sc)**2 + (dH/sh)**2;
+  return ti < 0 ? 0 : Math.sqrt(ti);
+}
+
+// -----------------------------------------------------------------------------
+// Lite Brite palette (authentic Hasbro 8-peg set, eyeballed from lit photos)
+// -----------------------------------------------------------------------------
+const LITE_BRITE_PALETTE = [
+  { name: "white",  rgb: [255, 252, 240] },
+  { name: "red",    rgb: [255,  60,  85] },
+  { name: "orange", rgb: [255, 145,  45] },
+  { name: "yellow", rgb: [255, 222,  60] },
+  { name: "green",  rgb: [ 70, 230,  85] },
+  { name: "blue",   rgb: [ 75, 135, 255] },
+  { name: "violet", rgb: [180, 100, 245] },
+  { name: "pink",   rgb: [255, 125, 185] },
+].map(p => ({ ...p, lab: rgbToLab(p.rgb[0], p.rgb[1], p.rgb[2]) }));
+const BRITE_LUMA_FLOOR = 25;
+
+function nearestBritePeg(r, g, b, a) {
+  if (a !== undefined && a < 128) return -1;
+  const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+  if (luma < BRITE_LUMA_FLOOR) return -1;
+  const lab = rgbToLab(r, g, b);
+  let best = 0, bestD = Infinity;
+  for (let i = 0; i < LITE_BRITE_PALETTE.length; i++) {
+    const d = deltaE94(LITE_BRITE_PALETTE[i].lab, lab);
+    if (d < bestD) { bestD = d; best = i; }
+  }
+  return best;
+}
+
+// -----------------------------------------------------------------------------
+// Area samplers
+// -----------------------------------------------------------------------------
+function avgRgbRect(data, w, x0, y0, x1, y1) {
+  let r = 0, g = 0, b = 0, count = 0;
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      const i = (y * w + x) * 4;
+      r += data[i] * data[i];
+      g += data[i + 1] * data[i + 1];
+      b += data[i + 2] * data[i + 2];
+      count++;
+    }
+  }
+  if (!count) return [0, 0, 0];
+  return [Math.sqrt(r/count), Math.sqrt(g/count), Math.sqrt(b/count)];
+}
+function avgRgbaRect(data, w, x0, y0, x1, y1) {
+  let r = 0, g = 0, b = 0, a = 0, count = 0;
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      const i = (y * w + x) * 4;
+      r += data[i] * data[i];
+      g += data[i + 1] * data[i + 1];
+      b += data[i + 2] * data[i + 2];
+      a += data[i + 3];
+      count++;
+    }
+  }
+  if (!count) return [0, 0, 0, 0];
+  return [Math.sqrt(r/count), Math.sqrt(g/count), Math.sqrt(b/count), a/count];
+}
+function avgBrightRect(data, w, x0, y0, x1, y1) {
+  let s = 0, count = 0;
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      const i = (y * w + x) * 4;
+      s += 0.299*data[i] + 0.587*data[i+1] + 0.114*data[i+2];
+      count++;
+    }
+  }
+  return count ? s/count : 0;
+}
+function sampleCentroid(A, B, C, data, w, h) {
+  const cx = Math.max(0, Math.min(w-1, Math.floor((A[0]+B[0]+C[0])/3)));
+  const cy = Math.max(0, Math.min(h-1, Math.floor((A[1]+B[1]+C[1])/3)));
+  const idx = (cy*w + cx) * 4;
+  return [data[idx], data[idx+1], data[idx+2]];
+}
+function sampleAverage(A, B, C, data, w, h) {
+  const minX = Math.max(0, Math.floor(Math.min(A[0], B[0], C[0])));
+  const maxX = Math.min(w-1, Math.ceil(Math.max(A[0], B[0], C[0])));
+  const minY = Math.max(0, Math.floor(Math.min(A[1], B[1], C[1])));
+  const maxY = Math.min(h-1, Math.ceil(Math.max(A[1], B[1], C[1])));
+  let r = 0, g = 0, b = 0, count = 0;
+  for (let y = minY; y <= maxY; y++) {
+    for (let x = minX; x <= maxX; x++) {
+      if (pointInTriangle(x, y, A, B, C)) {
+        const idx = (y*w + x) * 4;
+        r += data[idx]; g += data[idx+1]; b += data[idx+2];
+        count++;
+      }
+    }
+  }
+  if (!count) return sampleCentroid(A, B, C, data, w, h);
+  return [r/count, g/count, b/count];
+}
+function pointInTriangle(px, py, A, B, C) {
+  const d1 = (px-B[0])*(A[1]-B[1]) - (A[0]-B[0])*(py-B[1]);
+  const d2 = (px-C[0])*(B[1]-C[1]) - (B[0]-C[0])*(py-C[1]);
+  const d3 = (px-A[0])*(C[1]-A[1]) - (C[0]-A[0])*(py-A[1]);
+  const hasNeg = d1 < 0 || d2 < 0 || d3 < 0;
+  const hasPos = d1 > 0 || d2 > 0 || d3 > 0;
+  return !(hasNeg && hasPos);
+}
+
+// -----------------------------------------------------------------------------
+// Sobel + point generation + Delaunay (Bowyer-Watson)
+// -----------------------------------------------------------------------------
+function sobel(imageData) {
+  const { data, width: w, height: h } = imageData;
+  const gray = new Float32Array(w * h);
+  for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+    gray[j] = 0.299*data[i] + 0.587*data[i+1] + 0.114*data[i+2];
+  }
+  const out = new Float32Array(w * h);
+  let max = 0;
+  for (let y = 1; y < h-1; y++) {
+    for (let x = 1; x < w-1; x++) {
+      const i = y*w + x;
+      const tl = gray[i-w-1], tc = gray[i-w], tr = gray[i-w+1];
+      const ml = gray[i-1],                   mr = gray[i+1];
+      const bl = gray[i+w-1], bc = gray[i+w], br = gray[i+w+1];
+      const gx = -tl + tr - 2*ml + 2*mr - bl + br;
+      const gy = -tl - 2*tc - tr + bl + 2*bc + br;
+      const m = Math.sqrt(gx*gx + gy*gy);
+      out[i] = m;
+      if (m > max) max = m;
+    }
+  }
+  if (max > 0) for (let i = 0; i < out.length; i++) out[i] /= max;
+  return out;
+}
+
+function generatePoints(w, h, cellSize, edgeMap, edgeRatio, rng, addGhosts) {
+  const pts = [];
+  pts.push([0,0], [w-1,0], [0,h-1], [w-1,h-1]);
+  const edgeJitter = cellSize * 0.35;
+  for (let x = cellSize; x < w - cellSize/2; x += cellSize) {
+    pts.push([x + (rng()-0.5)*edgeJitter, 0]);
+    pts.push([x + (rng()-0.5)*edgeJitter, h-1]);
+  }
+  for (let y = cellSize; y < h - cellSize/2; y += cellSize) {
+    pts.push([0,   y + (rng()-0.5)*edgeJitter]);
+    pts.push([w-1, y + (rng()-0.5)*edgeJitter]);
+  }
+  const j = cellSize * 0.7;
+  for (let y = cellSize; y < h - cellSize/2; y += cellSize) {
+    for (let x = cellSize; x < w - cellSize/2; x += cellSize) {
+      pts.push([x + (rng()-0.5)*j, y + (rng()-0.5)*j]);
+    }
+  }
+  const baseCount = Math.floor((w/cellSize) * (h/cellSize));
+  const extra = Math.floor(baseCount * edgeRatio);
+  if (extra > 0 && edgeMap) {
+    const minDistSq = (cellSize * 0.35) ** 2;
+    let added = 0, attempts = 0;
+    const maxAttempts = extra * 80;
+    while (added < extra && attempts < maxAttempts) {
+      attempts++;
+      const px = Math.floor(rng() * w);
+      const py = Math.floor(rng() * h);
+      const mag = edgeMap[py*w + px];
+      if (rng() < mag * mag) {
+        const tail = Math.min(pts.length, 30);
+        let tooClose = false;
+        for (let k = pts.length - tail; k < pts.length; k++) {
+          const dx = pts[k][0] - px, dy = pts[k][1] - py;
+          if (dx*dx + dy*dy < minDistSq) { tooClose = true; break; }
+        }
+        if (!tooClose) {
+          pts.push([px + (rng()-0.5), py + (rng()-0.5)]);
+          added++;
+        }
+      }
+    }
+  }
+  const realCount = pts.length;
+  if (addGhosts) pts.push([-w,-h], [2*w,-h], [-w,2*h], [2*w,2*h]);
+  return { pts, realCount };
+}
+
+function delaunay(pts) {
+  const n = pts.length;
+  if (n < 3) return [];
+  let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+  for (const [x,y] of pts) {
+    if (x<minX) minX=x; if (x>maxX) maxX=x;
+    if (y<minY) minY=y; if (y>maxY) maxY=y;
+  }
+  const deltaMax = Math.max(maxX-minX, maxY-minY) * 20 + 1;
+  const midX = (minX+maxX)/2, midY = (minY+maxY)/2;
+  const work = pts.slice();
+  work.push([midX-deltaMax, midY-deltaMax]);
+  work.push([midX,           midY+deltaMax]);
+  work.push([midX+deltaMax, midY-deltaMax]);
+  let triangles = [makeTri(n, n+1, n+2, work)];
+  for (let p = 0; p < n; p++) {
+    const [px, py] = work[p];
+    const bad = [];
+    for (let t = 0; t < triangles.length; t++) {
+      const tri = triangles[t];
+      const dx = px - tri.cx, dy = py - tri.cy;
+      if (dx*dx + dy*dy < tri.rSq) bad.push(tri);
+    }
+    const edgeCount = new Map();
+    for (const tri of bad) {
+      addEdge(edgeCount, tri.a, tri.b);
+      addEdge(edgeCount, tri.b, tri.c);
+      addEdge(edgeCount, tri.c, tri.a);
+    }
+    const badSet = new Set(bad);
+    triangles = triangles.filter(t => !badSet.has(t));
+    for (const [key, count] of edgeCount) {
+      if (count === 1) {
+        const [u, v] = key.split(",").map(Number);
+        triangles.push(makeTri(u, v, p, work));
+      }
+    }
+  }
+  const result = [];
+  for (const tri of triangles) {
+    if (tri.a < n && tri.b < n && tri.c < n) result.push([tri.a, tri.b, tri.c]);
+  }
+  return result;
+}
+function addEdge(map, u, v) {
+  const key = u < v ? `${u},${v}` : `${v},${u}`;
+  map.set(key, (map.get(key) || 0) + 1);
+}
+function makeTri(a, b, c, pts) {
+  const [ax,ay] = pts[a], [bx,by] = pts[b], [cx,cy] = pts[c];
+  const d = 2 * (ax*(by-cy) + bx*(cy-ay) + cx*(ay-by));
+  if (Math.abs(d) < 1e-10) return { a, b, c, cx: ax, cy: ay, rSq: 0 };
+  const ax2 = ax*ax + ay*ay;
+  const bx2 = bx*bx + by*by;
+  const cx2 = cx*cx + cy*cy;
+  const ux = (ax2*(by-cy) + bx2*(cy-ay) + cx2*(ay-by)) / d;
+  const uy = (ax2*(cx-bx) + bx2*(ax-cx) + cx2*(bx-ax)) / d;
+  const dxu = ax-ux, dyu = ay-uy;
+  return { a, b, c, cx: ux, cy: uy, rSq: dxu*dxu + dyu*dyu };
+}
+
+// -----------------------------------------------------------------------------
+// Voronoi from Delaunay
+// -----------------------------------------------------------------------------
+function voronoiCells(pts, triangles, w, h, realCount) {
+  const incident = new Array(pts.length);
+  for (let i = 0; i < pts.length; i++) incident[i] = [];
+  const tCenters = new Array(triangles.length);
+  for (let t = 0; t < triangles.length; t++) {
+    const [a, b, c] = triangles[t];
+    tCenters[t] = circumcenter(pts[a], pts[b], pts[c]);
+    incident[a].push(t); incident[b].push(t); incident[c].push(t);
+  }
+  const cells = [];
+  const rect = [[0,0], [w,0], [w,h], [0,h]];
+  for (let p = 0; p < realCount; p++) {
+    const tris = incident[p];
+    if (tris.length < 2) continue;
+    const center = pts[p];
+    const verts = tris.map(t => tCenters[t]);
+    verts.sort((u, v) =>
+      Math.atan2(u[1]-center[1], u[0]-center[0]) -
+      Math.atan2(v[1]-center[1], v[0]-center[0])
+    );
+    const clipped = clipPolygon(verts, rect);
+    if (clipped.length >= 3) cells.push({ idx: p, polygon: clipped });
+  }
+  return cells;
+}
+function circumcenter(A, B, C) {
+  const ax=A[0], ay=A[1], bx=B[0], by=B[1], cx=C[0], cy=C[1];
+  const d = 2 * (ax*(by-cy) + bx*(cy-ay) + cx*(ay-by));
+  if (Math.abs(d) < 1e-10) return [(ax+bx+cx)/3, (ay+by+cy)/3];
+  const ax2 = ax*ax + ay*ay;
+  const bx2 = bx*bx + by*by;
+  const cx2 = cx*cx + cy*cy;
+  return [
+    (ax2*(by-cy) + bx2*(cy-ay) + cx2*(ay-by)) / d,
+    (ax2*(cx-bx) + bx2*(ax-cx) + cx2*(bx-ax)) / d,
+  ];
+}
+function clipPolygon(subject, clip) {
+  let output = subject;
+  for (let i = 0; i < clip.length; i++) {
+    if (output.length === 0) break;
+    const input = output; output = [];
+    const A = clip[i], B = clip[(i+1) % clip.length];
+    for (let j = 0; j < input.length; j++) {
+      const cur = input[j];
+      const prev = input[(j-1+input.length) % input.length];
+      const curIn = isInside(cur, A, B);
+      const prevIn = isInside(prev, A, B);
+      if (curIn) {
+        if (!prevIn) output.push(lineIntersect(prev, cur, A, B));
+        output.push(cur);
+      } else if (prevIn) {
+        output.push(lineIntersect(prev, cur, A, B));
+      }
+    }
+  }
+  return output;
+}
+function isInside(p, A, B) {
+  return (B[0]-A[0])*(p[1]-A[1]) - (B[1]-A[1])*(p[0]-A[0]) >= 0;
+}
+function lineIntersect(p, q, A, B) {
+  const x1=p[0], y1=p[1], x2=q[0], y2=q[1], x3=A[0], y3=A[1], x4=B[0], y4=B[1];
+  const denom = (x1-x2)*(y3-y4) - (y1-y2)*(x3-x4);
+  if (Math.abs(denom) < 1e-10) return p;
+  const t = ((x1-x3)*(y3-y4) - (y1-y3)*(x3-x4)) / denom;
+  return [x1 + t*(x2-x1), y1 + t*(y2-y1)];
+}
+function pointInPolygon(x, y, poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i][0], yi = poly[i][1];
+    const xj = poly[j][0], yj = poly[j][1];
+    const intersect = ((yi > y) !== (yj > y)) &&
+                      (x < (xj-xi)*(y-yi)/(yj-yi+1e-12) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+function averagePolygonColor(poly, data, w, h) {
+  let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+  for (const p of poly) {
+    if (p[0]<minX) minX=p[0]; if (p[0]>maxX) maxX=p[0];
+    if (p[1]<minY) minY=p[1]; if (p[1]>maxY) maxY=p[1];
+  }
+  minX = Math.max(0, Math.floor(minX)); minY = Math.max(0, Math.floor(minY));
+  maxX = Math.min(w-1, Math.ceil(maxX)); maxY = Math.min(h-1, Math.ceil(maxY));
+  let r=0, g=0, b=0, count=0;
+  for (let y=minY; y<=maxY; y++) {
+    for (let x=minX; x<=maxX; x++) {
+      if (pointInPolygon(x+0.5, y+0.5, poly)) {
+        const idx = (y*w + x) * 4;
+        r += data[idx]; g += data[idx+1]; b += data[idx+2];
+        count++;
+      }
+    }
+  }
+  if (!count) {
+    const cx = Math.max(0, Math.min(w-1, Math.round((minX+maxX)/2)));
+    const cy = Math.max(0, Math.min(h-1, Math.round((minY+maxY)/2)));
+    const idx = (cy*w + cx) * 4;
+    return [data[idx], data[idx+1], data[idx+2]];
+  }
+  return [r/count, g/count, b/count];
+}
+
+// -----------------------------------------------------------------------------
+// Median-cut color quantization. Mutates grid in place — each cell's rgb is
+// snapped to its bucket's average color.
+// -----------------------------------------------------------------------------
+function medianCutPalette(cells, targetCount) {
+  if (targetCount < 1 || cells.length <= targetCount) return cells.length;
+  let buckets = [cells.slice()];
+  while (buckets.length < targetCount) {
+    let bestI = -1, bestRange = 0, bestAxis = 0;
+    for (let i = 0; i < buckets.length; i++) {
+      const b = buckets[i];
+      if (b.length < 2) continue;
+      let minR=255, maxR=0, minG=255, maxG=0, minB=255, maxB=0;
+      for (const p of b) {
+        const [r,g,bl] = p.rgb;
+        if (r<minR) minR=r; if (r>maxR) maxR=r;
+        if (g<minG) minG=g; if (g>maxG) maxG=g;
+        if (bl<minB) minB=bl; if (bl>maxB) maxB=bl;
+      }
+      const rR = maxR-minR, rG = maxG-minG, rB = maxB-minB;
+      const range = Math.max(rR, rG, rB);
+      if (range > bestRange) {
+        bestRange = range;
+        bestI = i;
+        bestAxis = rR >= rG && rR >= rB ? 0 : (rG >= rB ? 1 : 2);
+      }
+    }
+    if (bestI === -1 || bestRange === 0) break;
+    const bucket = buckets[bestI];
+    bucket.sort((a, b) => a.rgb[bestAxis] - b.rgb[bestAxis]);
+    const mid = bucket.length >> 1;
+    buckets[bestI] = bucket.slice(0, mid);
+    buckets.push(bucket.slice(mid));
+  }
+  let palette = 0;
+  for (const bucket of buckets) {
+    if (bucket.length === 0) continue;
+    let r=0, g=0, b=0;
+    for (const p of bucket) { r += p.rgb[0]; g += p.rgb[1]; b += p.rgb[2]; }
+    const avg = [Math.round(r/bucket.length), Math.round(g/bucket.length), Math.round(b/bucket.length)];
+    for (const p of bucket) p.rgb = avg;
+    palette++;
+  }
+  return palette;
+}
+
+// -----------------------------------------------------------------------------
+// Emoji palette (lazy, cached)
+// -----------------------------------------------------------------------------
+let _emojiPaletteCache = null;
+function buildEmojiPalette() {
+  if (_emojiPaletteCache) return _emojiPaletteCache;
+  const list = EMOJI_SOURCE.split(",").map(s => s.trim()).filter(Boolean);
+  const fontPx = 20;
+  const probe = document.createElement("canvas");
+  probe.width = probe.height = fontPx * 2;
+  const pctx = probe.getContext("2d");
+  pctx.font = `${fontPx}px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji","Segoe UI Symbol",sans-serif`;
+  pctx.textBaseline = "top";
+  const palette = [];
+  for (const key of list) {
+    pctx.clearRect(0, 0, probe.width, probe.height);
+    pctx.fillText(key, 0, 0);
+    const m = pctx.measureText(key);
+    if (m.width > fontPx * 1.5) continue;
+    const img = pctx.getImageData(0, 0, probe.width, probe.height);
+    const stats = imageStats(img.data, probe.width, probe.height);
+    if (stats.totalPixels === 0) continue;
+    const emptyRatio = stats.bboxEmpty;
+    if (emptyRatio > 0.95) continue;
+    if (stats.r === 0 && stats.g === 0 && stats.b === 0) continue;
+    palette.push({
+      key,
+      rgb: [stats.r, stats.g, stats.b],
+      lab: rgbToLab(stats.r, stats.g, stats.b),
+      emptyRatio,
+      width: m.width,
+    });
+  }
+  _emojiPaletteCache = palette;
+  return palette;
+}
+function imageStats(data, w, h) {
+  let sR=0, sG=0, sB=0, total=0, transparent=0;
+  let minX = w, minY = h, maxX = -1, maxY = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      if (data[i+3] === 0) { transparent++; continue; }
+      sR += data[i]*data[i];
+      sG += data[i+1]*data[i+1];
+      sB += data[i+2]*data[i+2];
+      total++;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+  }
+  if (!total) return { r:0, g:0, b:0, totalPixels:0, transparent, bboxEmpty: 1 };
+  const bboxArea = (maxX - minX + 1) * (maxY - minY + 1);
+  const bboxEmpty = Math.max(0, (bboxArea - total) / bboxArea);
+  return {
+    r: Math.round(Math.sqrt(sR/total)),
+    g: Math.round(Math.sqrt(sG/total)),
+    b: Math.round(Math.sqrt(sB/total)),
+    totalPixels: total,
+    transparent,
+    bboxEmpty,
+  };
+}
+
+// -----------------------------------------------------------------------------
+// Renderers
+// -----------------------------------------------------------------------------
+function renderPolygon(canvas, tris, pts, colors, opts) {
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  for (let i = 0; i < tris.length; i++) {
+    const [a, b, c] = tris[i];
+    const A = pts[a], B = pts[b], C = pts[c];
+    const [r, g, bl] = colors[i];
+    ctx.fillStyle = `rgb(${r|0},${g|0},${bl|0})`;
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.lineTo(C[0], C[1]);
+    ctx.closePath(); ctx.fill();
+    if (opts.stroke) {
+      ctx.strokeStyle = opts.stroke.color;
+      ctx.globalAlpha = opts.stroke.opacity;
+      ctx.lineWidth = opts.stroke.width;
+      ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+function renderVoronoi(canvas, cells, opts) {
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  for (const cell of cells) {
+    const poly = cell.polygon;
+    const [r, g, bl] = cell.color;
+    ctx.fillStyle = `rgb(${r|0},${g|0},${bl|0})`;
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.moveTo(poly[0][0], poly[0][1]);
+    for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i][0], poly[i][1]);
+    ctx.closePath(); ctx.fill();
+    if (opts.stroke) {
+      ctx.strokeStyle = opts.stroke.color;
+      ctx.globalAlpha = opts.stroke.opacity;
+      ctx.lineWidth = opts.stroke.width;
+      ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+function renderEmoji(canvas, grid, scale, font, bg) {
+  const ctx = canvas.getContext("2d");
+  if (bg) { ctx.fillStyle = bg; ctx.fillRect(0, 0, canvas.width, canvas.height); }
+  else ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.font = font;
+  ctx.textBaseline = "top";
+  for (const cell of grid) {
+    if (cell.skip) continue;
+    ctx.fillText(cell.key, cell.x, cell.y);
+  }
+}
+function renderAscii(canvas, grid, cellSize, fg, bg, useColor) {
+  const ctx = canvas.getContext("2d");
+  if (bg) { ctx.fillStyle = bg; ctx.fillRect(0, 0, canvas.width, canvas.height); }
+  else ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.font = `${cellSize}px "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace`;
+  ctx.textBaseline = "top";
+  ctx.textAlign = "left";
+  for (const cell of grid) {
+    if (useColor) {
+      const [r,g,b] = cell.color;
+      ctx.fillStyle = `rgb(${r|0},${g|0},${b|0})`;
+    } else ctx.fillStyle = fg;
+    ctx.fillText(cell.char, cell.x, cell.y);
+  }
+}
+function renderPixel(canvas, grid, displayPx, bg, gridLines, skipAlpha) {
+  const ctx = canvas.getContext("2d");
+  if (bg) { ctx.fillStyle = bg; ctx.fillRect(0, 0, canvas.width, canvas.height); }
+  else ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (const cell of grid) {
+    if (skipAlpha && cell.alpha < 128) continue;
+    ctx.fillStyle = `rgb(${cell.rgb[0]|0},${cell.rgb[1]|0},${cell.rgb[2]|0})`;
+    ctx.fillRect(cell.col * displayPx, cell.row * displayPx, displayPx, displayPx);
+  }
+  if (gridLines && displayPx >= 3) {
+    ctx.strokeStyle = "rgba(0,0,0,0.15)";
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= canvas.width; x += displayPx) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+    }
+    for (let y = 0; y <= canvas.height; y += displayPx) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+    }
+  }
+}
+
+let briteSpriteCache = null;
+function buildBriteSprites(pegSize) {
+  if (briteSpriteCache && briteSpriteCache.pegSize === pegSize) return briteSpriteCache.sprites;
+  const haloPad = Math.max(4, Math.round(pegSize * 1.0));
+  const haloSize = pegSize + haloPad * 2;
+  const capSize = pegSize + 4;
+
+  const caps = LITE_BRITE_PALETTE.map(p => {
+    const sp = document.createElement("canvas");
+    sp.width = capSize; sp.height = capSize;
+    const sx = sp.getContext("2d");
+    const cx = capSize / 2, cy = capSize / 2;
+    const [r, g, b] = p.rgb;
+    const cap = sx.createRadialGradient(cx, cy, 0, cx, cy, pegSize / 2);
+    cap.addColorStop(0,    `rgba(255, 255, 255, 1)`);
+    cap.addColorStop(0.25, `rgba(${Math.min(255, r + 140)},${Math.min(255, g + 140)},${Math.min(255, b + 140)},1)`);
+    cap.addColorStop(0.65, `rgba(${Math.min(255, r + 40)},${Math.min(255, g + 40)},${Math.min(255, b + 40)},1)`);
+    cap.addColorStop(1,    `rgba(${r},${g},${b},1)`);
+    sx.fillStyle = cap;
+    sx.beginPath();
+    sx.arc(cx, cy, pegSize / 2, 0, Math.PI * 2);
+    sx.fill();
+    return sp;
+  });
+
+  const halos = LITE_BRITE_PALETTE.map(p => {
+    const sp = document.createElement("canvas");
+    sp.width = haloSize; sp.height = haloSize;
+    const sx = sp.getContext("2d");
+    const cx = haloSize / 2, cy = haloSize / 2;
+    const [r, g, b] = p.rgb;
+    const halo = sx.createRadialGradient(cx, cy, pegSize * 0.25, cx, cy, haloSize / 2);
+    halo.addColorStop(0,    `rgba(${r},${g},${b},0.55)`);
+    halo.addColorStop(0.35, `rgba(${r},${g},${b},0.22)`);
+    halo.addColorStop(1,    `rgba(${r},${g},${b},0)`);
+    sx.fillStyle = halo;
+    sx.fillRect(0, 0, haloSize, haloSize);
+    return sp;
+  });
+
+  briteSpriteCache = { pegSize, sprites: { caps, halos } };
+  return briteSpriteCache.sprites;
+}
+
+function renderBrite(canvas, briteGrid, glowPct) {
+  const ctx = canvas.getContext("2d");
+  ctx.save();
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const { caps, halos } = buildBriteSprites(briteGrid.pegSize);
+  const haloHalf = halos[0].width / 2;
+  const capHalf = caps[0].width / 2;
+  const additive = !reducedMotion?.matches && !state.briteAnimating;
+
+  if (glowPct > 0) {
+    ctx.globalCompositeOperation = additive ? "lighter" : "source-over";
+    ctx.globalAlpha = Math.max(0.1, glowPct / 100);
+    for (const cell of briteGrid.cells) {
+      ctx.drawImage(halos[cell.paletteIdx], cell.cx - haloHalf, cell.cy - haloHalf);
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = "source-over";
+  }
+
+  for (const cell of briteGrid.cells) {
+    ctx.drawImage(caps[cell.paletteIdx], cell.cx - capHalf, cell.cy - capHalf);
+  }
+
+  ctx.restore();
+}
+
+// -----------------------------------------------------------------------------
+// Hatch + Rough (sketch)
+// -----------------------------------------------------------------------------
+function lumaDarknessBuffer(imageData) {
+  const { data, width: w, height: h } = imageData;
+  const buf = new Float32Array(w * h);
+  for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+    if (data[i + 3] < 128) { buf[j] = 0; continue; }
+    const luma = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    buf[j] = 1 - luma / 255;
+  }
+  return buf;
+}
+
+const HATCH_LAYER_ANGLES = [0, 90, 45, 135];
+function computeHatch(dark, W, H, p, rng) {
+  const spacing = Math.max(1, p.spacing);
+  const levels = Math.max(1, Math.min(HATCH_LAYER_ANGLES.length, p.levels));
+  const step = Math.max(1, spacing * 0.5);
+  const corners = [[0, 0], [W, 0], [0, H], [W, H]];
+  const segs = [];
+  for (let layer = 0; layer < levels; layer++) {
+    const threshold = (layer + 1) / (levels + 1);
+    const baseRad = (p.angle + HATCH_LAYER_ANGLES[layer]) * Math.PI / 180;
+    const norX = -Math.sin(baseRad), norY = Math.cos(baseRad);
+    const dirX = Math.cos(baseRad), dirY = Math.sin(baseRad);
+    let nMin = Infinity, nMax = -Infinity, tMin = Infinity, tMax = -Infinity;
+    for (const [cx, cy] of corners) {
+      const nd = cx * norX + cy * norY, td = cx * dirX + cy * dirY;
+      if (nd < nMin) nMin = nd; if (nd > nMax) nMax = nd;
+      if (td < tMin) tMin = td; if (td > tMax) tMax = td;
+    }
+    tMin -= spacing; tMax += spacing;
+    for (let off = nMin; off <= nMax; off += spacing) {
+      const jit = (rng() - 0.5) * 2 * p.offsetJit;
+      const ang = baseRad + (rng() - 0.5) * 2 * p.angleJit;
+      const ddx = Math.cos(ang), ddy = Math.sin(ang);
+      const ox = (off + jit) * norX, oy = (off + jit) * norY;
+      let sx = 0, sy = 0, lx = 0, ly = 0, open = false;
+      for (let t = tMin; t <= tMax; t += step) {
+        const x = ox + t * ddx, y = oy + t * ddy;
+        const xi = Math.floor(x), yi = Math.floor(y);
+        const on = xi >= 0 && yi >= 0 && xi < W && yi < H && dark[yi * W + xi] >= threshold;
+        if (on) {
+          if (!open) { sx = x; sy = y; open = true; }
+          lx = x; ly = y;
+        } else if (open) {
+          segs.push([sx, sy, lx, ly]);
+          open = false;
+        }
+      }
+      if (open) segs.push([sx, sy, lx, ly]);
+    }
+  }
+  return segs;
+}
+
+function renderHatch(canvas, segs, p, imageData) {
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = p.paper;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.lineWidth = p.width;
+  ctx.lineCap = "round";
+  if (p.inkSource && imageData) {
+    const data = imageData.data, w = imageData.width, h = imageData.height;
+    for (const s of segs) {
+      const mx = Math.min(w - 1, Math.max(0, ((s[0] + s[2]) / 2) | 0));
+      const my = Math.min(h - 1, Math.max(0, ((s[1] + s[3]) / 2) | 0));
+      const i = (my * w + mx) * 4;
+      ctx.strokeStyle = `rgb(${data[i] | 0},${data[i + 1] | 0},${data[i + 2] | 0})`;
+      ctx.beginPath(); ctx.moveTo(s[0], s[1]); ctx.lineTo(s[2], s[3]); ctx.stroke();
+    }
+  } else {
+    ctx.strokeStyle = p.ink;
+    ctx.beginPath();
+    for (const s of segs) { ctx.moveTo(s[0], s[1]); ctx.lineTo(s[2], s[3]); }
+    ctx.stroke();
+  }
+}
+
+function getHatchParams() {
+  const spacing = parseInt($("hatch-spacing").value, 10);
+  const jitter = parseInt($("hatch-jitter").value, 10) / 100;
+  return {
+    spacing,
+    width: parseFloat($("hatch-width").value),
+    angle: parseInt($("hatch-angle").value, 10),
+    levels: parseInt($("hatch-levels").value, 10),
+    offsetJit: jitter * spacing * 0.5,
+    angleJit: jitter * (12 * Math.PI / 180),
+    ink: $("hatch-ink").value,
+    paper: $("hatch-paper").value,
+    inkSource: $("hatch-ink-source").checked,
+  };
+}
+
+function getRoughParams() {
+  return {
+    cell: parseInt($("rough-cell").value, 10),
+    roughness: parseFloat($("rough-roughness").value),
+    bowing: parseFloat($("rough-bowing").value),
+    fillStyle: $("rough-fill").value,
+    gap: parseInt($("rough-gap").value, 10),
+    outline: $("rough-outline").checked,
+    paper: $("rough-paper").value,
+  };
+}
+function roughCellOpts(p, hex, seed) {
+  return {
+    fill: hex,
+    fillStyle: p.fillStyle,
+    hachureGap: p.gap,
+    fillWeight: Math.max(0.5, p.gap * 0.25),
+    roughness: p.roughness,
+    bowing: p.bowing,
+    stroke: p.outline ? "rgba(0,0,0,0.25)" : "none",
+    strokeWidth: 1,
+    seed: (seed % 2147483646) + 1,
+  };
+}
+function renderRough(canvas, cells, p) {
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = p.paper;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const rc = rough.canvas(canvas);
+  for (let i = 0; i < cells.length; i++) {
+    const cell = cells[i];
+    if (cell.alpha < 16) continue;
+    const hex = rgbToHex(cell.rgb[0], cell.rgb[1], cell.rgb[2]);
+    rc.rectangle(cell.x, cell.y, cell.w, cell.h, roughCellOpts(p, hex, state.seed + i * 101));
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Image loading
+// -----------------------------------------------------------------------------
+function loadImageFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("File read failed"));
+    reader.onload = e => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("Image decode failed"));
+      img.onload = () => resolve(img);
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+function imageToImageData(img, maxDim) {
+  // HTMLImageElement exposes intrinsic dimensions as naturalWidth/Height;
+  // canvas-backed video previews expose width/height instead.
+  const sourceWidth = img.naturalWidth || img.videoWidth || img.width;
+  const sourceHeight = img.naturalHeight || img.videoHeight || img.height;
+  if (!Number.isFinite(sourceWidth) || !Number.isFinite(sourceHeight) || sourceWidth <= 0 || sourceHeight <= 0) {
+    throw new Error("Source media has no readable dimensions");
+  }
+  const scale = Math.min(1, maxDim / Math.max(sourceWidth, sourceHeight));
+  const w = Math.max(1, Math.round(sourceWidth * scale));
+  const h = Math.max(1, Math.round(sourceHeight * scale));
+  const c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  const cx = c.getContext("2d");
+  cx.drawImage(img, 0, 0, w, h);
+  return cx.getImageData(0, 0, w, h);
+}
+
+// -----------------------------------------------------------------------------
+// LZW (GIF variant)
+// -----------------------------------------------------------------------------
+function lzwDecode(bytes, minCodeSize) {
+  const clear = 1 << minCodeSize;
+  const eoi = clear + 1;
+  let codeSize = minCodeSize + 1;
+  let next = eoi + 1;
+  let dict = new Array(4096);
+  const reset = () => {
+    codeSize = minCodeSize + 1;
+    dict = new Array(4096);
+    for (let i = 0; i < clear; i++) dict[i] = [i];
+    next = eoi + 1;
+  };
+  reset();
+  const out = [];
+  let bitBuf = 0, bitCount = 0, pos = 0, prev = null;
+  for (;;) {
+    while (bitCount < codeSize && pos < bytes.length) { bitBuf |= bytes[pos++] << bitCount; bitCount += 8; }
+    if (bitCount < codeSize) break;
+    const code = bitBuf & ((1 << codeSize) - 1);
+    bitBuf >>= codeSize; bitCount -= codeSize;
+    if (code === clear) { reset(); prev = null; continue; }
+    if (code === eoi) break;
+    let entry;
+    if (code < next && dict[code] !== undefined) entry = dict[code];
+    else if (prev) entry = prev.concat(prev[0]);
+    else break;
+    for (let i = 0; i < entry.length; i++) out.push(entry[i]);
+    if (prev && next < 4096) {
+      dict[next++] = prev.concat(entry[0]);
+      if (next >= (1 << codeSize) && codeSize < 12) codeSize++;
+    }
+    prev = entry;
+  }
+  return Uint8Array.from(out);
+}
+
+function lzwEncode(indices, minCodeSize) {
+  const clear = 1 << minCodeSize;
+  const eoi = clear + 1;
+  let nextCode = eoi + 1;
+  let codeSize = minCodeSize + 1;
+  let table = new Map();
+  const out = [];
+  let bitBuf = 0, bitCount = 0;
+  const emit = code => {
+    bitBuf |= code << bitCount; bitCount += codeSize;
+    while (bitCount >= 8) { out.push(bitBuf & 0xff); bitBuf >>= 8; bitCount -= 8; }
+  };
+  if (!indices.length) {
+    emit(clear); emit(eoi);
+    if (bitCount > 0) out.push(bitBuf & 0xff);
+    return Uint8Array.from(out);
+  }
+  emit(clear);
+  let prefix = indices[0];
+  for (let i = 1; i < indices.length; i++) {
+    const k = indices[i];
+    const key = prefix * 4096 + k;
+    if (table.has(key)) { prefix = table.get(key); continue; }
+    emit(prefix);
+    if (nextCode === 4096) {
+      emit(clear);
+      nextCode = eoi + 1;
+      codeSize = minCodeSize + 1;
+      table = new Map();
+    } else {
+      if (nextCode >= (1 << codeSize)) codeSize++;
+      table.set(key, nextCode++);
+    }
+    prefix = k;
+  }
+  emit(prefix);
+  emit(eoi);
+  if (bitCount > 0) out.push(bitBuf & 0xff);
+  return Uint8Array.from(out);
+}
+
+// -----------------------------------------------------------------------------
+// GIF decode (composites every frame to full-screen RGBA)
+// -----------------------------------------------------------------------------
+function deinterlace(h) {
+  const order = [];
+  const passes = [[0, 8], [4, 8], [2, 4], [1, 2]];
+  for (const pass of passes) for (let r = pass[0]; r < h; r += pass[1]) order.push(r);
+  return order;
+}
+
+function decodeGif(buffer, options) {
+  options = options || {};
+  const b = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+  if (b[0] !== 0x47 || b[1] !== 0x49 || b[2] !== 0x46) throw new Error("not a GIF");
+  const maxFrames = Number.isFinite(options.maxFrames) ? Math.max(1, Math.floor(options.maxFrames)) : Infinity;
+  const maxDimension = Number.isFinite(options.maxDimension) ? Math.max(1, Math.floor(options.maxDimension)) : Infinity;
+  const maxDecodedBytes = Number.isFinite(options.maxDecodedBytes) ? Math.max(1, Math.floor(options.maxDecodedBytes)) : Infinity;
+  let p = 6;
+  const u16 = () => (b[p++] | (b[p++] << 8));
+  const width = u16(), height = u16();
+  const screenBytes = width * height * 4;
+  if (!width || !height || !Number.isSafeInteger(screenBytes) || screenBytes > maxDecodedBytes) {
+    throw new Error("This GIF exceeds the decoded pixel budget. Choose a smaller image.");
+  }
+  const packed = b[p++]; p += 2;
+  const readCT = n => { const t = new Uint8Array(n * 3); for (let i = 0; i < n * 3; i++) t[i] = b[p++]; return t; };
+  const gct = (packed & 0x80) ? readCT(2 << (packed & 7)) : null;
+  const subBlocks = () => {
+    const parts = []; let n, len = 0;
+    while ((n = b[p++]) !== 0) { parts.push(b.subarray(p, p + n)); p += n; len += n; }
+    const out = new Uint8Array(len); let o = 0;
+    for (const s of parts) { out.set(s, o); o += s.length; }
+    return out;
+  };
+  const frames = [];
+  const scale = Math.min(1, maxDimension / Math.max(width, height));
+  const retainedWidth = Math.max(1, Math.round(width * scale));
+  const retainedHeight = Math.max(1, Math.round(height * scale));
+  let retainedBytes = 0;
+  const screen = new Uint8ClampedArray(width * height * 4);
+  const retainFrame = () => {
+    const bytes = retainedWidth * retainedHeight * 4;
+    // Account for the compositing screen and a possible disposal-method-3 snapshot.
+    if (retainedBytes + bytes + (screenBytes * 2) > maxDecodedBytes) {
+      throw new Error("This GIF exceeds the decoded pixel budget. Choose a shorter or smaller GIF.");
+    }
+    const data = new Uint8ClampedArray(bytes);
+    for (let y = 0; y < retainedHeight; y++) {
+      const sourceY = Math.min(height - 1, Math.floor(y * height / retainedHeight));
+      for (let x = 0; x < retainedWidth; x++) {
+        const sourceX = Math.min(width - 1, Math.floor(x * width / retainedWidth));
+        const sourceOffset = (sourceY * width + sourceX) * 4;
+        const targetOffset = (y * retainedWidth + x) * 4;
+        data[targetOffset] = screen[sourceOffset];
+        data[targetOffset + 1] = screen[sourceOffset + 1];
+        data[targetOffset + 2] = screen[sourceOffset + 2];
+        data[targetOffset + 3] = screen[sourceOffset + 3];
+      }
+    }
+    retainedBytes += bytes;
+    frames.push({ data, width: retainedWidth, height: retainedHeight, delayMs: delayMs || 100, disposal });
+  };
+  let delayMs = 100, disposal = 0, transparent = -1, saved = null;
+  for (;;) {
+    const block = b[p++];
+    if (block === 0x3b || block === undefined) break;
+    if (block === 0x21) {
+      const label = b[p++];
+      if (label === 0xf9) {
+        p++;
+        const flags = b[p++];
+        delayMs = u16() * 10;
+        const tIndex = b[p++]; p++;
+        disposal = (flags >> 2) & 7;
+        transparent = (flags & 1) ? tIndex : -1;
+      } else {
+        while (b[p] !== 0) p += b[p] + 1;
+        p++;
+      }
+      continue;
+    }
+    if (block === 0x2c) {
+      if (frames.length >= maxFrames) return { width, height, frames, truncated: true };
+      const fx = u16(), fy = u16(), fw = u16(), fh = u16();
+      const fp = b[p++];
+      const interlaced = !!(fp & 0x40);
+      const lct = (fp & 0x80) ? readCT(2 << (fp & 7)) : gct;
+      const minCode = b[p++];
+      const indices = lzwDecode(subBlocks(), minCode);
+      if (disposal === 3) saved = screen.slice();
+      const order = interlaced ? deinterlace(fh) : null;
+      for (let row = 0; row < fh; row++) {
+        const srcRow = order ? order[row] : row;
+        for (let col = 0; col < fw; col++) {
+          const idx = indices[srcRow * fw + col];
+          if (idx === transparent) continue;
+          const px = ((fy + row) * width + (fx + col)) * 4;
+          screen[px] = lct[idx * 3]; screen[px + 1] = lct[idx * 3 + 1]; screen[px + 2] = lct[idx * 3 + 2]; screen[px + 3] = 255;
+        }
+      }
+      retainFrame();
+      if (disposal === 2) {
+        for (let row = 0; row < fh; row++) for (let col = 0; col < fw; col++) {
+          const px = ((fy + row) * width + (fx + col)) * 4;
+          screen[px] = 0; screen[px + 1] = 0; screen[px + 2] = 0; screen[px + 3] = 0;
+        }
+      } else if (disposal === 3 && saved) { screen.set(saved); saved = null; }
+      transparent = -1;
+      continue;
+    }
+    break;
+  }
+  return { width, height, frames, truncated: false };
+}
+
+// -----------------------------------------------------------------------------
+// GIF encode (one global palette across all frames for temporal stability)
+// -----------------------------------------------------------------------------
+function gifQuantize(samples, maxColors) {
+  if (samples.length === 0) return [[0, 0, 0]];
+  let buckets = [samples];
+  while (buckets.length < maxColors) {
+    let bi = -1, brange = -1, baxis = 0;
+    for (let i = 0; i < buckets.length; i++) {
+      const bucket = buckets[i];
+      if (bucket.length < 2) continue;
+      const mn = [255, 255, 255], mx = [0, 0, 0];
+      for (const pt of bucket) for (let a = 0; a < 3; a++) { if (pt[a] < mn[a]) mn[a] = pt[a]; if (pt[a] > mx[a]) mx[a] = pt[a]; }
+      for (let a = 0; a < 3; a++) { const r = mx[a] - mn[a]; if (r > brange) { brange = r; bi = i; baxis = a; } }
+    }
+    if (bi === -1 || brange === 0) break;
+    const bucket = buckets[bi];
+    bucket.sort((x, y) => x[baxis] - y[baxis]);
+    const mid = bucket.length >> 1;
+    buckets[bi] = bucket.slice(0, mid);
+    buckets.push(bucket.slice(mid));
+  }
+  return buckets.filter(bk => bk.length).map(bk => {
+    let r = 0, g = 0, bl = 0;
+    for (const pt of bk) { r += pt[0]; g += pt[1]; bl += pt[2]; }
+    const n = bk.length;
+    return [Math.round(r / n), Math.round(g / n), Math.round(bl / n)];
+  });
+}
+
+function encodeGif(opts) {
+  const width = opts.width, height = opts.height, frames = opts.frames, loop = opts.loop || 0;
+  const samples = [];
+  let total = 0;
+  for (const f of frames) total += f.width * f.height;
+  const stride = Math.max(1, Math.floor(total / 24000));
+  let counter = 0;
+  for (const f of frames) {
+    const d = f.data;
+    for (let i = 0; i < d.length; i += 4) { if ((counter++ % stride) === 0) samples.push([d[i], d[i + 1], d[i + 2]]); }
+  }
+  let colors = gifQuantize(samples, 256);
+  if (colors.length < 2) colors = [[0, 0, 0], [255, 255, 255]];
+  const nearest = (r, g, bl) => {
+    let best = 0, bd = Infinity;
+    for (let i = 0; i < colors.length; i++) {
+      const dr = r - colors[i][0], dg = g - colors[i][1], db = bl - colors[i][2];
+      const dd = dr * dr + dg * dg + db * db;
+      if (dd < bd) { bd = dd; best = i; }
+    }
+    return best;
+  };
+  let bits = 1;
+  while ((1 << bits) < colors.length) bits++;
+  const ctEntries = 1 << bits;
+  const out = [];
+  const push = (...xs) => { for (const x of xs) out.push(x & 0xff); };
+  const u16 = v => push(v, v >> 8);
+  push(0x47, 0x49, 0x46, 0x38, 0x39, 0x61);
+  u16(width); u16(height);
+  push(0xf0 | (bits - 1)); push(0); push(0);
+  for (let i = 0; i < ctEntries; i++) {
+    const c = colors[i] || [0, 0, 0];
+    push(c[0], c[1], c[2]);
+  }
+  push(0x21, 0xff, 0x0b);
+  for (const ch of "NETSCAPE2.0") push(ch.charCodeAt(0));
+  push(0x03, 0x01); u16(loop); push(0);
+  const minCode = Math.max(2, bits);
+  for (const f of frames) {
+    const cs = Math.round((f.delayMs || 100) / 10);
+    push(0x21, 0xf9, 0x04, 0x00); u16(cs); push(0x00, 0x00);
+    push(0x2c); u16(0); u16(0); u16(width); u16(height); push(0x00);
+    push(minCode);
+    const idx = new Uint8Array(f.width * f.height);
+    for (let i = 0; i < idx.length; i++) idx[i] = nearest(f.data[i * 4], f.data[i * 4 + 1], f.data[i * 4 + 2]);
+    const data = lzwEncode(idx, minCode);
+    for (let i = 0; i < data.length; i += 255) {
+      const end = Math.min(i + 255, data.length);
+      push(end - i);
+      for (let j = i; j < end; j++) push(data[j]);
+    }
+    push(0x00);
+  }
+  push(0x3b);
+  return Uint8Array.from(out);
+}
+
+// -----------------------------------------------------------------------------
+// Animation safety (WCAG 2.3.1 flash analysis + frame-delay floor)
+// -----------------------------------------------------------------------------
+function frameLuma(frame) {
+  const d = frame.data;
+  const lin = c => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  let sum = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    sum += 0.2126 * lin(d[i] / 255) + 0.7152 * lin(d[i + 1] / 255) + 0.0722 * lin(d[i + 2] / 255);
+  }
+  return sum / (d.length / 4);
+}
+
+function analyzeFlash(frames, fps) {
+  if (frames.length < 2) return { maxFlashesPerSec: 0 };
+  const lumas = frames.map(frameLuma);
+  const n = lumas.length;
+  const transitions = [];
+  for (let i = 0; i < n; i++) {
+    const a = lumas[i], b = lumas[(i + 1) % n];
+    if (Math.abs(a - b) >= 0.1 && Math.max(a, b) >= 0.8) transitions.push(i);
+  }
+  const windowFrames = Math.max(1, Math.round(fps));
+  let worst = 0;
+  for (let i = 0; i < n; i++) {
+    let count = 0;
+    for (const t of transitions) { if (((t - i + n) % n) < windowFrames) count++; }
+    if (count > worst) worst = count;
+  }
+  return { maxFlashesPerSec: worst };
+}
+
+function clampDelays(frames, floorMs) {
+  return frames.map(f => f.delayMs < floorMs ? Object.assign({}, f, { delayMs: floorMs }) : f);
+}
+
+// -----------------------------------------------------------------------------
+// Animation (GIF) pipeline — frame loop over the active render mode
+// -----------------------------------------------------------------------------
+const ANIM = {
+  MAX_DIM: 640,
+  MAX_FRAMES: 300,
+  MAX_VIDEO_SECONDS: 10,
+  DELAY_FLOOR_SAFE_MS: 167,
+  MODES: ["pixel", "brite", "ascii", "emoji", "hatch", "rough"],
+};
+let animState = { abort: false, lastGif: null, notice: "" };
+
+function animationFrameBudget() {
+  const fps = parseInt($("animation-fps").value, 10) || 12;
+  const seconds = parseInt($("clip-seconds").value, 10) || 6;
+  return Math.max(1, Math.min(ANIM.MAX_FRAMES, Math.ceil(fps * seconds)));
+}
+
+function frameToScaledImageData(frame, maxDim) {
+  const scale = Math.min(1, maxDim / Math.max(frame.width, frame.height));
+  const w = Math.max(1, Math.round(frame.width * scale));
+  const h = Math.max(1, Math.round(frame.height * scale));
+  const src = document.createElement("canvas");
+  src.width = frame.width; src.height = frame.height;
+  src.getContext("2d").putImageData(new ImageData(frame.data, frame.width, frame.height), 0, 0);
+  if (w === frame.width && h === frame.height) return src.getContext("2d").getImageData(0, 0, w, h);
+  const dst = document.createElement("canvas");
+  dst.width = w; dst.height = h;
+  const dctx = dst.getContext("2d");
+  dctx.imageSmoothingEnabled = true;
+  dctx.drawImage(src, 0, 0, w, h);
+  return dctx.getImageData(0, 0, w, h);
+}
+
+async function framesFromGif(file) {
+  showLoading(true, "Loading GIF data…", 5);
+  await nextFrame();
+  const buf = await file.arrayBuffer();
+  showLoading(true, "Decoding GIF frames…", 15);
+  await nextFrame();
+  const gif = decodeGif(buf, {
+    maxFrames: animationFrameBudget(),
+    maxDimension: ANIM.MAX_DIM,
+    maxDecodedBytes: 256 * 1_024 * 1_024,
+  });
+  if (!gif.frames.length) throw new Error("No frames found in that GIF");
+  const limitMs = parseInt($("clip-seconds").value, 10) * 1000;
+  let elapsed = 0;
+  const limited = [];
+  for (const frame of gif.frames) {
+    if (limited.length && elapsed >= limitMs) break;
+    limited.push(frame);
+    elapsed += Math.max(1, frame.delayMs || 100);
+  }
+  const wasTrimmed = limited.length < gif.frames.length;
+  if (gif.truncated || wasTrimmed) Object.defineProperty(limited, "truncated", { value: true });
+  return {
+    width: limited[0].width,
+    height: limited[0].height,
+    frames: limited,
+    truncated: gif.truncated || wasTrimmed,
+  };
+}
+
+function waitForMedia(target, event, errorEvent) {
+  return new Promise((resolve, reject) => {
+    const clean = () => {
+      target.removeEventListener(event, ok);
+      target.removeEventListener(errorEvent || "error", fail);
+    };
+    const ok = () => { clean(); resolve(); };
+    const fail = () => { clean(); reject(new Error("This browser could not decode that video")); };
+    target.addEventListener(event, ok, { once: true });
+    target.addEventListener(errorEvent || "error", fail, { once: true });
+  });
+}
+
+async function seekVideo(video, time) {
+  if (Math.abs(video.currentTime - time) < 0.001 && video.readyState >= 2) return;
+  const ready = waitForMedia(video, "seeked");
+  video.currentTime = time;
+  await ready;
+}
+
+async function openVideoFile(file) {
+  const url = URL.createObjectURL(file);
+  const video = document.createElement("video");
+  video.preload = "auto";
+  video.muted = true;
+  video.playsInline = true;
+  video.src = url;
+  try {
+    if (video.readyState < 1) await waitForMedia(video, "loadedmetadata");
+    if (video.readyState < 2) await waitForMedia(video, "loadeddata");
+    if (!Number.isFinite(video.duration) || video.duration <= 0 || !video.videoWidth || !video.videoHeight) {
+      throw new Error("The video has no readable duration or picture track");
+    }
+    return { video, url };
+  } catch (err) {
+    URL.revokeObjectURL(url);
+    throw err;
+  }
+}
+
+function videoFrameCanvas(video, maxDim) {
+  const scale = Math.min(1, maxDim / Math.max(video.videoWidth, video.videoHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+  canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+  canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+  return canvas;
+}
+
+async function previewFromVideo(file) {
+  const opened = await openVideoFile(file);
+  try {
+    await seekVideo(opened.video, Math.min(0.05, opened.video.duration / 2));
+    return videoFrameCanvas(opened.video, parseInt($("max-dim").value, 10));
+  } finally {
+    URL.revokeObjectURL(opened.url);
+  }
+}
+
+async function framesFromVideo(file) {
+  const opened = await openVideoFile(file);
+  try {
+    const fps = parseInt($("animation-fps").value, 10);
+    const requested = Math.min(parseInt($("clip-seconds").value, 10), ANIM.MAX_VIDEO_SECONDS);
+    const duration = Math.min(opened.video.duration, requested);
+    const count = Math.max(1, Math.min(animationFrameBudget(), Math.ceil(duration * fps)));
+    const delayMs = Math.round(1000 * duration / count);
+    const frames = [];
+    for (let i = 0; i < count; i++) {
+      if (animState.abort) throw new Error("aborted");
+      const time = Math.min(opened.video.duration - 0.001, i * duration / count);
+      await seekVideo(opened.video, Math.max(0, time));
+      const canvas = videoFrameCanvas(opened.video, ANIM.MAX_DIM);
+      const image = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height);
+      frames.push({ data: image.data, width: image.width, height: image.height, delayMs });
+      showLoading(true, `Reading video frame ${i + 1}/${count}…`, Math.round(35 * (i + 1) / count));
+      await nextFrame();
+    }
+    return { width: frames[0].width, height: frames[0].height, frames, truncated: duration < opened.video.duration };
+  } finally {
+    URL.revokeObjectURL(opened.url);
+  }
+}
+
+function subsampleFrames(frames, cap) {
+  if (frames.length <= cap) return {
+    frames,
+    notice: frames.truncated ? `Source limited to ${frames.length} decoded frames by memory or frame budget` : "",
+  };
+  const out = [];
+  const step = frames.length / cap;
+  for (let i = 0; i < cap; i++) out.push(frames[Math.floor(i * step)]);
+  return { frames: out, notice: `Trimmed ${frames.length}→${cap} frames to fit memory` };
+}
+
+function normalizeFrameSize(frames, w0, h0) {
+  return frames.map(fr => {
+    if (fr.width === w0 && fr.height === h0) return fr;
+    const tmp = document.createElement("canvas");
+    tmp.width = fr.width; tmp.height = fr.height;
+    tmp.getContext("2d").putImageData(new ImageData(fr.data, fr.width, fr.height), 0, 0);
+    const c = document.createElement("canvas");
+    c.width = w0; c.height = h0;
+    const cx = c.getContext("2d");
+    cx.drawImage(tmp, 0, 0, w0, h0);
+    return { data: cx.getImageData(0, 0, w0, h0).data, width: w0, height: h0, delayMs: fr.delayMs };
+  });
+}
+
+async function runAnimatedPipeline(source, options) {
+  options = options || {};
+  const mode = state.mode;
+  if (!ANIM.MODES.includes(mode)) throw new Error("Animation is not available for " + mode + " mode");
+  const sub = subsampleFrames(source.frames, animationFrameBudget());
+  animState.notice = sub.notice;
+  const captured = [];
+  state.briteAnimating = true;
+  try {
+    for (let i = 0; i < sub.frames.length; i++) {
+      if (animState.abort || (options.signal && options.signal.aborted)) throw new Error("aborted");
+      const f = sub.frames[i];
+      const imgData = frameToScaledImageData(f, ANIM.MAX_DIM);
+      state.imageData = imgData;
+      state.width = imgData.width;
+      state.height = imgData.height;
+      await runMode(mode);
+      const cv = $("canvas-area").querySelector("canvas");
+      const shot = cv.getContext("2d").getImageData(0, 0, cv.width, cv.height);
+      captured.push({ data: shot.data, width: cv.width, height: cv.height, delayMs: f.delayMs || Math.round(1000 / (options.fps || 12)) });
+      f.data = null;
+      showLoading(true, `Jankifying frame ${i + 1}/${sub.frames.length}…`, Math.round(38 + 50 * (i + 1) / sub.frames.length));
+      await nextFrame();
+    }
+  } finally {
+    state.briteAnimating = false;
+  }
+  const w0 = captured[0].width, h0 = captured[0].height;
+  const norm = normalizeFrameSize(captured, w0, h0);
+  let floor = options.floorMs ?? ANIM.DELAY_FLOOR_SAFE_MS;
+  let out = clampDelays(norm, floor);
+  let guard = 0;
+  let effectiveDelay = Math.max(1, Math.min(...out.map(frame => frame.delayMs || 1)));
+  while (analyzeFlash(out, 1000 / effectiveDelay).maxFlashesPerSec > 3 && guard < 6) {
+    floor = Math.round(Math.max(floor, effectiveDelay) * 1.5);
+    out = clampDelays(norm, floor);
+    effectiveDelay = Math.max(1, Math.min(...out.map(frame => frame.delayMs || 1)));
+    guard++;
+  }
+  let gifBytes = null;
+  if (options.encodeGif !== false) {
+    showLoading(true, `Encoding ${out.length} GIF frames…`, 92);
+    await nextFrame();
+    gifBytes = encodeGif({ width: w0, height: h0, frames: out, loop: 0 });
+  }
+  animState.lastGif = gifBytes;
+  state.lastAnimationFrames = out;
+  return { gifBytes, frames: out, frameCount: out.length, width: w0, height: h0, delayMs: out[0].delayMs, notice: animState.notice };
+}
+
+// -----------------------------------------------------------------------------
+// Pipeline
+// -----------------------------------------------------------------------------
+async function runMode(mode) {
+  if (mode === "polygon") await pipelinePolygon();
+  else if (mode === "voronoi") await pipelineVoronoi();
+  else if (mode === "emoji") await pipelineEmoji();
+  else if (mode === "ascii") await pipelineAscii();
+  else if (mode === "pixel") await pipelinePixel();
+  else if (mode === "brite") await pipelineBrite();
+  else if (mode === "hatch") await pipelineHatch();
+  else if (mode === "rough") await pipelineRough();
+}
+
+async function runPipeline() {
+  if (!sourceImage) return;
+  if (state.renderPending) return;
+  state.renderPending = true;
+  try {
+    showLoading(true, "Preparing image…", 0);
+    await nextFrame();
+    const maxDim = parseInt($("max-dim").value, 10);
+    state.imageData = imageToImageData(sourceImage, maxDim);
+    state.width = state.imageData.width;
+    state.height = state.imageData.height;
+    await runMode(state.mode);
+    updateStatus();
+    enableExports(true);
+  } catch (err) {
+    console.error(err);
+    alert("Pipeline failed: " + err.message);
+  } finally {
+    showLoading(false);
+    state.renderPending = false;
+  }
+}
+
+async function pipelinePolygon() {
+  showLoading(true, "Detecting edges…", 15); await nextFrame();
+  state.edgeMap = sobel(state.imageData);
+  showLoading(true, "Placing points…", 35); await nextFrame();
+  const cellSize = parseInt($("cell-size").value, 10);
+  const edgeRatio = parseInt($("edge-sensitivity").value, 10) / 100;
+  const rng = makeRng(state.seed);
+  const gen = generatePoints(state.width, state.height, cellSize, state.edgeMap, edgeRatio, rng, false);
+  state.points = gen.pts;
+  showLoading(true, `Triangulating ${state.points.length.toLocaleString()} points…`, 55); await nextFrame();
+  state.triangles = delaunay(state.points);
+  showLoading(true, `Sampling ${state.triangles.length.toLocaleString()} triangles…`, 80); await nextFrame();
+  const mode = document.querySelector('input[name="color-mode"]:checked').value;
+  const sampler = mode === "average" ? sampleAverage : sampleCentroid;
+  const colors = new Array(state.triangles.length);
+  const data = state.imageData.data;
+  for (let i = 0; i < state.triangles.length; i++) {
+    const [a,b,c] = state.triangles[i];
+    colors[i] = sampler(state.points[a], state.points[b], state.points[c], data, state.width, state.height);
+  }
+  state.triColors = colors;
+  showLoading(true, "Rendering…", 95); await nextFrame();
+  const canvas = ensureCanvas(state.width, state.height);
+  renderPolygon(canvas, state.triangles, state.points, state.triColors, { stroke: getStrokeOpts() });
+}
+
+async function pipelineVoronoi() {
+  showLoading(true, "Detecting edges…", 12); await nextFrame();
+  state.edgeMap = sobel(state.imageData);
+  showLoading(true, "Placing points…", 28); await nextFrame();
+  const cellSize = parseInt($("cell-size").value, 10);
+  const edgeRatio = parseInt($("edge-sensitivity").value, 10) / 100;
+  const rng = makeRng(state.seed);
+  const gen = generatePoints(state.width, state.height, cellSize, state.edgeMap, edgeRatio, rng, true);
+  state.points = gen.pts;
+  showLoading(true, `Triangulating ${state.points.length.toLocaleString()} points…`, 50); await nextFrame();
+  state.triangles = delaunay(state.points);
+  showLoading(true, "Computing cells…", 72); await nextFrame();
+  const cells = voronoiCells(state.points, state.triangles, state.width, state.height, gen.realCount);
+  showLoading(true, `Sampling ${cells.length.toLocaleString()} cells…`, 88); await nextFrame();
+  const cmode = document.querySelector('input[name="color-mode"]:checked').value;
+  const data = state.imageData.data;
+  for (const cell of cells) {
+    const seed = state.points[cell.idx];
+    if (cmode === "centroid") {
+      const cx = Math.max(0, Math.min(state.width-1, Math.round(seed[0])));
+      const cy = Math.max(0, Math.min(state.height-1, Math.round(seed[1])));
+      const idx = (cy*state.width + cx) * 4;
+      cell.color = [data[idx], data[idx+1], data[idx+2]];
+    } else {
+      cell.color = averagePolygonColor(cell.polygon, data, state.width, state.height);
+    }
+  }
+  state.voronoi = cells;
+  showLoading(true, "Rendering…", 96); await nextFrame();
+  const canvas = ensureCanvas(state.width, state.height);
+  renderVoronoi(canvas, cells, { stroke: getStrokeOpts() });
+}
+
+async function pipelineEmoji() {
+  showLoading(true, "Building emoji palette…", 8); await nextFrame();
+  const palette = buildEmojiPalette();
+  if (palette.length === 0) throw new Error("Emoji font produced no usable glyphs.");
+  const allowEmpty = parseInt($("emoji-empty").value, 10) / 100;
+  const filtered = palette.filter(e => e.emptyRatio < allowEmpty);
+  if (filtered.length === 0) throw new Error("No emojis match the empty-space filter.");
+  showLoading(true, "Sampling source…", 35); await nextFrame();
+  const win = parseInt($("emoji-window").value, 10);
+  const scale = parseInt($("emoji-scale").value, 10);
+  const tolerance = parseInt($("emoji-tolerance").value, 10);
+  const hideBlack = $("emoji-hide-black").checked;
+  const data = state.imageData.data;
+  const W = state.width, H = state.height;
+  const cols = Math.max(1, Math.floor(W / win));
+  const rows = Math.max(1, Math.floor(H / win));
+  const candidateCache = new Map();
+  const rng = makeRng(state.seed);
+  const grid = [];
+  for (let r = 0; r < rows; r++) {
+    for (let cIdx = 0; cIdx < cols; cIdx++) {
+      const x0 = cIdx * win, y0 = r * win;
+      const [rr, gg, bb] = avgRgbRect(data, W, x0, y0, x0 + win, y0 + win);
+      const isBlack = rr < 4 && gg < 4 && bb < 4;
+      const lab = rgbToLab(rr, gg, bb);
+      const key = `${Math.round(lab[0]/6)},${Math.round(lab[1]/6)},${Math.round(lab[2]/6)}`;
+      let cands = candidateCache.get(key);
+      if (!cands) {
+        let bound = 0;
+        while (true) {
+          bound += tolerance;
+          cands = filtered.filter(e => deltaE94(e.lab, lab) < bound);
+          if (cands.length > 0 || bound > 200) break;
+        }
+        candidateCache.set(key, cands);
+      }
+      const pick = cands[Math.floor(rng() * cands.length)];
+      grid.push({
+        x: cIdx * scale, y: r * scale,
+        key: pick ? pick.key : "·",
+        color: [rr, gg, bb],
+        isBlack,
+        skip: hideBlack && isBlack,
+      });
+    }
+    if (r % 8 === 0) {
+      showLoading(true, `Matching row ${r+1}/${rows}…`, 35 + 55*(r/rows));
+      await nextFrame();
+    }
+  }
+  state.emojiGrid = grid;
+  state.emojiFontPx = scale;
+  showLoading(true, "Rendering…", 94); await nextFrame();
+  const outW = cols * scale, outH = rows * scale;
+  const canvas = ensureCanvas(outW, outH);
+  const font = `${Math.round(scale * 1.05)}px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji","Segoe UI Symbol",sans-serif`;
+  const bg = $("bg-enabled").checked ? $("bg-color").value : null;
+  renderEmoji(canvas, grid, scale, font, bg);
+}
+
+async function pipelineAscii() {
+  showLoading(true, "Sampling brightness…", 20); await nextFrame();
+  const cell = parseInt($("ascii-cell").value, 10);
+  const useColor = document.querySelector('input[name="ascii-color"]:checked').value === "source";
+  const custom = $("ascii-ramp-custom").value;
+  const ramp = custom.length > 0 ? custom : $("ascii-ramp").value;
+  const fg = $("ascii-fg").value;
+  const bg = $("bg-enabled").checked ? $("bg-color").value : null;
+  const data = state.imageData.data;
+  const W = state.width, H = state.height;
+  const cols = Math.max(1, Math.floor(W / cell));
+  const rows = Math.max(1, Math.floor(H / cell));
+  const grid = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const x0 = c*cell, y0 = r*cell;
+      const bright = avgBrightRect(data, W, x0, y0, x0+cell, y0+cell);
+      const idx = Math.min(ramp.length - 1, Math.floor((bright/255) * ramp.length));
+      const ch = ramp[idx];
+      let color = [255, 255, 255];
+      if (useColor) color = avgRgbRect(data, W, x0, y0, x0+cell, y0+cell);
+      grid.push({ x: c*cell, y: r*cell, char: ch, color, col: c, row: r });
+    }
+    if (r % 16 === 0) {
+      showLoading(true, `Sampling row ${r+1}/${rows}…`, 20 + 60*(r/rows));
+      await nextFrame();
+    }
+  }
+  state.asciiGrid = grid;
+  state.asciiFontPx = cell;
+  state.asciiCols = cols;
+  state.asciiRows = rows;
+  showLoading(true, "Rendering…", 92); await nextFrame();
+  const canvas = ensureCanvas(cols*cell, rows*cell);
+  renderAscii(canvas, grid, cell, fg, bg, useColor);
+}
+
+async function pipelinePixel() {
+  showLoading(true, "Downsampling…", 25); await nextFrame();
+  const gridSize = parseInt($("pixel-grid").value, 10);
+  const displayPx = parseInt($("pixel-display").value, 10);
+  const quantize = parseInt($("pixel-quantize").value, 10);
+  const skipAlpha = $("pixel-skip-alpha").checked;
+  const gridLines = $("pixel-grid-lines").checked;
+  const bg = $("bg-enabled").checked ? $("bg-color").value : null;
+
+  const aspect = state.width / state.height;
+  let cols, rows;
+  if (aspect >= 1) { cols = gridSize; rows = Math.max(1, Math.round(gridSize / aspect)); }
+  else             { rows = gridSize; cols = Math.max(1, Math.round(gridSize * aspect)); }
+
+  const data = state.imageData.data;
+  const W = state.width, H = state.height;
+  const cellW = W / cols, cellH = H / rows;
+  const grid = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const x0 = Math.floor(c * cellW);
+      const y0 = Math.floor(r * cellH);
+      const x1 = Math.min(W, Math.floor((c+1) * cellW));
+      const y1 = Math.min(H, Math.floor((r+1) * cellH));
+      const [rr, gg, bb, aa] = avgRgbaRect(data, W, x0, y0, x1, y1);
+      grid.push({ col: c, row: r, rgb: [rr, gg, bb], alpha: aa });
+    }
+  }
+
+  let paletteCount = grid.length;
+  if (quantize > 0) {
+    showLoading(true, `Quantizing to ${quantize} colors…`, 70); await nextFrame();
+    paletteCount = medianCutPalette(grid, quantize);
+  }
+
+  state.pixelGrid = grid;
+  state.pixelCols = cols;
+  state.pixelRows = rows;
+  state.pixelDisplay = displayPx;
+  state.pixelPaletteCount = paletteCount;
+
+  showLoading(true, "Rendering…", 92); await nextFrame();
+  const canvas = ensureCanvas(cols * displayPx, rows * displayPx);
+  renderPixel(canvas, grid, displayPx, bg, gridLines, skipAlpha);
+}
+
+async function pipelineBrite() {
+  showLoading(true, "Laying out pegboard…", 20); await nextFrame();
+  const classic = $("brite-classic").checked;
+  const glowPct = parseInt($("brite-glow").value, 10);
+  const W = state.width, H = state.height;
+
+  let pegSize, pitch, cols, rows, outW, outH;
+  let srcX0 = 0, srcY0 = 0, srcW = W, srcH = H;
+
+  if (classic) {
+    pegSize = 14;
+    pitch = 22;
+    const isPortrait = H > W;
+    outW = isPortrait ? 720 : 960;
+    outH = isPortrait ? 960 : 720;
+    const rs = pitch * Math.sqrt(3) / 2;
+    cols = Math.max(1, Math.floor((outW - pegSize) / pitch));
+    rows = Math.max(1, Math.floor((outH - pegSize) / rs));
+    const outAspect = outW / outH;
+    const inAspect = W / H;
+    if (inAspect > outAspect) {
+      srcW = Math.round(H * outAspect);
+      srcX0 = Math.round((W - srcW) / 2);
+    } else {
+      srcH = Math.round(W / outAspect);
+      srcY0 = Math.round((H - srcH) / 2);
+    }
+  } else {
+    pegSize = parseInt($("brite-peg").value, 10);
+    const pitchPct = parseInt($("brite-pitch").value, 10);
+    pitch = pegSize * (pitchPct / 100);
+    cols = Math.max(1, Math.floor((W - pegSize) / pitch));
+    rows = Math.max(1, Math.floor((H - pegSize) / (pitch * Math.sqrt(3) / 2)));
+    outW = W;
+    outH = H;
+  }
+
+  const rowStep = pitch * Math.sqrt(3) / 2;
+  const scaleX = srcW / outW, scaleY = srcH / outH;
+  const data = state.imageData.data;
+  const sampleHalfX = Math.max(1, Math.round((pegSize / 2) * scaleX));
+  const sampleHalfY = Math.max(1, Math.round((pegSize / 2) * scaleY));
+  const cells = [];
+
+  showLoading(true, `Sampling ${(cols * rows).toLocaleString()} cells…`, 50); await nextFrame();
+  for (let r = 0; r < rows; r++) {
+    const offset = (r & 1) ? pitch / 2 : 0;
+    const cy = Math.round(pegSize / 2 + r * rowStep);
+    for (let c = 0; c < cols; c++) {
+      const cx = Math.round(pegSize / 2 + c * pitch + offset);
+      if (cx >= outW - 1 || cy >= outH - 1) continue;
+      const ix = srcX0 + cx * scaleX;
+      const iy = srcY0 + cy * scaleY;
+      const x0 = Math.max(0, Math.round(ix - sampleHalfX));
+      const y0 = Math.max(0, Math.round(iy - sampleHalfY));
+      const x1 = Math.min(W, Math.round(ix + sampleHalfX));
+      const y1 = Math.min(H, Math.round(iy + sampleHalfY));
+      const [rr, gg, bb, aa] = avgRgbaRect(data, W, x0, y0, x1, y1);
+      const idx = nearestBritePeg(rr, gg, bb, aa);
+      if (idx < 0) continue;
+      cells.push({ cx, cy, paletteIdx: idx });
+    }
+    if (r % 16 === 0) {
+      showLoading(true, `Sampling row ${r + 1}/${rows}…`, 50 + 40 * (r / rows));
+      await nextFrame();
+    }
+  }
+
+  state.briteGrid = { cols, rows, pegSize, pitch, cells };
+  showLoading(true, "Lighting the bulb…", 94); await nextFrame();
+  const canvas = ensureCanvas(outW, outH);
+  renderBrite(canvas, state.briteGrid, glowPct);
+}
+
+async function pipelineHatch() {
+  showLoading(true, "Reading tones…", 25); await nextFrame();
+  const dark = lumaDarknessBuffer(state.imageData);
+  const p = getHatchParams();
+  showLoading(true, "Drawing strokes…", 60); await nextFrame();
+  const rng = makeRng(state.seed);
+  const segs = computeHatch(dark, state.width, state.height, p, rng);
+  state.hatchSegments = segs;
+  state.hatchParams = p;
+  showLoading(true, "Rendering…", 92); await nextFrame();
+  const canvas = ensureCanvas(state.width, state.height);
+  renderHatch(canvas, segs, p, state.imageData);
+}
+
+async function pipelineRough() {
+  showLoading(true, "Sampling cells…", 30); await nextFrame();
+  const p = getRoughParams();
+  const W = state.width, H = state.height;
+  const cell = Math.max(1, p.cell);
+  const cols = Math.max(1, Math.floor(W / cell));
+  const rows = Math.max(1, Math.floor(H / cell));
+  const cellW = W / cols, cellH = H / rows;
+  const data = state.imageData.data;
+  const cells = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const x0 = Math.floor(c * cellW), y0 = Math.floor(r * cellH);
+      const x1 = Math.min(W, Math.floor((c + 1) * cellW));
+      const y1 = Math.min(H, Math.floor((r + 1) * cellH));
+      const [rr, gg, bb, aa] = avgRgbaRect(data, W, x0, y0, x1, y1);
+      cells.push({ x: c * cellW, y: r * cellH, w: cellW, h: cellH, rgb: [rr, gg, bb], alpha: aa });
+    }
+  }
+  state.roughGrid = cells;
+  state.roughMeta = { W, H, cols, rows };
+  showLoading(true, "Sketching…", 70); await nextFrame();
+  const canvas = ensureCanvas(W, H);
+  renderRough(canvas, cells, p);
+}
+
+// -----------------------------------------------------------------------------
+// Helpers
+// -----------------------------------------------------------------------------
+function ensureCanvas(w, h) {
+  const area = $("canvas-area");
+  let canvas = area.querySelector("canvas");
+  if (!canvas) {
+    canvas = document.createElement("canvas");
+    area.appendChild(canvas);
+    const ph = $("placeholder");
+    if (ph) ph.remove();
+    const btn = $("upload-btn");
+    if (btn) {
+      btn.classList.remove("hide-mobile-empty");
+      const lbl = $("upload-btn-label");
+      if (lbl) lbl.textContent = "Change";
+    }
+  }
+  canvas.width = w;
+  canvas.height = h;
+  return canvas;
+}
+function getStrokeOpts() {
+  if (!$("show-stroke").checked) return null;
+  return {
+    color: $("stroke-color").value,
+    opacity: parseInt($("stroke-opacity").value, 10) / 100,
+    width: 0.5,
+  };
+}
+function updateStatus() {
+  let msg = `${state.width}×${state.height}px  ·  mode ${state.mode}`;
+  if (state.mode === "polygon") {
+    msg += `  ·  ${state.points.length.toLocaleString()} pts  ·  ${state.triangles.length.toLocaleString()} tris`;
+  } else if (state.mode === "voronoi") {
+    msg += `  ·  ${state.voronoi.length.toLocaleString()} cells`;
+  } else if (state.mode === "emoji") {
+    msg += `  ·  ${state.emojiGrid.length.toLocaleString()} cells  ·  palette ${(_emojiPaletteCache?.length || 0).toLocaleString()}`;
+  } else if (state.mode === "ascii") {
+    msg += `  ·  ${state.asciiCols}×${state.asciiRows} chars`;
+  } else if (state.mode === "pixel") {
+    msg += `  ·  ${state.pixelCols}×${state.pixelRows}  ·  ${state.pixelPaletteCount.toLocaleString()} colors`;
+    msg += `  ·  format ${$("pixel-format").value}`;
+  } else if (state.mode === "brite") {
+    const bg = state.briteGrid;
+    msg += `  ·  ${bg.cols}×${bg.rows} grid  ·  ${bg.cells.length.toLocaleString()} pegs  ·  8 colors`;
+  } else if (state.mode === "hatch") {
+    msg += `  ·  ${state.hatchSegments.length.toLocaleString()} strokes  ·  ${state.hatchParams.levels} layers`;
+  } else if (state.mode === "rough") {
+    const m = state.roughMeta;
+    msg += `  ·  ${m.cols}×${m.rows}  ·  ${state.roughGrid.length.toLocaleString()} shapes`;
+  }
+  msg += `  ·  seed ${state.seed}`;
+  if (state.sourceAnimation) {
+    const kind = state.sourceAnimation.kind === "video" ? "Video" : "GIF";
+    msg += ANIM.MODES.includes(state.mode)
+      ? `  ·  ${kind} source — export GIF, sheet, or video`
+      : `  ·  ${kind} source — switch mode to animate`;
+  }
+  $("status").textContent = msg;
+}
+let loadingStartedAt = 0;
+let loadingClock = null;
+let loadingProgress = 0;
+function updateLoadingDetail() {
+  const elapsed = loadingStartedAt ? Math.max(0, Math.floor((performance.now() - loadingStartedAt) / 1000)) : 0;
+  $("loading-detail").textContent = `${Math.round(loadingProgress)}% · ${elapsed}s`;
+}
+function showLoading(active, label, progress) {
+  const el = $("loading");
+  const wasActive = el.classList.contains("active");
+  el.classList.toggle("active", !!active);
+  $("canvas-area").setAttribute("aria-busy", active ? "true" : "false");
+  if (active && !wasActive) {
+    loadingStartedAt = performance.now();
+    clearInterval(loadingClock);
+    loadingClock = setInterval(updateLoadingDetail, 500);
+  } else if (!active) {
+    clearInterval(loadingClock);
+    loadingClock = null;
+    loadingStartedAt = 0;
+  }
+  if (label != null) $("loading-label").textContent = label;
+  if (progress != null) {
+    loadingProgress = Math.max(0, Math.min(100, progress));
+    $("progress-fill").style.width = loadingProgress + "%";
+  }
+  updateLoadingDetail();
+}
+function nextFrame() { return new Promise(r => requestAnimationFrame(() => r())); }
+
+function enableExports(yes) {
+  $("download-png").disabled = !yes;
+  $("download-vector").disabled = !yes;
+  $("copy-output").disabled = !yes;
+  $("reseed-btn").disabled = !yes;
+  $("random-btn").disabled = !yes;
+}
+function updateModeVisibility() {
+  document.querySelectorAll(".mode-section").forEach(section => {
+    const modes = section.dataset.modes.split(/\s+/);
+    section.hidden = !modes.includes(state.mode);
+  });
+  const labelMap = { polygon: "SVG", voronoi: "SVG", emoji: "SVG", ascii: "TXT", pixel: "File", hatch: "SVG", rough: "SVG" };
+  $("download-vector-label").textContent = labelMap[state.mode] || "File";
+  $("download-vector").hidden = state.mode === "brite";
+  $("copy-output").hidden = !(state.mode === "ascii" || state.mode === "pixel" || state.mode === "emoji");
+  updateAnimAvailability();
+}
+
+// -----------------------------------------------------------------------------
+// Output format generators
+// -----------------------------------------------------------------------------
+function rgbToHex(r, g, b) {
+  r = Math.max(0, Math.min(255, Math.round(r)));
+  g = Math.max(0, Math.min(255, Math.round(g)));
+  b = Math.max(0, Math.min(255, Math.round(b)));
+  const hex = ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+  if (hex[0] === hex[1] && hex[2] === hex[3] && hex[4] === hex[5]) {
+    return "#" + hex[0] + hex[2] + hex[4];
+  }
+  return "#" + hex;
+}
+
+function svgPolygon() {
+  const out = [
+    `<?xml version="1.0" encoding="UTF-8"?>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${state.width} ${state.height}" width="${state.width}" height="${state.height}" shape-rendering="geometricPrecision">`,
+    `<rect width="${state.width}" height="${state.height}" fill="#000"/>`,
+  ];
+  const stroke = getStrokeOpts();
+  const sA = stroke ? ` stroke="${stroke.color}" stroke-opacity="${stroke.opacity}" stroke-width="${stroke.width}" stroke-linejoin="round"` : "";
+  for (let i = 0; i < state.triangles.length; i++) {
+    const [a, b, c] = state.triangles[i];
+    const A = state.points[a], B = state.points[b], C = state.points[c];
+    const [r, g, bl] = state.triColors[i];
+    const pts = `${A[0].toFixed(1)},${A[1].toFixed(1)} ${B[0].toFixed(1)},${B[1].toFixed(1)} ${C[0].toFixed(1)},${C[1].toFixed(1)}`;
+    out.push(`<polygon points="${pts}" fill="rgb(${r|0},${g|0},${bl|0})"${sA}/>`);
+  }
+  out.push(`</svg>`);
+  return out.join("\n");
+}
+
+function svgVoronoi() {
+  const out = [
+    `<?xml version="1.0" encoding="UTF-8"?>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${state.width} ${state.height}" width="${state.width}" height="${state.height}" shape-rendering="geometricPrecision">`,
+    `<rect width="${state.width}" height="${state.height}" fill="#000"/>`,
+  ];
+  const stroke = getStrokeOpts();
+  const sA = stroke ? ` stroke="${stroke.color}" stroke-opacity="${stroke.opacity}" stroke-width="${stroke.width}" stroke-linejoin="round"` : "";
+  for (const cell of state.voronoi) {
+    const pts = cell.polygon.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
+    const [r, g, b] = cell.color;
+    out.push(`<polygon points="${pts}" fill="rgb(${r|0},${g|0},${b|0})"${sA}/>`);
+  }
+  out.push(`</svg>`);
+  return out.join("\n");
+}
+
+function svgEmoji() {
+  const scale = state.emojiFontPx;
+  let maxX = 0, maxY = 0;
+  for (const c of state.emojiGrid) {
+    if (c.x + scale > maxX) maxX = c.x + scale;
+    if (c.y + scale > maxY) maxY = c.y + scale;
+  }
+  const w = maxX, h = maxY;
+  const bg = $("bg-enabled").checked ? $("bg-color").value : "none";
+  const out = [
+    `<?xml version="1.0" encoding="UTF-8"?>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">`,
+  ];
+  if (bg !== "none") out.push(`<rect width="${w}" height="${h}" fill="${bg}"/>`);
+  out.push(`<style>text { font-family: "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji","Segoe UI Symbol",sans-serif; font-size: ${Math.round(scale * 1.05)}px; dominant-baseline: hanging; }</style>`);
+  for (const c of state.emojiGrid) {
+    if (c.skip) continue;
+    const esc = c.key.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    out.push(`<text x="${c.x}" y="${c.y}">${esc}</text>`);
+  }
+  out.push(`</svg>`);
+  return out.join("\n");
+}
+
+function svgHatch() {
+  const p = state.hatchParams;
+  const W = state.width, H = state.height;
+  const out = [
+    `<?xml version="1.0" encoding="UTF-8"?>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">`,
+    `<rect width="${W}" height="${H}" fill="${p.paper}"/>`,
+  ];
+  const line = s => `<line x1="${s[0].toFixed(1)}" y1="${s[1].toFixed(1)}" x2="${s[2].toFixed(1)}" y2="${s[3].toFixed(1)}"`;
+  if (p.inkSource && state.imageData) {
+    const data = state.imageData.data, w = W;
+    for (const s of state.hatchSegments) {
+      const mx = Math.min(W - 1, Math.max(0, ((s[0] + s[2]) / 2) | 0));
+      const my = Math.min(H - 1, Math.max(0, ((s[1] + s[3]) / 2) | 0));
+      const i = (my * w + mx) * 4;
+      out.push(`${line(s)} stroke="rgb(${data[i] | 0},${data[i + 1] | 0},${data[i + 2] | 0})" stroke-width="${p.width}" stroke-linecap="round"/>`);
+    }
+  } else {
+    out.push(`<g stroke="${p.ink}" stroke-width="${p.width}" stroke-linecap="round">`);
+    for (const s of state.hatchSegments) out.push(`${line(s)}/>`);
+    out.push(`</g>`);
+  }
+  out.push(`</svg>`);
+  return out.join("\n");
+}
+
+function svgRough() {
+  const { W, H } = state.roughMeta;
+  const p = getRoughParams();
+  const NS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("xmlns", NS);
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("width", W);
+  svg.setAttribute("height", H);
+  const bg = document.createElementNS(NS, "rect");
+  bg.setAttribute("width", W); bg.setAttribute("height", H); bg.setAttribute("fill", p.paper);
+  svg.appendChild(bg);
+  const rc = rough.svg(svg);
+  const cells = state.roughGrid;
+  for (let i = 0; i < cells.length; i++) {
+    const cell = cells[i];
+    if (cell.alpha < 16) continue;
+    const hex = rgbToHex(cell.rgb[0], cell.rgb[1], cell.rgb[2]);
+    svg.appendChild(rc.rectangle(cell.x, cell.y, cell.w, cell.h, roughCellOpts(p, hex, state.seed + i * 101)));
+  }
+  return `<?xml version="1.0" encoding="UTF-8"?>\n` + new XMLSerializer().serializeToString(svg);
+}
+
+function asciiText() {
+  const lines = [];
+  let curRow = 0, line = "";
+  for (const c of state.asciiGrid) {
+    if (c.row !== curRow) { lines.push(line); line = ""; curRow = c.row; }
+    line += c.char;
+  }
+  if (line) lines.push(line);
+  return lines.join("\n");
+}
+
+// -----------------------------------------------------------------------------
+// Pixel format generators
+// -----------------------------------------------------------------------------
+function pixelGridAs2D() {
+  const out = [];
+  for (let r = 0; r < state.pixelRows; r++) {
+    out.push(state.pixelGrid.slice(r * state.pixelCols, (r + 1) * state.pixelCols));
+  }
+  return out;
+}
+
+function formatPixelsAsCss() {
+  const skipAlpha = $("pixel-skip-alpha").checked;
+  const scale = state.pixelDisplay;
+  const cols = state.pixelCols, rows = state.pixelRows;
+  let bgColor = null;
+  const shadows = [];
+  for (const cell of state.pixelGrid) {
+    if (skipAlpha && cell.alpha < 128) continue;
+    const hex = rgbToHex(cell.rgb[0], cell.rgb[1], cell.rgb[2]);
+    if (cell.col === 0 && cell.row === 0 && bgColor === null) {
+      bgColor = hex;
+      continue;
+    }
+    const x = (cell.col * scale) + (cell.col === 0 ? "" : "px");
+    const y = (cell.row * scale) + (cell.row === 0 ? "" : "px");
+    shadows.push(`${x} ${y} ${hex}`);
+  }
+  const marginLeft = (cols - 1) * scale;
+  const marginBottom = (rows - 1) * scale;
+  return `.pixel-art {
+  display: inline-block;
+  width: ${scale}px;
+  height: ${scale}px;
+  margin: 0 ${marginLeft}px ${marginBottom}px 0;${bgColor ? `\n  background-color: ${bgColor};` : ""}
+  box-shadow:
+    ${shadows.join(",\n    ")};
+}`;
+}
+
+function formatPixelsAsSvg() {
+  const skipAlpha = $("pixel-skip-alpha").checked;
+  const cols = state.pixelCols, rows = state.pixelRows;
+  const bg = $("bg-enabled").checked ? $("bg-color").value : null;
+  const out = [
+    `<?xml version="1.0" encoding="UTF-8"?>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${cols} ${rows}" width="${cols}" height="${rows}" shape-rendering="crispEdges">`,
+  ];
+  if (bg) out.push(`<rect width="${cols}" height="${rows}" fill="${bg}"/>`);
+  const byColor = new Map();
+  for (const cell of state.pixelGrid) {
+    if (skipAlpha && cell.alpha < 128) continue;
+    const hex = rgbToHex(cell.rgb[0], cell.rgb[1], cell.rgb[2]);
+    if (!byColor.has(hex)) byColor.set(hex, []);
+    byColor.get(hex).push(`M${cell.col},${cell.row}h1v1h-1z`);
+  }
+  for (const [hex, paths] of byColor) {
+    out.push(`<path fill="${hex}" d="${paths.join("")}"/>`);
+  }
+  out.push(`</svg>`);
+  return out.join("\n");
+}
+
+function formatPixelsAsHtml() {
+  const skipAlpha = $("pixel-skip-alpha").checked;
+  const scale = state.pixelDisplay;
+  const cols = state.pixelCols, rows = state.pixelRows;
+  const lines = [`<table style="border-collapse:collapse;line-height:0">`];
+  for (let r = 0; r < rows; r++) {
+    lines.push("  <tr>");
+    for (let c = 0; c < cols; c++) {
+      const cell = state.pixelGrid[r * cols + c];
+      const hex = skipAlpha && cell.alpha < 128 ? "transparent" : rgbToHex(cell.rgb[0], cell.rgb[1], cell.rgb[2]);
+      lines.push(`    <td style="background:${hex};width:${scale}px;height:${scale}px;padding:0"></td>`);
+    }
+    lines.push("  </tr>");
+  }
+  lines.push("</table>");
+  return lines.join("\n");
+}
+
+function formatPixelsAsBlocksHtml() {
+  const skipAlpha = $("pixel-skip-alpha").checked;
+  const cols = state.pixelCols, rows = state.pixelRows;
+  const lines = [`<pre style="font-family:monospace;line-height:1;letter-spacing:0;font-size:14px;background:#000;padding:8px">`];
+  for (let r = 0; r < rows; r++) {
+    let line = "";
+    for (let c = 0; c < cols; c++) {
+      const cell = state.pixelGrid[r * cols + c];
+      if (skipAlpha && cell.alpha < 128) { line += "  "; continue; }
+      const hex = rgbToHex(cell.rgb[0], cell.rgb[1], cell.rgb[2]);
+      line += `<span style="color:${hex}">██</span>`;
+    }
+    lines.push(line);
+  }
+  lines.push("</pre>");
+  return lines.join("\n");
+}
+
+function formatPixelsAsBlocksAnsi() {
+  const skipAlpha = $("pixel-skip-alpha").checked;
+  const cols = state.pixelCols, rows = state.pixelRows;
+  const reset = "[0m";
+  const lines = [];
+  for (let r = 0; r < rows; r++) {
+    let line = "";
+    for (let c = 0; c < cols; c++) {
+      const cell = state.pixelGrid[r * cols + c];
+      if (skipAlpha && cell.alpha < 128) { line += "  "; continue; }
+      const [rr, gg, bb] = cell.rgb;
+      line += `[38;2;${rr|0};${gg|0};${bb|0}m██`;
+    }
+    line += reset;
+    lines.push(line);
+  }
+  return lines.join("\n");
+}
+
+function formatPixelsAsBlocksMono() {
+  const ramp = " ░▒▓█";
+  const skipAlpha = $("pixel-skip-alpha").checked;
+  const cols = state.pixelCols, rows = state.pixelRows;
+  const lines = [];
+  for (let r = 0; r < rows; r++) {
+    let line = "";
+    for (let c = 0; c < cols; c++) {
+      const cell = state.pixelGrid[r * cols + c];
+      if (skipAlpha && cell.alpha < 128) { line += " "; continue; }
+      const bright = 0.299*cell.rgb[0] + 0.587*cell.rgb[1] + 0.114*cell.rgb[2];
+      const idx = Math.min(ramp.length - 1, Math.floor((bright / 255) * ramp.length));
+      line += ramp[idx];
+    }
+    lines.push(line);
+  }
+  return lines.join("\n");
+}
+
+function formatPixelsAsJson() {
+  const skipAlpha = $("pixel-skip-alpha").checked;
+  const cols = state.pixelCols, rows = state.pixelRows;
+  const arr = [];
+  for (let r = 0; r < rows; r++) {
+    const row = [];
+    for (let c = 0; c < cols; c++) {
+      const cell = state.pixelGrid[r * cols + c];
+      if (skipAlpha && cell.alpha < 128) row.push(null);
+      else row.push(rgbToHex(cell.rgb[0], cell.rgb[1], cell.rgb[2]));
+    }
+    arr.push(row);
+  }
+  return JSON.stringify(arr, null, 2);
+}
+
+function formatPixelsAsText() {
+  const skipAlpha = $("pixel-skip-alpha").checked;
+  const lines = [];
+  for (const cell of state.pixelGrid) {
+    if (skipAlpha && cell.alpha < 128) continue;
+    lines.push(`${cell.col} ${cell.row} ${rgbToHex(cell.rgb[0], cell.rgb[1], cell.rgb[2])}`);
+  }
+  return lines.join("\n");
+}
+
+function getPixelOutput() {
+  const fmt = $("pixel-format").value;
+  switch (fmt) {
+    case "css":          return { text: formatPixelsAsCss(), ext: "css", mime: "text/css" };
+    case "svg":          return { text: formatPixelsAsSvg(), ext: "svg", mime: "image/svg+xml" };
+    case "html":         return { text: formatPixelsAsHtml(), ext: "html", mime: "text/html" };
+    case "blocks-html":  return { text: formatPixelsAsBlocksHtml(), ext: "html", mime: "text/html" };
+    case "blocks-ansi":  return { text: formatPixelsAsBlocksAnsi(), ext: "ans", mime: "text/plain" };
+    case "blocks-mono":  return { text: formatPixelsAsBlocksMono(), ext: "txt", mime: "text/plain" };
+    case "json":         return { text: formatPixelsAsJson(), ext: "json", mime: "application/json" };
+    case "text":         return { text: formatPixelsAsText(), ext: "txt", mime: "text/plain" };
+    default:             return { text: formatPixelsAsCss(), ext: "css", mime: "text/css" };
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Wiring
+// -----------------------------------------------------------------------------
+$("mode").addEventListener("change", e => {
+  state.mode = e.target.value;
+  updateModeVisibility();
+  updateAnimAvailability();
+  if (sourceImage) scheduleRun();
+});
+
+async function fileLooksLikeGif(file) {
+  if (!file) return false;
+  if (file.type === "image/gif" || /\.gif$/i.test(file.name || "")) return true;
+  try {
+    const head = new Uint8Array(await file.slice(0, 6).arrayBuffer());
+    return head.length >= 6
+      && head[0] === 0x47 && head[1] === 0x49 && head[2] === 0x46
+      && head[3] === 0x38 && (head[4] === 0x37 || head[4] === 0x39) && head[5] === 0x61;
+  } catch (_) {
+    return false;
+  }
+}
+
+function fileLooksLikeVideo(file) {
+  return !!file && ((file.type || "").startsWith("video/") || /\.(mp4|mov|m4v|webm|ogv)$/i.test(file.name || ""));
+}
+
+async function handleIncomingFile(file) {
+  if (!file) return;
+  const size = file.size >= 1_048_576
+    ? `${(file.size / 1_048_576).toFixed(1)} MB`
+    : `${Math.max(1, Math.round(file.size / 1024))} KB`;
+  showLoading(true, `Opening ${file.name || "media"}…`, 1);
+  $("status").textContent = `Opening ${file.name || "media"} · ${size}`;
+  await nextFrame();
+  try {
+    const isGif = await fileLooksLikeGif(file);
+    const isVideo = fileLooksLikeVideo(file);
+    const namedImage = (file.type || "").startsWith("image/");
+    if (!namedImage && !isGif && !isVideo) throw new Error("Choose an image, GIF, or browser-readable video");
+    let sourceFile = file;
+    if (isGif && (file.type !== "image/gif" || !/\.gif$/i.test(file.name || ""))) {
+      const base = String(file.name || "jankify-source").replace(/\.gif$/i, "") || "jankify-source";
+      sourceFile = new File([file], base + ".gif", { type: "image/gif" });
+    }
+    state.sourceAnimation = isVideo
+      ? { kind: "video", file: sourceFile }
+      : isGif ? { kind: "gif", file: sourceFile } : null;
+    state.lastGifBytes = null;
+    state.lastAnimationFrames = null;
+    showLoading(true, isVideo ? "Reading video preview…" : isGif ? "Reading GIF preview…" : "Decoding image…", 8);
+    sourceImage = isVideo ? await previewFromVideo(sourceFile) : await loadImageFile(sourceFile);
+    state.seed = Date.now();
+    await runPipeline();
+    updateAnimAvailability();
+  } catch (err) {
+    console.error(err);
+    showLoading(false);
+    $("status").textContent = `Could not open ${file.name || "media"}`;
+    alert("Could not load: " + err.message);
+  }
+}
+
+$("file-input").addEventListener("change", async e => {
+  await handleIncomingFile(e.target.files[0]);
+  e.target.value = "";
+});
+
+function updateAnimAvailability() {
+  const buttons = [$("make-gif"), $("make-sheet"), $("make-video")].filter(Boolean);
+  const guide = $("animation-guide");
+  if (!buttons.length) return;
+  const hasAnimation = !!state.sourceAnimation;
+  const supported = ANIM.MODES.includes(state.mode);
+  const canRecord = typeof MediaRecorder !== "undefined" && !!HTMLCanvasElement.prototype.captureStream;
+  for (const btn of buttons) {
+    btn.hidden = !hasAnimation || (btn.id === "make-video" && !canRecord);
+    btn.disabled = !(hasAnimation && supported && !reducedMotion?.matches);
+  }
+  if (guide) guide.hidden = !hasAnimation;
+  if ($("clip-seconds-control")) $("clip-seconds-control").hidden = !hasAnimation;
+  const btn = $("make-gif");
+  if (!supported) {
+    btn.title = "Animation isn't available for " + state.mode + " mode — switch to Pixel, Lite Brite, ASCII, Emoji, Hatch, or Rough";
+    btn.setAttribute("aria-label", "Make GIF unavailable in " + state.mode + " mode");
+  } else if (reducedMotion?.matches) {
+    btn.title = "Animation off — your system requests reduced motion";
+    btn.setAttribute("aria-label", "Make GIF disabled because reduced motion is on");
+  } else {
+    btn.title = "Jankify sampled frames, then download a looping GIF";
+    btn.setAttribute("aria-label", "Make animated GIF from the source");
+  }
+}
+
+let gifAck = null;
+let gifGateResolve = null;
+function closeGifWarning(val) {
+  const modal = $("gif-warning");
+  if (modal) modal.hidden = true;
+  if (gifGateResolve) {
+    const resolve = gifGateResolve;
+    gifGateResolve = null;
+    resolve(val);
+  }
+}
+function gifWarningGate() {
+  if (gifAck != null) return Promise.resolve(gifAck);
+  const modal = $("gif-warning");
+  if (!modal) return Promise.resolve(ANIM.DELAY_FLOOR_SAFE_MS);
+  return new Promise(resolve => {
+    gifGateResolve = resolve;
+    modal.hidden = false;
+    modal.focus();
+  });
+}
+
+function triggerGifDownload(bytes) {
+  const blob = new Blob([bytes], { type: "image/gif" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `jankify-${state.mode}-${state.seed}.gif`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2500);
+}
+
+async function sourceAnimationFrames() {
+  if (!state.sourceAnimation) throw new Error("Add a GIF or video first");
+  return state.sourceAnimation.kind === "video"
+    ? framesFromVideo(state.sourceAnimation.file)
+    : framesFromGif(state.sourceAnimation.file);
+}
+
+async function downloadSpriteSheet(result) {
+  showLoading(true, "Packing sprite sheet…", 94);
+  await nextFrame();
+  const columns = Math.min(result.frameCount, parseInt($("sheet-columns").value, 10));
+  const rows = Math.ceil(result.frameCount / columns);
+  const canvas = document.createElement("canvas");
+  canvas.width = result.width * columns;
+  canvas.height = result.height * rows;
+  if (canvas.width > 8192 || canvas.height > 8192) {
+    throw new Error(`Sprite sheet would be ${canvas.width}×${canvas.height}px. Lower sheet columns or working size.`);
+  }
+  const ctx = canvas.getContext("2d");
+  result.frames.forEach((frame, i) => {
+    ctx.putImageData(new ImageData(frame.data, frame.width, frame.height), (i % columns) * result.width, Math.floor(i / columns) * result.height);
+  });
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+  if (!blob) throw new Error("Could not encode the sprite sheet");
+  downloadBlob(blob, `jankify-${state.mode}-${result.frameCount}f-${columns}x${rows}.png`);
+  return `${columns}×${rows} sheet · ${canvas.width}×${canvas.height}px`;
+}
+
+function supportedVideoMime() {
+  if (typeof MediaRecorder === "undefined") return null;
+  const choices = ["video/mp4;codecs=avc1.42E01E", "video/mp4", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
+  return choices.find(type => MediaRecorder.isTypeSupported(type)) || "";
+}
+
+async function downloadProcessedVideo(result) {
+  if (!HTMLCanvasElement.prototype.captureStream || typeof MediaRecorder === "undefined") {
+    throw new Error("This browser cannot record a processed video; GIF and sprite sheet still work");
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = result.width;
+  canvas.height = result.height;
+  const ctx = canvas.getContext("2d");
+  const fps = parseInt($("animation-fps").value, 10);
+  const stream = canvas.captureStream(fps);
+  const mimeType = supportedVideoMime();
+  const recorder = new MediaRecorder(stream, mimeType ? { mimeType, videoBitsPerSecond: 6_000_000 } : undefined);
+  const chunks = [];
+  recorder.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
+  const stopped = new Promise((resolve, reject) => {
+    recorder.onstop = resolve;
+    recorder.onerror = event => reject(event.error || new Error("Video recording failed"));
+  });
+  recorder.start();
+  const track = stream.getVideoTracks()[0];
+  for (let i = 0; i < result.frames.length; i++) {
+    if (animState.abort) { recorder.stop(); throw new Error("aborted"); }
+    const frame = result.frames[i];
+    ctx.putImageData(new ImageData(frame.data, frame.width, frame.height), 0, 0);
+    if (track && typeof track.requestFrame === "function") track.requestFrame();
+    showLoading(true, `Recording video frame ${i + 1}/${result.frames.length}…`, Math.round(90 + 9 * (i + 1) / result.frames.length));
+    await new Promise(resolve => setTimeout(resolve, Math.max(20, frame.delayMs)));
+  }
+  recorder.stop();
+  await stopped;
+  stream.getTracks().forEach(track => track.stop());
+  const actualType = recorder.mimeType || mimeType || "video/webm";
+  const ext = actualType.includes("mp4") ? "mp4" : "webm";
+  downloadBlob(new Blob(chunks, { type: actualType }), `jankify-${state.mode}-${result.frameCount}f.${ext}`);
+  return `${ext.toUpperCase()} · ${result.frameCount} frames · ${result.width}×${result.height}px`;
+}
+
+async function exportAnimation(kind) {
+  if (!state.sourceAnimation || reducedMotion?.matches) return;
+  const floorMs = await gifWarningGate();
+  if (floorMs == null) return;
+  animState.abort = false;
+  ["make-gif", "make-sheet", "make-video"].forEach(id => { if ($(id)) $(id).disabled = true; });
+  $("cancel-anim").hidden = false;
+  showLoading(true, state.sourceAnimation.kind === "video" ? "Reading video…" : "Reading GIF…", 0);
+  try {
+    const src = await sourceAnimationFrames();
+    const result = await runAnimatedPipeline(src, { floorMs, encodeGif: kind === "gif" });
+    let note;
+    if (kind === "gif") {
+      showLoading(true, "Preparing GIF download…", 99);
+      state.lastGifBytes = result.gifBytes;
+      triggerGifDownload(result.gifBytes);
+      note = `GIF ready · ${result.frameCount} frames · ${result.width}×${result.height}px`;
+    } else if (kind === "sheet") {
+      note = `Sprite sheet ready · ${await downloadSpriteSheet(result)}`;
+    } else {
+      note = `Video ready · ${await downloadProcessedVideo(result)}`;
+    }
+    showLoading(true, "Download ready", 100);
+    if (result.notice) note += ` · ${result.notice}`;
+    $("status").textContent = note;
+  } catch (err) {
+    if (err.message !== "aborted") { console.error(err); alert("Could not make animation asset: " + err.message); }
+  } finally {
+    $("cancel-anim").hidden = true;
+    showLoading(false);
+    updateAnimAvailability();
+    if (sourceImage) await runPipeline();
+  }
+}
+
+$("make-gif").addEventListener("click", () => exportAnimation("gif"));
+$("make-sheet").addEventListener("click", () => exportAnimation("sheet"));
+$("make-video").addEventListener("click", () => exportAnimation("video"));
+$("cancel-anim").addEventListener("click", () => { animState.abort = true; });
+$("gif-warning-safe")?.addEventListener("click", () => { gifAck = ANIM.DELAY_FLOOR_SAFE_MS; closeGifWarning(gifAck); });
+$("gif-warning-fast")?.addEventListener("click", () => { gifAck = 0; closeGifWarning(gifAck); });
+$("gif-warning-cancel")?.addEventListener("click", () => closeGifWarning(null));
+$("gif-warning")?.addEventListener("keydown", e => { if (e.key === "Escape") closeGifWarning(null); });
+{ const gw = $("gif-warning"); if (gw) gw.hidden = true; }
+
+const area = $("canvas-area");
+["dragenter", "dragover"].forEach(evt => {
+  area.addEventListener(evt, e => {
+    e.preventDefault();
+    const ph = $("placeholder");
+    if (ph) ph.classList.add("drag-over");
+  });
+});
+["dragleave", "drop"].forEach(evt => {
+  area.addEventListener(evt, e => {
+    e.preventDefault();
+    const ph = $("placeholder");
+    if (ph) ph.classList.remove("drag-over");
+  });
+});
+area.addEventListener("drop", async e => {
+  await handleIncomingFile(e.dataTransfer.files[0]);
+});
+
+document.addEventListener("paste", async e => {
+  const items = e.clipboardData && e.clipboardData.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.kind === "file" && item.type.startsWith("image/")) {
+      e.preventDefault();
+      await handleIncomingFile(item.getAsFile());
+      return;
+    }
+  }
+});
+
+function bindSlider(id, valueId, suffix) {
+  const el = $(id), val = $(valueId);
+  if (!el) return;
+  el.addEventListener("input", e => {
+    val.textContent = e.target.value + (suffix || "");
+    scheduleRun();
+  });
+}
+bindSlider("cell-size", "cell-size-value");
+bindSlider("edge-sensitivity", "edge-sensitivity-value", "%");
+bindSlider("max-dim", "max-dim-value", "px");
+bindSlider("emoji-window", "emoji-window-value", "px");
+bindSlider("emoji-scale", "emoji-scale-value", "px");
+bindSlider("emoji-tolerance", "emoji-tolerance-value");
+bindSlider("ascii-cell", "ascii-cell-value", "px");
+bindSlider("pixel-grid", "pixel-grid-value");
+bindSlider("pixel-display", "pixel-display-value", "px");
+bindSlider("brite-peg", "brite-peg-value", "px");
+bindSlider("hatch-spacing", "hatch-spacing-value", "px");
+bindSlider("hatch-angle", "hatch-angle-value", "°");
+bindSlider("hatch-levels", "hatch-levels-value");
+bindSlider("hatch-jitter", "hatch-jitter-value", "%");
+bindSlider("rough-cell", "rough-cell-value", "px");
+bindSlider("clip-seconds", "clip-seconds-value", "s");
+bindSlider("animation-fps", "animation-fps-value", " fps");
+bindSlider("sheet-columns", "sheet-columns-value");
+
+function bindSliderLive(id, valueId, suffix, fn) {
+  const el = $(id), val = $(valueId);
+  if (!el) return;
+  el.addEventListener("input", e => {
+    if (val) val.textContent = e.target.value + (suffix || "");
+    fn();
+  });
+}
+bindSliderLive("hatch-width", "hatch-width-value", "px", rerenderOnly);
+bindSliderLive("rough-roughness", "rough-roughness-value", "", rerenderOnly);
+bindSliderLive("rough-bowing", "rough-bowing-value", "", rerenderOnly);
+bindSliderLive("rough-gap", "rough-gap-value", "px", rerenderOnly);
+
+$("hatch-ink").addEventListener("input", rerenderOnly);
+$("hatch-paper").addEventListener("input", rerenderOnly);
+$("hatch-ink-source").addEventListener("change", rerenderOnly);
+$("rough-fill").addEventListener("change", rerenderOnly);
+$("rough-outline").addEventListener("change", rerenderOnly);
+$("rough-paper").addEventListener("input", rerenderOnly);
+
+$("brite-pitch").addEventListener("input", e => {
+  $("brite-pitch-value").textContent = e.target.value + "%";
+  scheduleRun();
+});
+
+$("brite-glow").addEventListener("input", e => {
+  $("brite-glow-value").textContent = e.target.value + "%";
+  scheduleRun();
+});
+$("brite-peg").addEventListener("input", () => { briteSpriteCache = null; });
+
+$("brite-classic").addEventListener("change", e => {
+  const locked = e.target.checked;
+  $("brite-peg").disabled = locked;
+  $("brite-pitch").disabled = locked;
+  briteSpriteCache = null;
+  scheduleRun();
+});
+
+(function paintBriteSwatches() {
+  const host = $("brite-palette-swatches");
+  if (!host) return;
+  for (const peg of LITE_BRITE_PALETTE) {
+    const sw = document.createElement("span");
+    sw.style.cssText = `display:inline-block;width:20px;height:20px;border-radius:50%;background:rgb(${peg.rgb.join(",")});box-shadow:0 0 6px rgba(${peg.rgb.join(",")},0.5);border:1px solid var(--border)`;
+    sw.title = peg.name;
+    host.appendChild(sw);
+  }
+})();
+
+$("pixel-quantize").addEventListener("input", e => {
+  const v = parseInt(e.target.value, 10);
+  $("pixel-quantize-value").textContent = v === 0 ? "unlimited" : v.toString();
+  scheduleRun();
+});
+
+$("emoji-empty").addEventListener("input", e => {
+  $("emoji-empty-value").textContent = e.target.value + "%";
+  scheduleRun();
+});
+$("stroke-opacity").addEventListener("input", e => {
+  $("stroke-opacity-value").textContent = e.target.value + "%";
+  rerenderOnly();
+});
+
+document.querySelectorAll('input[name="color-mode"]').forEach(r =>
+  r.addEventListener("change", scheduleRun));
+document.querySelectorAll('input[name="ascii-color"]').forEach(r =>
+  r.addEventListener("change", scheduleRun));
+
+$("show-stroke").addEventListener("change", e => {
+  $("stroke-controls").hidden = !e.target.checked;
+  rerenderOnly();
+});
+$("stroke-color").addEventListener("input", rerenderOnly);
+
+$("ascii-ramp").addEventListener("change", scheduleRun);
+$("ascii-ramp-custom").addEventListener("input", scheduleRun);
+$("ascii-fg").addEventListener("input", scheduleRun);
+$("emoji-hide-black").addEventListener("change", scheduleRun);
+$("bg-enabled").addEventListener("change", scheduleRun);
+$("bg-color").addEventListener("input", scheduleRun);
+
+$("pixel-format").addEventListener("change", () => {
+  if (state.pixelGrid) updateStatus();
+});
+$("pixel-skip-alpha").addEventListener("change", scheduleRun);
+$("pixel-grid-lines").addEventListener("change", scheduleRun);
+
+$("reseed-btn").addEventListener("click", () => {
+  state.seed = Date.now();
+  runPipeline();
+});
+
+// -----------------------------------------------------------------------------
+// Randomize
+// -----------------------------------------------------------------------------
+const RANDOM_RANGE = {
+  "cell-size": [14, 64],
+  "rough-cell": [16, 44],
+  "emoji-window": [4, 16],
+  "emoji-scale": [8, 22],
+  "ascii-cell": [6, 16],
+  "pixel-grid": [24, 128],
+  "pixel-display": [3, 16],
+  "pixel-quantize": [0, 64],
+  "hatch-spacing": [4, 14],
+  "brite-peg": [10, 28],
+};
+const RANDOM_SKIP = new Set(["ascii-ramp-custom", "pixel-format", "pixel-display", "max-dim"]);
+const RANDOM_MODES = ["pixel", "brite", "ascii", "emoji", "hatch", "rough", "polygon", "voronoi"];
+
+function randInt(lo, hi) { return lo + Math.floor(Math.random() * (hi - lo + 1)); }
+function randPick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function hslToHex(h, s, l) {
+  s /= 100; l /= 100;
+  const k = n => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  const to = n => Math.round(f(n) * 255).toString(16).padStart(2, "0");
+  return "#" + to(0) + to(8) + to(4);
+}
+function randColorFor(id) {
+  const h = randInt(0, 359), s = randInt(35, 90);
+  if (/paper|bg-color/.test(id)) return hslToHex(h, s, randInt(82, 96));
+  if (/ink|stroke-color|-fg$/.test(id)) return hslToHex(h, s, randInt(8, 28));
+  return hslToHex(h, s, randInt(30, 75));
+}
+
+function randomizeControl(el) {
+  if (!el || el.disabled || RANDOM_SKIP.has(el.id)) return;
+  if (el.type === "range") {
+    const step = parseFloat(el.step) || 1;
+    const [lo, hi] = RANDOM_RANGE[el.id] || [parseFloat(el.min), parseFloat(el.max)];
+    const steps = Math.max(0, Math.round((hi - lo) / step));
+    const dec = (String(step).split(".")[1] || "").length;
+    el.value = (lo + randInt(0, steps) * step).toFixed(dec);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  } else if (el.tagName === "SELECT") {
+    el.value = randPick([...el.options]).value;
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  } else if (el.type === "checkbox") {
+    el.checked = Math.random() < 0.5;
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  } else if (el.type === "color") {
+    el.value = randColorFor(el.id);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+}
+
+function randomizeSection(section) {
+  const seenRadio = new Set();
+  section.querySelectorAll("input, select").forEach(el => {
+    if (el.type === "radio") {
+      if (seenRadio.has(el.name)) return;
+      seenRadio.add(el.name);
+      const pick = randPick([...section.querySelectorAll(`input[type="radio"][name="${el.name}"]`)]);
+      pick.checked = true;
+      pick.dispatchEvent(new Event("change", { bubbles: true }));
+      return;
+    }
+    randomizeControl(el);
+  });
+}
+
+function randomizeCurrentMode() {
+  randomizing = true;
+  state.seed = (Math.random() * 2147483646 | 0) + 1;
+  document.querySelectorAll(".mode-section:not([hidden])").forEach(randomizeSection);
+  randomizing = false;
+  if (sourceImage) scheduleRun();
+}
+
+function randomizeEverything() {
+  const others = RANDOM_MODES.filter(m => m !== state.mode);
+  $("mode").value = randPick(others.length ? others : RANDOM_MODES);
+  $("mode").dispatchEvent(new Event("change", { bubbles: true }));
+  randomizeCurrentMode();
+}
+
+$("random-btn").addEventListener("click", randomizeEverything);
+
+document.querySelectorAll(".mode-section > h3").forEach(h3 => {
+  h3.style.display = "flex";
+  h3.style.alignItems = "center";
+  h3.style.justifyContent = "space-between";
+  h3.style.gap = "8px";
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "btn";
+  b.style.cssText = "font-size:12px;padding:4px 10px;font-weight:500";
+  b.title = "Randomize these settings";
+  b.innerHTML = `<i class="fa-solid fa-dice" aria-hidden="true"></i> Random`;
+  b.addEventListener("click", randomizeCurrentMode);
+  h3.appendChild(b);
+});
+
+$("download-png").addEventListener("click", () => {
+  const canvas = $("canvas-area").querySelector("canvas");
+  if (!canvas) return;
+  const a = document.createElement("a");
+  a.download = `jankify-${state.mode}-${state.seed}.png`;
+  a.href = canvas.toDataURL("image/png");
+  a.click();
+});
+
+$("download-vector").addEventListener("click", () => {
+  let text, ext, mime;
+  if (state.mode === "polygon" && state.triangles) {
+    text = svgPolygon(); ext = "svg"; mime = "image/svg+xml";
+  } else if (state.mode === "voronoi" && state.voronoi) {
+    text = svgVoronoi(); ext = "svg"; mime = "image/svg+xml";
+  } else if (state.mode === "emoji" && state.emojiGrid) {
+    text = svgEmoji(); ext = "svg"; mime = "image/svg+xml";
+  } else if (state.mode === "ascii" && state.asciiGrid) {
+    text = asciiText(); ext = "txt"; mime = "text/plain;charset=utf-8";
+  } else if (state.mode === "pixel" && state.pixelGrid) {
+    const r = getPixelOutput(); text = r.text; ext = r.ext; mime = r.mime + ";charset=utf-8";
+  } else if (state.mode === "hatch" && state.hatchSegments) {
+    text = svgHatch(); ext = "svg"; mime = "image/svg+xml";
+  } else if (state.mode === "rough" && state.roughGrid) {
+    text = svgRough(); ext = "svg"; mime = "image/svg+xml";
+  } else return;
+  const blob = new Blob([text], { type: mime });
+  const a = document.createElement("a");
+  a.download = `jankify-${state.mode}-${state.seed}.${ext}`;
+  a.href = URL.createObjectURL(blob);
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+
+$("copy-output").addEventListener("click", async () => {
+  let text = null;
+  if (state.mode === "ascii" && state.asciiGrid) text = asciiText();
+  else if (state.mode === "pixel" && state.pixelGrid) text = getPixelOutput().text;
+  else if (state.mode === "emoji" && state.emojiGrid) text = svgEmoji();
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    const btn = $("copy-output");
+    btn.classList.add("copy-flash");
+    const original = btn.innerHTML;
+    btn.innerHTML = `<i class="fa-solid fa-check"></i> Copied!`;
+    setTimeout(() => { btn.classList.remove("copy-flash"); btn.innerHTML = original; }, 1200);
+  } catch (err) {
+    alert("Clipboard write failed: " + err.message);
+  }
+});
+
+let debounceTimer = null;
+let randomizing = false;
+const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+function scheduleRun() {
+  clearTimeout(debounceTimer);
+  const delay = (state.mode === "brite" || reducedMotion?.matches) ? 300 : 120;
+  debounceTimer = setTimeout(runPipeline, delay);
+}
+function rerenderOnly() {
+  if (randomizing) return;
+  if (!sourceImage) return;
+  const canvas = $("canvas-area").querySelector("canvas");
+  if (!canvas) return;
+  if (state.mode === "polygon" && state.triangles) {
+    renderPolygon(canvas, state.triangles, state.points, state.triColors, { stroke: getStrokeOpts() });
+  } else if (state.mode === "voronoi" && state.voronoi) {
+    renderVoronoi(canvas, state.voronoi, { stroke: getStrokeOpts() });
+  } else if (state.mode === "hatch" && state.hatchSegments) {
+    const p = getHatchParams();
+    state.hatchParams = p;
+    renderHatch(canvas, state.hatchSegments, p, state.imageData);
+  } else if (state.mode === "rough" && state.roughGrid) {
+    renderRough(canvas, state.roughGrid, getRoughParams());
+  }
+}
+
+$("stroke-controls").hidden = !$("show-stroke").checked;
+updateModeVisibility();
+
+// =============================================================================
+// EMOJI SOURCE  (~3000 glyphs; June 2024 list)
+// =============================================================================
+const EMOJI_SOURCE = "🧑🏻‍❤️‍💋‍🧑🏼,🧑🏻‍❤️‍💋‍🧑🏽,🧑🏻‍❤️‍💋‍🧑🏾,🧑🏻‍❤️‍💋‍🧑🏿,🧑🏼‍❤️‍💋‍🧑🏻,🧑🏼‍❤️‍💋‍🧑🏽,🧑🏼‍❤️‍💋‍🧑🏾,🧑🏼‍❤️‍💋‍🧑🏿,🧑🏽‍❤️‍💋‍🧑🏻,🧑🏽‍❤️‍💋‍🧑🏼,🧑🏽‍❤️‍💋‍🧑🏾,🧑🏽‍❤️‍💋‍🧑🏿,🧑🏾‍❤️‍💋‍🧑🏻,🧑🏾‍❤️‍💋‍🧑🏼,🧑🏾‍❤️‍💋‍🧑🏽,🧑🏾‍❤️‍💋‍🧑🏿,🧑🏿‍❤️‍💋‍🧑🏻,🧑🏿‍❤️‍💋‍🧑🏼,🧑🏿‍❤️‍💋‍🧑🏽,🧑🏿‍❤️‍💋‍🧑🏾,👩🏻‍❤️‍💋‍👨🏻,👩🏼‍❤️‍💋‍👨🏼,👩🏽‍❤️‍💋‍👨🏽,👩🏾‍❤️‍💋‍👨🏾,👩🏿‍❤️‍💋‍👨🏿,👨🏻‍❤️‍💋‍👨🏻,👨🏼‍❤️‍💋‍👨🏼,👨🏽‍❤️‍💋‍👨🏽,👨🏾‍❤️‍💋‍👨🏾,👨🏿‍❤️‍💋‍👨🏿,👩🏻‍❤️‍💋‍👩🏻,👩🏼‍❤️‍💋‍👩🏼,👩🏽‍❤️‍💋‍👩🏽,👩🏾‍❤️‍💋‍👩🏾,👩🏿‍❤️‍💋‍👩🏿,🧑🏻‍🤝‍🧑🏻,🧑🏼‍🤝‍🧑🏼,🧑🏽‍🤝‍🧑🏽,🧑🏾‍🤝‍🧑🏾,🧑🏿‍🤝‍🧑🏿,👩‍❤️‍💋‍👨,👨‍❤️‍💋‍👨,👩‍❤️‍💋‍👩,👨‍👩‍👧‍👦,👨‍👩‍👦‍👦,👨‍👩‍👧‍👧,👨‍👨‍👧‍👦,👨‍👨‍👦‍👦,👨‍👨‍👧‍👧,👩‍👩‍👧‍👦,👩‍👩‍👦‍👦,👩‍👩‍👧‍👧,🧑‍🧑‍🧒‍🧒,🚶‍♀️‍➡️,🚶‍♂️‍➡️,🧎‍♀️‍➡️,🧎‍♂️‍➡️,🧑‍🦯‍➡️,👨‍🦯‍➡️,👩‍🦯‍➡️,🧑‍🦼‍➡️,👨‍🦼‍➡️,👩‍🦼‍➡️,🧑‍🦽‍➡️,👨‍🦽‍➡️,👩‍🦽‍➡️,🏃‍♀️‍➡️,🏃‍♂️‍➡️,🧑‍🤝‍🧑,👩‍❤️‍👨,👨‍❤️‍👨,👩‍❤️‍👩,👨‍👩‍👦,👨‍👩‍👧,👨‍👨‍👦,👨‍👨‍👧,👩‍👩‍👦,👩‍👩‍👧,👨‍👦‍👦,👨‍👧‍👦,👨‍👧‍👧,👩‍👦‍👦,👩‍👧‍👦,👩‍👧‍👧,🧑‍🧑‍🧒,🧑‍🧒‍🧒,👁️‍🗨️,🧔‍♂️,🧔‍♀️,👨‍🦰,👨‍🦱,👨‍🦳,👨‍🦲,👩‍🦰,🧑‍🦰,👩‍🦱,🧑‍🦱,👩‍🦳,🧑‍🦳,👩‍🦲,🧑‍🦲,👱‍♀️,👱‍♂️,🙍‍♂️,🙍‍♀️,🙎‍♂️,🙎‍♀️,🙅‍♂️,🙅‍♀️,🙆‍♂️,🙆‍♀️,💁‍♂️,💁‍♀️,🙋‍♂️,🙋‍♀️,🧏‍♂️,🧏‍♀️,🙇‍♂️,🙇‍♀️,🤦‍♂️,🤦‍♀️,🤷‍♂️,🤷‍♀️,🧑‍⚕️,👨‍⚕️,👩‍⚕️,🧑‍🎓,👨‍🎓,👩‍🎓,🧑‍🏫,👨‍🏫,👩‍🏫,🧑‍⚖️,👨‍⚖️,👩‍⚖️,🧑‍🌾,👨‍🌾,👩‍🌾,🧑‍🍳,👨‍🍳,👩‍🍳,🧑‍🔧,👨‍🔧,👩‍🔧,🧑‍🏭,👨‍🏭,👩‍🏭,🧑‍💼,👨‍💼,👩‍💼,🧑‍🔬,👨‍🔬,👩‍🔬,🧑‍💻,👨‍💻,👩‍💻,🧑‍🎤,👨‍🎤,👩‍🎤,🧑‍🎨,👨‍🎨,👩‍🎨,🧑‍✈️,👨‍✈️,👩‍✈️,🧑‍🚀,👨‍🚀,👩‍🚀,🧑‍🚒,👨‍🚒,👩‍🚒,👮‍♂️,👮‍♀️,💂‍♂️,💂‍♀️,👷‍♂️,👷‍♀️,👳‍♂️,👳‍♀️,🤵‍♂️,🤵‍♀️,👰‍♂️,👰‍♀️,👩‍🍼,👨‍🍼,🧑‍🍼,🧑‍🎄,🦸‍♂️,🦸‍♀️,🦹‍♂️,🦹‍♀️,🧙‍♂️,🧙‍♀️,🧚‍♂️,🧚‍♀️,🧛‍♂️,🧛‍♀️,🧜‍♂️,🧜‍♀️,🧝‍♂️,🧝‍♀️,🧞‍♂️,🧞‍♀️,🧟‍♂️,🧟‍♀️,💆‍♂️,💆‍♀️,💇‍♂️,💇‍♀️,🚶‍♂️,🚶‍♀️,🧍‍♂️,🧍‍♀️,🧎‍♂️,🧎‍♀️,🧑‍🦯,👨‍🦯,👩‍🦯,🧑‍🦼,👨‍🦼,👩‍🦼,🧑‍🦽,👨‍🦽,👩‍🦽,🏃‍♂️,🏃‍♀️,👯‍♂️,👯‍♀️,🧖‍♂️,🧖‍♀️,🧗‍♂️,🧗‍♀️,🏄‍♂️,🏄‍♀️,🚣‍♂️,🚣‍♀️,🏊‍♂️,🏊‍♀️,⛹️‍♂️,⛹️‍♀️,🚴‍♂️,🚴‍♀️,🚵‍♂️,🚵‍♀️,🤸‍♂️,🤸‍♀️,🤼‍♂️,🤼‍♀️,🤽‍♂️,🤽‍♀️,🤾‍♂️,🤾‍♀️,🤹‍♂️,🤹‍♀️,🧘‍♂️,🧘‍♀️,👨‍👦,👨‍👧,👩‍👦,👩‍👧,🧑‍🧒,🐕‍🦺,🐻‍❄️,🐦‍🔥,🍋‍🟩,🍄‍🟫,⛓️‍💥,🏴‍☠️,🐈‍⬛,🐦‍⬛,😶‍🌫️,🕵️‍♂️,🕵️‍♀️,🏌️‍♂️,🏌️‍♀️,🏋️‍♂️,🏋️‍♀️,🏳️‍🌈,🏳️‍⚧️,😮‍💨,🙂‍↔️,🙂‍↕️,😵‍💫,❤️‍🔥,❤️‍🩹,😀,😃,😄,😁,😆,😅,🤣,😂,🙂,🙃,🫠,😉,😊,😇,🥰,😍,🤩,😘,😗,😚,😙,🥲,😋,😛,😜,🤪,😝,🤑,🤗,🤭,🫢,🫣,🤫,🤔,🫡,🤐,🤨,😐,😑,😶,🫥,😏,😒,🙄,😬,🤥,🫨,😌,😔,😪,🤤,😴,😷,🤒,🤕,🤢,🤮,🤧,🥵,🥶,🥴,😵,🤯,🤠,🥳,🥸,😎,🤓,🧐,😕,🫤,😟,🙁,😮,😯,😲,😳,🥺,🥹,😦,😧,😨,😰,😥,😢,😭,😱,😖,😣,😞,😓,😩,😫,🥱,😤,😡,😠,🤬,😈,👿,💀,💩,🤡,👹,👺,👻,👽,👾,🤖,😺,😸,😹,😻,😼,😽,🙀,😿,😾,🙈,🙉,🙊,💌,💘,💝,💖,💗,💓,💞,💕,💟,💔,🩷,🧡,💛,💚,💙,🩵,💜,🤎,🖤,🩶,🤍,💋,💯,💢,💥,💫,💦,💨,💬,💭,💤,👋,🤚,🖐,🖖,🫱,🫲,🫳,🫴,🫷,🫸,👌,🤌,🤏,🤞,🫰,🤟,🤘,🤙,👈,👉,👆,🖕,👇,🫵,👍,👎,👊,🤛,🤜,👏,🙌,🫶,👐,🤲,🤝,🙏,💅,🤳,💪,🦾,🦿,🦵,🦶,👂,🦻,👃,🧠,🫀,🫁,🦷,🦴,👀,👁,👅,👄,🫦,👶,🧒,👦,👧,🧑,👱,👨,🧔,👩,🧓,👴,👵,🙍,🙎,🙅,🙆,💁,🙋,🧏,🙇,🤦,🤷,👮,💂,🥷,👷,🫅,🤴,👸,👳,👲,🧕,🤵,👰,🤰,🫃,🫄,🤱,👼,🎅,🤶,🦸,🦹,🧙,🧚,🧛,🧜,🧝,🧞,🧟,🧌,💆,💇,🚶,🧍,🧎,🏃,💃,🕺,🕴,👯,🧖,🧗,🤺,🏇,🏂,🏄,🚣,🏊,🚴,🚵,🤸,🤼,🤽,🤾,🤹,🧘,🛀,🛌,👭,👫,👬,💏,💑,🗣,👤,👥,🫂,👪,👣,🐵,🐒,🦍,🦧,🐶,🐕,🦮,🐩,🐺,🦊,🦝,🐱,🐈,🦁,🐯,🐅,🐆,🐴,🫎,🫏,🐎,🦄,🦓,🦌,🦬,🐮,🐂,🐃,🐄,🐷,🐖,🐗,🐽,🐏,🐑,🐐,🐪,🐫,🦙,🦒,🐘,🦣,🦏,🦛,🐭,🐁,🐀,🐹,🐰,🐇,🐿,🦫,🦔,🦇,🐻,🐨,🐼,🦥,🦦,🦨,🦘,🦡,🐾,🦃,🐔,🐓,🐣,🐤,🐥,🐦,🐧,🕊,🦅,🦆,🦢,🦉,🦤,🪶,🦩,🦚,🦜,🪽,🪿,🐸,🐊,🐢,🦎,🐍,🐲,🐉,🦕,🦖,🐳,🐋,🐬,🦭,🐟,🐠,🐡,🦈,🐙,🐚,🪸,🪼,🐌,🦋,🐛,🐜,🐝,🪲,🐞,🦗,🪳,🦂,🦟,🪰,🪱,🦠,💐,🌸,💮,🪷,🌹,🥀,🌺,🌻,🌼,🌷,🪻,🌱,🪴,🌲,🌳,🌴,🌵,🌾,🌿,🍀,🍁,🍂,🍃,🪹,🪺,🍄,🍇,🍈,🍉,🍊,🍋,🍌,🍍,🥭,🍎,🍏,🍐,🍑,🍒,🍓,🫐,🥝,🍅,🫒,🥥,🥑,🍆,🥔,🥕,🌽,🫑,🥒,🥬,🥦,🧄,🧅,🥜,🫘,🌰,🫚,🫛,🍞,🥐,🥖,🫓,🥨,🥯,🥞,🧇,🧀,🍖,🍗,🥩,🥓,🍔,🍟,🍕,🌭,🥪,🌮,🌯,🫔,🥙,🧆,🥚,🍳,🥘,🍲,🫕,🥣,🥗,🍿,🧈,🧂,🥫,🍱,🍘,🍙,🍚,🍛,🍜,🍝,🍠,🍢,🍣,🍤,🍥,🥮,🍡,🥟,🥠,🥡,🦀,🦞,🦐,🦑,🦪,🍦,🍧,🍨,🍩,🍪,🎂,🍰,🧁,🥧,🍫,🍬,🍭,🍮,🍯,🍼,🥛,🫖,🍵,🍶,🍾,🍷,🍸,🍹,🍺,🍻,🥂,🥃,🫗,🥤,🧋,🧃,🧉,🧊,🥢,🍴,🥄,🔪,🫙,🏺,🌍,🌎,🌏,🌐,🗺,🗾,🧭,🌋,🗻,🛖,🏚,🏠,🏡,🏢,🏣,🏤,🏥,🏦,🏨,🏩,🏪,🏫,🏬,🏭,🏯,🏰,💒,🗼,🗽,🕌,🛕,🕍,🕋,🎠,🛝,🎡,🎢,💈,🎪,🚂,🚃,🚄,🚅,🚆,🚇,🚈,🚉,🚊,🚝,🚞,🚋,🚌,🚍,🚎,🚐,🚑,🚒,🚓,🚔,🚕,🚖,🚗,🚘,🚙,🛻,🚚,🚛,🚜,🛵,🦽,🦼,🛺,🚲,🛴,🛹,🛼,🚏,🚨,🚥,🚦,🛑,🚧,🛟,🛶,🚤,🚢,🪂,💺,🚁,🚟,🚠,🚡,🚀,🛸,🧳,🌑,🌒,🌓,🌔,🌕,🌖,🌗,🌘,🌙,🌚,🌛,🌜,🌝,🌞,🪐,🌟,🌠,🌌,🌀,🌈,🔥,💧,🌊,🎃,🎄,🎆,🎇,🧨,🎈,🎉,🎊,🎋,🎍,🎎,🎏,🎐,🎑,🧧,🎀,🎁,🏆,🏅,🥇,🥈,🥉,🥎,🏀,🏐,🏈,🏉,🎾,🥏,🎳,🏏,🏑,🏒,🥍,🏓,🏸,🥊,🥋,🥅,🎣,🤿,🎽,🎿,🛷,🥌,🎯,🪀,🪁,🔫,🎱,🔮,🪄,🎮,🎰,🎲,🧩,🧸,🪅,🪩,🪆,🃏,🀄,🎴,🎭,🎨,🧵,🪡,🧶,🪢,👓,🥽,🥼,🦺,👔,👕,👖,🧣,🧤,🧥,🧦,👗,👘,🥻,🩱,🩲,🩳,👙,👚,🪭,👛,👜,👝,🎒,🩴,👞,👟,🥾,🥿,👠,👡,🩰,👢,🪮,👑,👒,🎩,🎓,🧢,🪖,📿,💄,💍,💎,🔇,🔈,🔉,🔊,📢,📣,📯,🔔,🔕,🎼,🎵,🎶,🎤,🎧,📻,🎷,🪗,🎸,🎹,🎺,🎻,🪕,🥁,🪘,🪇,🪈,📱,📲,📞,📟,📠,🔋,🪫,🔌,💻,💽,💾,💿,📀,🧮,🎥,📺,📷,📸,📹,📼,🔍,🔎,💡,🔦,🏮,🪔,📔,📕,📖,📗,📘,📙,📚,📓,📒,📃,📜,📄,📰,📑,🔖,💰,🪙,💴,💵,💶,💷,💸,💳,🧾,💹,📧,📨,📩,📤,📥,📦,📫,📪,📬,📭,📮,📝,💼,📁,📂,📅,📆,📇,📈,📉,📊,📋,📌,📍,📎,📏,📐,🔒,🔓,🔏,🔐,🔑,🔨,🪓,💣,🪃,🏹,🪚,🔧,🪛,🔩,🦯,🔗,🪝,🧰,🧲,🪜,🧪,🧫,🧬,🔬,🔭,📡,💉,🩸,💊,🩹,🩼,🩺,🩻,🚪,🛗,🪞,🪟,🛏,🛋,🪑,🚽,🪠,🚿,🛁,🪤,🪒,🧴,🧷,🧹,🧺,🧻,🪣,🧼,🫧,🪥,🧽,🧯,🛒,🚬,🪦,🧿,🪬,🗿,🪧,🪪,🏧,🚮,🚰,🚹,🚺,🚻,🚼,🚾,🛂,🛃,🛄,🛅,🚸,🚫,🚳,🚭,🚯,🚱,🚷,📵,🔞,🔃,🔄,🔙,🔚,🔛,🔜,🔝,🛐,🕉,🕎,🔯,🪯,🔀,🔁,🔂,🔼,🔽,🎦,🔅,🔆,📶,🛜,📳,📴,🟰,💱,💲,🔱,📛,🔰,🔟,🔠,🔡,🔢,🔣,🔤,🅰,🆎,🅱,🆑,🆒,🆓,🆔,🆕,🆖,🅾,🆗,🅿,🆘,🆙,🆚,🈁,🈂,🈷,🈶,🈯,🉐,🈹,🈚,🈲,🉑,🈸,🈴,🈳,🈺,🈵,🔴,🟠,🟡,🟢,🔵,🟣,🟤,🟥,🟧,🟨,🟩,🟦,🟪,🟫,🔶,🔷,🔸,🔹,🔺,🔻,💠,🔘,🔳,🔲,🏁,🚩,🎌,☺,☹,☠,❣,❤,✋,✌,☝,✊,✍,⛷,⛹,☘,☕,⛰,⛪,⛩,⛲,⛺,♨,⛽,⚓,⛵,⛴,✈,⌛,⏳,⌚,⏰,⏱,⏲,☀,⭐,☁,⛅,⛈,☂,☔,⛱,⚡,❄,☃,⛄,☄,✨,⚽,⚾,⛳,⛸,♠,♥,♦,♣,♟,⛑,☎,⌨,✉,✏,✒,✂,⛏,⚒,⚔,⚙,⚖,⛓,⚗,⚰,⚱,♿,⚠,⛔,☢,☣,⬆,↗,➡,↘,⬇,↙,⬅,↖,↕,↔,↩,↪,⤴,⤵,⚛,✡,☸,☯,✝,☦,☪,☮,♈,♉,♊,♋,♌,♍,♎,♏,♐,♑,♒,♓,⛎,▶,⏩,⏭,⏯,◀,⏪,⏮,⏫,⏬,⏸,⏹,⏺,⏏,♀,♂,⚧,✖,➕,➖,➗,♾,‼,⁉,❓,❔,❕,❗,〰,⚕,♻,⚜,⭕,✅,☑,✔,❌,❎,➰,➿,〽,✳,✴,❇,©,®,™,Ⓜ,㊗,㊙,⚫,⚪,⬛,⬜,◼,◻,◾,◽,▪,▫";
+</script>
+<script src="android-bridge.js"></script>
+</body>
+</html>

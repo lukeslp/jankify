@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Seven seeded pixel-art space generators in one page: night-sky backgrounds, starscapes, planets, sprites, warships, effects, and explosions. The recipe lives in the URL — generate, share, export." />
+  <title>SpaceJank</title>
+  <link rel="canonical" href="https://jankify.app/create/app/" />
+  <meta name="theme-color" content="#0b0f16" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="SpaceJank" />
+  <meta property="og:title" content="SpaceJank — pixel-art space generators" />
+  <meta property="og:description" content="Seven seeded generators in one page: night-sky backgrounds, starscapes, planets, sprites, warships, effects, and explosions. The recipe lives in the URL." />
+  <meta property="og:url" content="https://jankify.app/create/app/" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="SpaceJank — pixel-art space generators" />
+  <meta name="twitter:description" content="Backgrounds, starscapes, planets, sprites, warships, effects, explosions — seeded, shareable, exportable." />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="../icon.png" type="image/png" />
+</head>
+<body>
+  <a class="skip-link" href="#stage-host">Skip to generator</a>
+
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div>
+          <p class="brand-kicker">Unified web generators</p>
+          <h1>SpaceJank</h1>
+        </div>
+      </div>
+      <nav class="workspace-switcher" aria-label="Jankify workspace">
+        <a href="../../index.html" title="Open the Jankify image editor">Edit</a>
+        <span aria-current="page">Create</span>
+      </nav>
+      <p class="tagline" id="mode-blurb">All modes live. Generate, randomize, export.</p>
+      <div class="topbar-actions">
+        <label class="seed-field">
+          <span>Seed</span>
+          <input type="number" id="global-seed" min="0" step="1" />
+        </label>
+        <button type="button" class="btn" id="btn-generate" title="G — re-run the current recipe">Generate</button>
+        <button type="button" class="btn" id="btn-random" title="R — new piece (new seed)">New piece</button>
+        <button type="button" class="btn" id="btn-vary" title="V — same seed, new look (Shift+V: new seed too)">Vary</button>
+        <button type="button" class="btn" id="btn-copy" title="C — copy a link to this exact piece">Copy link</button>
+        <button type="button" class="btn primary" id="btn-export" title="E — download as PNG">Export PNG</button>
+      </div>
+    </header>
+
+    <nav class="rail" id="mode-rail" aria-label="Generator modes"></nav>
+
+    <div class="workspace">
+      <div class="frame-chrome">
+        <span class="frame-label" id="frame-label">Workspace</span>
+        <span class="status-pill" id="status-pill">live</span>
+      </div>
+      <main class="stage" id="stage-host" tabindex="-1"></main>
+      <div class="recipe" aria-live="polite">
+        <span class="recipe-label">Recipe</span>
+        <span id="recipe-text">—</span>
+      </div>
+    </div>
+
+    <aside class="sidebar" aria-label="Mode controls">
+      <h2 class="sidebar-title">Controls</h2>
+      <div id="controls-host" class="controls"></div>
+      <div id="history-host" class="history" aria-label="Recent generations"></div>
+      <p class="sidebar-hint">
+        Keys: <kbd>1</kbd>–<kbd>7</kbd> modes ·
+        <kbd>R</kbd> new piece ·
+        <kbd>V</kbd> vary ·
+        <kbd>G</kbd> re-run ·
+        <kbd>C</kbd> copy ·
+        <kbd>E</kbd> export
+      </p>
+    </aside>
+
+    <footer class="footer">
+      <p>MIT code (Deep-Fold origins) · don’t sell generated images alone · recipe lives in the URL</p>
+    </footer>
+  </div>
+
+  <div class="actionbar">
+    <button type="button" class="btn" id="bar-vary" title="Same seed, new look">Vary</button>
+    <button type="button" class="btn primary" id="bar-new" title="New seed, new piece">New piece</button>
+  </div>
+
+  <div id="toast" class="toast" hidden role="status"></div>
+  <script src="../native-shell.js"></script>
+  <script type="module" src="js/app.js?v=17"></script>
+</body>
+</html>
