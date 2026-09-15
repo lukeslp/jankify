@@ -1,0 +1,6 @@
+{
+  "repository": "https://github.com/lukeslp/PixelGen",
+  "revision": "da5ddb2eb810f35e2949b35eafec6332d549954b",
+  "shortRevision": "da5ddb2eb810",
+  "adaptations": ["Native export bridge and local Edit link", "Backgrounds uses Luke Steuber’s seeded canvas renderer; upstream Starscapes and p5.js are excluded"]
+}

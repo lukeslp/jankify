@@ -1,16 +1,16 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Contributor architecture and source-maintenance notes.
 
 ## What this is
 
-Jankify is a browser media-transform tool that "screws up your photos, without AI," plus offline iOS and Android wrappers. Web logic, markup, and styling live in `index.html`; `og.html` + `og.png` are the social card. Both native apps bundle synchronized offline copies of the same editor in a WebView.
+Jankify is a browser media-transform tool with offline iOS and Android wrappers. Web logic, markup, and styling live in `index.html`; `og.html` + `og.png` are the social card. Both native apps bundle synchronized offline copies of the same editor in a WebView.
 
 ## How it runs
 
-- **Local dev:** open `index.html` directly in any modern browser, or serve the directory over HTTP if you need to load a test image via `fetch` (Chrome blocks `file://` fetch). No bundler, no dependencies installed. Font Awesome and IBM Plex are loaded from CDNs.
-- **Production:** `jankify.app` is the canonical site and Caddy serves it from the separate static directory `/home/coolhand/www/dr.eamer.dev/jankify/`. `www.jankify.app` and the legacy `dr.eamer.dev/jankify/` path redirect to the canonical domain. There is no `sm` service.
-- **Deploy:** edit, test, commit, and push, then explicitly synchronize the browser files to Drummer's static directory. A Git push alone does not deploy the website. Compare the live `index.html` and `privacy.html` before overwriting because the production copies have previously drifted from the repository; static-file updates do not require a Caddy reload.
+- **Local development:** serve the repository root over HTTP as described in README.md. No JavaScript build step is needed. Browser fonts and icons are hosted resources; native copies use local styles.
+- **Browser sources:** `index.html` owns Edit. `Jankify/Resources/Web/create/` owns the Create snapshot; `scripts/assets/spacejank-backgrounds.js` owns its canvas Backgrounds adaptation and `scripts/assets/spacejank-recipes.mjs` owns recipe-link routing. Root `create/` is generated. Do not edit generated copies directly.
+- **Website:** `jankify.app` is the public site. Committing source does not deploy it.
 - **Native sync:** run `scripts/sync-web.sh` after web changes. It updates both `Jankify/Resources/Web/` and `android/app/src/main/assets/`; regenerate the Xcode project with `xcodegen generate` when project settings change.
 - **Native tests:** run the iOS `xcodebuild test` gate, `node --test JankifyTests/ios-bridge.test.js JankifyTests/android-bridge.test.js JankifyTests/video-animation.test.js`, and Android's `:app:testDebugUnitTest` task.
 
@@ -69,8 +69,9 @@ Shared primitives worth knowing before editing:
 - Keep browser-specific behavior in `index.html` and app-only behavior in `Jankify/Resources/Web/ios-bridge.js`.
 - When a web mode adds an export type, update both native bridges and extend their JavaScript and native policy tests.
 
-## Repo hygiene
+## Repository hygiene
 
-- Single git repo (`lukeslp/jankify`) — this directory's `.git` is independent of the kernel monorepo at `/home/coolhand`. Root `git status` at `~` will not show changes here.
-- `.gitignore` excludes `.claude/`, `.DS_Store`, `*.swp`, `*.bak`, `.playwright-mcp/`, and the screenshot Playwright drops in the repo root. Do not commit `.claude/settings.local.json`.
-- Author: Luke Steuber. Never credit Claude / AI in commits or in user-facing strings inside `index.html` (the tagline is literally "Screw up your photos, without AI." — that is the brand; do not soften it).
+- Inspect changes and stage only intended files. Preserve unrelated work.
+- Keep signing credentials, local settings, generated build output and private input media out of commits.
+- Preserve upstream copyrights and `THIRD_PARTY_NOTICES.md` when moving or copying bundled code.
+- Credit Luke Steuber for Jankify's original work.
