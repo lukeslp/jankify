@@ -48,9 +48,11 @@ Android builds are distributed directly from the project download page. Release
 artifacts use the established Jankify signing identity and are verified before
 publication.
 
-The current signed release is [Jankify 1.0.9 for Android](https://jankify.app/downloads/android/Jankify-1.0.9.apk).
-Its [SHA-256 checksums](https://jankify.app/downloads/android/Jankify-1.0.9-SHA256SUMS)
-are published alongside the download.
+The current signed release is Jankify 1.0.10 (17) for Android, on its
+[download page](https://dr.eamer.dev/downloads/apps/jankify/) with SHA-256
+checksums. The site's Android button links to that page, so it stays current.
+1.0.9 crashes on Android 12 and earlier; its file remains at
+jankify.app/downloads/android/ only for existing links.
 
 Requirements:
 
