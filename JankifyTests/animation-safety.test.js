@@ -46,3 +46,21 @@ test("analyzeFlash counts the loop seam (last->first) transition", () => {
   const res = anim.analyzeFlash(frames, 4);
   assert.ok(res.maxFlashesPerSec >= 1, "seam transition white->black should register");
 });
+
+test("analyzeFlash counts a 2 Hz strobe as two flashes per second", () => {
+  const frames = [solid(0), solid(0), solid(255), solid(255)];
+  const res = anim.analyzeFlash(frames, 8);
+  assert.ok(res.maxFlashesPerSec <= 3, "a 2 Hz strobe is within WCAG 2.3.1, got " + res.maxFlashesPerSec);
+});
+
+test("analyzeFlash counts a slow fade and its loop back as one flash", () => {
+  const frames = [0, 30, 60, 90, 120, 150, 180, 210].map(solid);
+  const res = anim.analyzeFlash(frames, 8);
+  assert.ok(res.maxFlashesPerSec <= 1, "a one-second fade is not a strobe, got " + res.maxFlashesPerSec);
+});
+
+test("analyzeFlash flags a 4 Hz strobe", () => {
+  const frames = [solid(0), solid(255)];
+  const res = anim.analyzeFlash(frames, 8);
+  assert.ok(res.maxFlashesPerSec > 3, "a 4 Hz strobe exceeds WCAG 2.3.1, got " + res.maxFlashesPerSec);
+});

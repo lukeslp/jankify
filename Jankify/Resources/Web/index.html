@@ -2298,22 +2298,43 @@ function frameLuma(frame) {
 }
 
 function analyzeFlash(frames, fps) {
+  // WCAG 2.3.1: a general flash is a pair of opposing changes in relative
+  // luminance of at least 0.10 where the darker image is below 0.80. Gradual
+  // rises and falls count once, however many frames they take.
   if (frames.length < 2) return { maxFlashesPerSec: 0 };
   const lumas = frames.map(frameLuma);
   const n = lumas.length;
-  const transitions = [];
-  for (let i = 0; i < n; i++) {
-    const a = lumas[i], b = lumas[(i + 1) % n];
-    if (Math.abs(a - b) >= 0.1 && Math.min(a, b) < 0.8) transitions.push(i);
-  }
   const windowFrames = Math.max(1, Math.round(fps));
+  // The animation loops, so walk enough repeats to cover a full window from any start.
+  const reps = Math.ceil(windowFrames / n) + 1;
+  const seq = [];
+  for (let r = 0; r < reps; r++) for (let i = 0; i < n; i++) seq.push(lumas[i]);
+  seq.push(lumas[0]);
+  const changes = [];
+  const close = (a, b) => {
+    const lo = Math.min(seq[a], seq[b]), hi = Math.max(seq[a], seq[b]);
+    if (hi - lo < 0.1 || lo >= 0.8) return;
+    const dir = Math.sign(seq[b] - seq[a]);
+    const last = changes[changes.length - 1];
+    if (last && last.dir === dir) last.at = b;
+    else changes.push({ at: b, dir: dir });
+  };
+  let runStart = 0, runDir = 0;
+  for (let i = 1; i < seq.length; i++) {
+    const step = seq[i] - seq[i - 1];
+    const dir = Math.abs(step) < 1e-6 ? 0 : Math.sign(step);
+    if (dir === 0) continue;
+    if (runDir === 0) runDir = dir;
+    else if (dir !== runDir) { close(runStart, i - 1); runStart = i - 1; runDir = dir; }
+  }
+  close(runStart, seq.length - 1);
   let worst = 0;
-  for (let i = 0; i < n; i++) {
+  for (let w = 0; w < n; w++) {
     let count = 0;
-    for (const t of transitions) { if (((t - i + n) % n) < windowFrames) count++; }
+    for (const c of changes) { if (c.at >= w && c.at < w + windowFrames) count++; }
     if (count > worst) worst = count;
   }
-  return { maxFlashesPerSec: worst };
+  return { maxFlashesPerSec: worst / 2 };
 }
 
 function clampDelays(frames, floorMs) {
