@@ -23,6 +23,18 @@ test("analyzeFlash flags a black/white strobe above 3 Hz", () => {
   assert.ok(res.maxFlashesPerSec >= 3, "strobe should exceed the WCAG 2.3.1 threshold, got " + res.maxFlashesPerSec);
 });
 
+test("analyzeFlash flags a dark/mid-gray strobe that never reaches white", () => {
+  const frames = [solid(20), solid(180), solid(20), solid(180), solid(20), solid(180)];
+  const res = anim.analyzeFlash(frames, 15);
+  assert.ok(res.maxFlashesPerSec > 3, "a 0.007 to 0.46 luminance strobe is a WCAG general flash, got " + res.maxFlashesPerSec);
+});
+
+test("analyzeFlash ignores changes between two bright frames", () => {
+  const frames = [solid(235), solid(255), solid(235), solid(255), solid(235), solid(255)];
+  const res = anim.analyzeFlash(frames, 15);
+  assert.strictEqual(res.maxFlashesPerSec, 0, "the darker frame is above 0.80 luminance, so WCAG counts no flash");
+});
+
 test("analyzeFlash clears a gentle ramp", () => {
   const frames = [solid(100), solid(110), solid(120), solid(130)];
   const res = anim.analyzeFlash(frames, 8);
