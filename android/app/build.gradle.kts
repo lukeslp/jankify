@@ -24,8 +24,8 @@ android {
         applicationId = "com.lukesteuber.jankify"
         minSdk = 26
         targetSdk = 36
-        versionCode = 17
-        versionName = "1.0.10"
+        versionCode = 18
+        versionName = "1.0.11"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
