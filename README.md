@@ -1,5 +1,10 @@
 # Jankify
 
+[![Live](https://img.shields.io/badge/live-jankify.app-4ad7d1?style=flat-square)](https://jankify.app/)
+[![App Store](https://img.shields.io/badge/App_Store-iPhone_and_iPad-blue?style=flat-square)](https://apps.apple.com/us/app/jankify-glitch-pixel-art/id6782693852)
+[![Android download](https://img.shields.io/badge/Android-direct_download-34A853?style=flat-square)](https://dr.eamer.dev/downloads/apps/jankify/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
+
 Jankify turns photos and short clips into pixel art, Lite Brite boards, ASCII, emoji mosaics, hatching, rough sketches, polygons, and Voronoi art. Its Create workspace generates seeded backgrounds, starscapes, planets, sprites, ships, effects, and explosions.
 
 Image processing runs locally. The repository includes the browser app and offline iOS and Android shells.
