@@ -122,7 +122,7 @@ test("decodeGif rejects frames that exceed the decoded-pixel-byte budget", () =>
   );
 });
 
-test("decodeGif reads a third-party LZW stream without throwing", () => {
+test("decodeGif reads an independently encoded original GIF fixture", () => {
   const fs = require("node:fs");
   const path = require("node:path");
   const fixture = path.join(__dirname, "fixtures", "external-lzw.gif");
@@ -132,7 +132,7 @@ test("decodeGif reads a third-party LZW stream without throwing", () => {
     maxDimension: 512,
     maxDecodedBytes: 16 * 1_024 * 1_024
   });
-  assert.ok(decoded.frames.length >= 2, "expected multiple frames");
+  assert.strictEqual(decoded.frames.length, 3, "expected three independent frames");
   assert.strictEqual(decoded.frames[0].width, 48);
   assert.strictEqual(decoded.frames[0].height, 48);
   assert.strictEqual(decoded.frames[0].data.length, 48 * 48 * 4);

@@ -8,6 +8,14 @@ set -eu
 
 repo_root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 source_html="$repo_root/index.html"
+create_source="$repo_root/Jankify/Resources/Web/create"
+
+if [ ! -f "$create_source/app/index.html" ] || [ ! -f "$create_source/SOURCE.json" ]; then
+  echo "Missing tracked Create snapshot. Restore Jankify/Resources/Web/create from Git." >&2
+  exit 1
+fi
+cp "$repo_root/scripts/assets/spacejank-backgrounds.js" "$create_source/app/js/modes/starscapes.js"
+cp "$repo_root/scripts/assets/spacejank-recipes.mjs" "$create_source/app/js/native-shell.mjs"
 
 sync_bundle() {
   web_dir=$1
@@ -33,14 +41,23 @@ sync_bundle() {
 
 sync_bundle "$repo_root/Jankify/Resources/Web" "ios-bridge.js" "true"
 
+rm -rf "$repo_root/create"
+cp -R "$create_source" "$repo_root/create"
+
 android_web_dir="$repo_root/android/app/src/main/assets"
 if [ -d "$repo_root/android" ]; then
+  mkdir -p "$android_web_dir"
   cp "$repo_root/Jankify/Resources/Web/offline.css" "$android_web_dir/offline.css"
   sync_bundle "$android_web_dir" "android-bridge.js" "false"
-  if [ ! -d "$repo_root/Jankify/Resources/Web/create" ]; then
-    echo "Missing bundled Create workspace; run scripts/sync-spacejank.sh first." >&2
-    exit 1
-  fi
   rm -rf "$android_web_dir/create"
   cp -R "$repo_root/Jankify/Resources/Web/create" "$android_web_dir/create"
 fi
+
+for web_dir in "$repo_root/Jankify/Resources/Web" "$android_web_dir"; do
+  [ -d "$web_dir" ] || continue
+  cp "$repo_root/LICENSE" "$web_dir/LICENSE"
+  cp "$repo_root/THIRD_PARTY_NOTICES.md" "$web_dir/THIRD_PARTY_NOTICES.md"
+  perl -0pi -e 's{Jankify/Resources/Web/create/}{create/}g' "$web_dir/THIRD_PARTY_NOTICES.md"
+  rm -rf "$web_dir/licenses"
+  cp -R "$repo_root/licenses" "$web_dir/licenses"
+done

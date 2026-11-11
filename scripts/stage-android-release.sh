@@ -45,7 +45,8 @@ aab="$android_dir/app/build/outputs/bundle/release/app-release.aab"
 test -f "$apk"
 test -f "$aab"
 
-build_tools="$HOME/Library/Android/sdk/build-tools/36.0.0"
+android_sdk=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-"$HOME/Library/Android/sdk"}}
+build_tools="$android_sdk/build-tools/36.0.0"
 "$build_tools/apksigner" verify --verbose "$apk"
 aab_verification=$(mktemp)
 trap 'rm -f "$aab_verification"' EXIT
@@ -53,7 +54,7 @@ set +e
 jarsigner -verify -strict "$aab" >"$aab_verification" 2>&1
 aab_status=$?
 set -e
-# Self-signed portfolio certificates make jarsigner return 4 for certificate
+# Self-signed release certificates make jarsigner return 4 for certificate
 # chain warnings even when every bundle entry is signed. Reject any other
 # status and still require jarsigner's explicit success marker.
 if [ "$aab_status" -ne 0 ] && [ "$aab_status" -ne 4 ]; then

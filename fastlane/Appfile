@@ -1,4 +1,3 @@
-app_identifier("com.lukesteuber.jankify")
-apple_id("luke@lukesteuber.com")
-team_id("596T7J7FB6")
-# Issuer / API team are supplied via env (source ~/.appstoreconnect/env.sh).
+app_identifier(ENV.fetch("JANKIFY_APP_IDENTIFIER", "com.lukesteuber.jankify"))
+apple_id(ENV["JANKIFY_APPLE_ID"]) if ENV["JANKIFY_APPLE_ID"]
+team_id(ENV["JANKIFY_TEAM_ID"]) if ENV["JANKIFY_TEAM_ID"]

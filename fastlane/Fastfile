@@ -1,15 +1,16 @@
-# Jankify App Store delivery lanes.
-# Auth: source ~/.appstoreconnect/env.sh first (central ASC API key).
-# The app record already exists (com.lukesteuber.jankify), so these lanes
-# never create it — they only update the listing.
+# Jankify App Store delivery lanes. See README.md for explicit account configuration.
 
 default_platform(:ios)
 
-API_KEY_JSON = File.expand_path("~/.appstoreconnect/api_key.json")
+APP_IDENTIFIER = ENV.fetch("JANKIFY_APP_IDENTIFIER", "com.lukesteuber.jankify")
+
+def api_key_path
+  File.expand_path(ENV.fetch("JANKIFY_ASC_KEY_JSON"))
+end
 
 def asc_key
   require "json"
-  cfg = JSON.parse(File.read(API_KEY_JSON))
+  cfg = JSON.parse(File.read(api_key_path))
   app_store_connect_api_key(
     key_id: cfg["key_id"],
     issuer_id: cfg["issuer_id"],
@@ -21,7 +22,7 @@ end
 SHOTS = File.expand_path("screenshots", __dir__)
 
 platform :ios do
-  desc "Push text metadata only (no binary, no screenshots). Safe, no review."
+  desc "Update text metadata without uploading a binary or submitting for review."
   lane :upload_listing do
     deliver(
       api_key: asc_key,
@@ -86,11 +87,11 @@ platform :ios do
     build_number = options[:build].to_s
     UI.user_error!("Pass build:NUMBER") if build_number.empty?
     require "json"
-    cfg = JSON.parse(File.read(API_KEY_JSON))
+    cfg = JSON.parse(File.read(api_key_path))
     Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
       key_id: cfg["key_id"], issuer_id: cfg["issuer_id"],
       filepath: File.expand_path(cfg["key_filepath"]))
-    app = Spaceship::ConnectAPI::App.find("com.lukesteuber.jankify")
+    app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
     version = app.get_edit_app_store_version(platform: "IOS")
     UI.user_error!("No editable App Store version") unless version
     build = Spaceship::ConnectAPI::Build.all(
@@ -106,11 +107,11 @@ platform :ios do
   desc "Delete duplicate screenshots (same filename) left by flaky-API re-uploads."
   lane :dedup_shots do
     require "json"
-    cfg = JSON.parse(File.read(API_KEY_JSON))
+    cfg = JSON.parse(File.read(api_key_path))
     Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
       key_id: cfg["key_id"], issuer_id: cfg["issuer_id"],
       filepath: File.expand_path(cfg["key_filepath"]))
-    app = Spaceship::ConnectAPI::App.find("com.lukesteuber.jankify")
+    app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
     version = app.get_edit_app_store_version(platform: "IOS")
     version.get_app_store_version_localizations.each do |loc|
       loc.get_app_screenshot_sets.each do |set|
@@ -132,11 +133,11 @@ platform :ios do
   desc "Print the current App Store listing state (version, name, screenshot counts)."
   lane :status do
     require "json"
-    cfg = JSON.parse(File.read(API_KEY_JSON))
+    cfg = JSON.parse(File.read(api_key_path))
     Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
       key_id: cfg["key_id"], issuer_id: cfg["issuer_id"],
       filepath: File.expand_path(cfg["key_filepath"]))
-    app = Spaceship::ConnectAPI::App.find("com.lukesteuber.jankify")
+    app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
     UI.header("Jankify (#{app.id})")
     version = app.get_edit_app_store_version(platform: "IOS")
     UI.message("Edit version: #{version&.version_string} — #{version&.app_store_state}")

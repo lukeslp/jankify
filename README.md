@@ -1,36 +1,70 @@
 # Jankify
 
-Jankify creates seeded pixel-art space scenes and transforms photos into pixel art, Lite Brite boards, ASCII, emoji mosaics, hatching, rough sketches, polygons, and Voronoi art. The canonical browser editor is `index.html`; native iOS and Android shells bundle synchronized offline copies of both workspaces.
+Jankify turns photos and short clips into pixel art, Lite Brite boards, ASCII, emoji mosaics, hatching, rough sketches, polygons, and Voronoi art. Its Create workspace generates seeded backgrounds, starscapes, planets, sprites, ships, effects, and explosions.
 
-The Edit/Create workspace switcher joins the photo editor with seven SpaceJank generators: backgrounds, starscapes, planets, sprites, ships, effects, and explosions. Both workspaces stay inside the native apps and run without a network connection. Public recipe links use `https://jankify.app/create/` so someone opening a shared recipe can reproduce it on the web.
+Image processing runs locally. The repository includes the browser app and offline iOS and Android shells.
 
-## Web
+## Run in a browser
 
-Open `index.html` in a modern browser. No package installation or build step is required.
+From the repository root:
+
+```sh
+python3 -m http.server 5058
+```
+
+Open [localhost:5058](http://localhost:5058). Use **Create** to open the generators and **Edit** to return to the photo editor. No package installation or JavaScript build step is required. Serve the whole directory: Create uses browser modules, which require HTTP rather than a `file://` URL.
+
+The browser editor loads hosted fonts and icons; processing does not upload media. Native bundles replace those resources with local styles. Browser recipe links retain the current host and path. Native copies link to `https://jankify.app/create/app/`, adding `embed=false` for Backgrounds so the hosted app selects its matching canvas renderer. Hosted and installed versions can change independently; use PNG export when exact output matters. A fork can change `PUBLIC_CREATE_URL` in `scripts/assets/spacejank-recipes.mjs` and regenerate its bundles.
 
 ### Animated media
 
-1. Upload an animated GIF or browser-readable video such as MP4, MOV, or WebM.
-2. The canvas shows the first frame; animation controls and export buttons appear.
-3. Choose Pixel, Lite Brite, ASCII, Emoji, Hatch, or Rough (Polygon and Voronoi are still-only).
-4. Choose a duration, frame rate, and sprite-sheet layout, then export a looping GIF, PNG sprite sheet, or recorded video.
-5. The result downloads in the browser, or opens the native share sheet on iOS/Android.
+1. Upload a GIF or browser-readable video, such as MP4, MOV, or WebM.
+2. Choose Pixel, Lite Brite, ASCII, Emoji, Hatch, or Rough. Polygon and Voronoi handle still images.
+3. Choose a duration, frame rate, and sprite-sheet layout.
+4. Export a looping GIF, PNG sprite sheet, or recorded video. Video export depends on browser support.
 
-Long sources are trimmed and downscaled for memory. Frame timing is bounded and checked against flash limits, and progress remains visible during decoding, rendering, and encoding.
+Long sources are trimmed and downscaled. Animation controls include duration, frame-count, and flash limits, plus a photosensitivity warning.
 
-## Synchronize mobile web assets
+## Source and generated files
 
-After changing `index.html`, `Jankify/Resources/Web/offline.css`, or either native bridge, run:
+| Edit here | Purpose |
+|---|---|
+| `index.html` | Browser photo editor, shared rendering logic and inline Rough.js |
+| `Jankify/Resources/Web/create/` | Tracked Create source snapshot, including generators and source attribution |
+| `scripts/assets/spacejank-backgrounds.js` | Backgrounds canvas renderer, copied into Create during synchronization |
+| `scripts/assets/spacejank-recipes.mjs` | Local browser recipe URLs and native public-link adapter |
+| `Jankify/Resources/Web/offline.css` | Local mobile typography and icon fallbacks |
+| `Jankify/Resources/Web/ios-bridge.js` | iOS picker, export and clipboard adapter |
+| `android/app/src/main/assets/android-bridge.js` | Android adapter |
+| `project.yml` | iOS project settings; regenerate with XcodeGen |
+
+After changes, run:
 
 ```sh
 ./scripts/sync-web.sh
+node --test JankifyTests/*.test.js
 ```
 
-The script removes hosted fonts, icons, and analytics from mobile copies, adds the offline stylesheet, injects the matching iOS or Android bridge, and mirrors the pinned Create bundle. To update Create from its upstream checkout first, run `./scripts/sync-spacejank.sh` and then `./scripts/sync-web.sh`.
+Synchronization generates both mobile editor pages, root `create/`, and Android's Create copy from tracked files. It also copies third-party notices into the mobile bundles. Commit generated changes alongside their source. No adjacent checkout or network connection is needed for this step.
+
+Create's Backgrounds mode uses the included seeded night-sky and mountain renderer. It differs from the older upstream watercolor painter. The seven modes remain available; the older painter and p5.js are not bundled. See [third-party notices](THIRD_PARTY_NOTICES.md) for source origins and output terms.
+
+### Optional upstream refresh
+
+Normal builds use the included snapshot. Maintainers with an upstream PixelGen checkout can deliberately import a reviewed commit:
+
+```sh
+SPACEJANK_SOURCE=/path/to/PixelGen \
+SPACEJANK_REVISION=da5ddb2eb810f35e2949b35eafec6332d549954b \
+  ./scripts/sync-spacejank.sh
+./scripts/sync-web.sh
+```
+
+The importer requires a clean checkout, copies committed files from an explicit allowlist, records the revision, and applies Jankify's native bridge and Backgrounds adaptation. Review upstream changes and licensing before updating the pinned snapshot.
 
 ## iOS
 
-Requirements: Xcode with an iOS 17+ simulator and XcodeGen.
+Use Xcode with an iOS 17 or later SDK and XcodeGen. Choose an installed simulator in the destination argument:
 
 ```sh
 ./scripts/sync-web.sh
@@ -38,9 +72,11 @@ xcodegen generate
 xcodebuild test \
   -project Jankify.xcodeproj \
   -scheme Jankify \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
-node --test JankifyTests/ios-bridge.test.js
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  CODE_SIGNING_ALLOWED=NO
 ```
+
+For a physical device, select your own development team and bundle identifier in `project.yml`, then regenerate the project. Release signing credentials are not required for simulator tests.
 
 ## Android
 
@@ -48,17 +84,13 @@ Android builds are distributed directly from the project download page. Release
 artifacts use the established Jankify signing identity and are verified before
 publication.
 
-The current signed release is Jankify 1.0.10 (17) for Android, on its
+The current signed release is on the
 [download page](https://dr.eamer.dev/downloads/apps/jankify/) with SHA-256
 checksums. The site's Android button links to that page, so it stays current.
 1.0.9 crashes on Android 12 and earlier; its file remains at
 jankify.app/downloads/android/ only for existing links.
 
-Requirements:
-
-- Android SDK Platform 36 and Build Tools 36
-- JDK 21
-- The included Gradle 8.14.5 wrapper
+Requirements: JDK 21, Android SDK Platform 36, and Build Tools 36. The Gradle 8.14.5 wrapper is included. Set `ANDROID_HOME` to your SDK or configure `android/local.properties` locally.
 
 Build and test:
 
@@ -66,63 +98,24 @@ Build and test:
 ./scripts/sync-web.sh
 cd android
 ./gradlew :app:testDebugUnitTest :app:assembleDebug
-cd ..
-node --test JankifyTests/android-bridge.test.js
 ```
 
-The debug APK is written under `android/app/build/outputs/apk/debug/`.
+The debug APK appears in `android/app/build/outputs/apk/debug/`. Debug builds use a separate application ID and do not require release credentials. Gradle downloads build dependencies on first use.
 
-### Signed release staging
+For your own signed release, set `JANKIFY_STORE_FILE`, `JANKIFY_STORE_PASSWORD`, `JANKIFY_KEY_ALIAS`, and `JANKIFY_KEY_PASSWORD` in the process environment, then run `./scripts/stage-android-release.sh`. It builds and verifies an APK and AAB and writes versioned files with checksums under `dist/android/`. It does not upload or publish them.
 
-Release credentials are read only from the process environment:
+## Privacy and accessibility
 
-- `JANKIFY_STORE_FILE`
-- `JANKIFY_STORE_PASSWORD`
-- `JANKIFY_KEY_ALIAS`
-- `JANKIFY_KEY_PASSWORD`
+The native apps bundle both workspaces and use system file pickers and share sheets. Android requests no network or media-library permission. Native bridges validate exported MIME types, filenames and sizes; web links open in the system browser. Browser recipes and native history are stored locally.
 
-With those variables set, run:
+The interfaces include semantic labels, visible keyboard focus, status announcements, responsive layouts, reduced-motion handling, and animation warnings. The native shells support system font scaling, pinch zoom, and accessible system pickers and share sheets.
 
-```sh
-./scripts/stage-android-release.sh
-```
+## Contributing
 
-The script tests and builds the signed APK and AAB, verifies both signatures, and stages versioned copies plus `SHA256SUMS` under `dist/android/vVERSION/`. It does not install, upload, or publish anything.
+Keep rendering changes in the shared source and regenerate native copies. Include the Node tests above with changes to codecs, animation limits, or bridges; run the relevant native tests when changing shell behavior. Describe how to reproduce visual changes and include the browser or device you used. Keep signing keys, local settings, and private test media out of commits.
 
-### Amazon Fire tablet
-
-The signed `1.0.10 (17)` Fire-tablet build was submitted to Amazon on
-2026-09-04 for 12 compatible tablets. Amazon estimated publication before
-2026-09-09 at 12:30 AM PDT. Its APK SHA-256 is
-`036acfcef18435a27dd5796091a373c80c488c8b0f19de157e0bc36bb4fb0648`.
-The Amazon listing pack, measured launch/memory evidence, submission record,
-and update sequence are in
-[`android/AMAZON-RELEASE.md`](android/AMAZON-RELEASE.md).
-
-This does not change the public direct-download channel: `1.0.9 (16)` remains
-the served release until a separate direct publication is verified.
-
-## Android security and privacy
-
-- The manifest requests no runtime or sensitive permissions, including no network or media-library permission.
-- Store builds do not invoke the retired direct-download update checker.
-- Only allowlisted editor and Create assets are served from the private synthetic app origin.
-- File and content URL access, cleartext traffic, mixed content, and untrusted in-WebView navigation are blocked.
-- Web links open in the system browser.
-- Media selection uses Android's system document picker and reads only the selected image or video.
-- Export MIME types, names, and decoded sizes are validated before cache-only sharing.
-- Web local storage remains enabled and private to the app.
-- Android reports the app fully drawn after the bundled editor document is
-  ready, so ready-to-use latency is observable in device logs.
-
-## Accessibility
-
-The canonical interfaces use semantic labels, visible keyboard focus, live status regions, responsive layouts, reduced-motion handling, and a photosensitivity warning for animated output. The native shells expose the WebView as the Jankify editor and creator, follow system font scaling, support pinch zoom, and preserve system picker and share-sheet accessibility.
-
-## Author
+## Author and license
 
 Luke Steuber — [lukesteuber.com](https://lukesteuber.com) · [GitHub](https://github.com/lukeslp)
 
-## License
-
-MIT. See [LICENSE](LICENSE).
+Jankify's original code is [MIT licensed](LICENSE). Bundled libraries and adapted generators retain their own notices; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Source publication does not change any installed app or store release.

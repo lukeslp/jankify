@@ -16,7 +16,7 @@ const modes = [
   "starscapes",
 ];
 
-test("Create is bundled identically on iOS and Android", () => {
+test("Create is bundled identically on web, iOS and Android", () => {
   const iosFiles = fs.readdirSync(path.join(iosRoot, "create"), { recursive: true })
     .filter(file => fs.statSync(path.join(iosRoot, "create", file)).isFile())
     .sort();
@@ -25,13 +25,72 @@ test("Create is bundled identically on iOS and Android", () => {
     .sort();
 
   assert.deepEqual(androidFiles, iosFiles);
+  const webFiles = fs.readdirSync("create", { recursive: true })
+    .filter(file => fs.statSync(path.join("create", file)).isFile())
+    .sort();
+  assert.deepEqual(webFiles, iosFiles);
   for (const file of iosFiles) {
     assert.deepEqual(
       fs.readFileSync(path.join(androidRoot, "create", file)),
       fs.readFileSync(path.join(iosRoot, "create", file)),
       file,
     );
+    assert.deepEqual(fs.readFileSync(path.join("create", file)), fs.readFileSync(path.join(iosRoot, "create", file)), file);
   }
+});
+
+test("Backgrounds ignores legacy embed recipes and exports the seeded canvas", async () => {
+  const source = fs.readFileSync("scripts/assets/spacejank-backgrounds.js", "utf8");
+  let commands = [];
+  const context = new Proxy({}, {
+    get(_target, key) {
+      if (key === "createLinearGradient") return (...args) => {
+        commands.push([key, ...args]);
+        return { addColorStop: (...values) => commands.push(["stop", ...values]) };
+      };
+      return (...args) => commands.push([key, ...args]);
+    },
+    set(_target, key, value) { commands.push([key, value]); return true; },
+  });
+  const canvas = { getContext: () => context, toDataURL: () => "data:image/png;base64,seeded" };
+  const sandbox = {};
+  vm.runInNewContext(source.replace("export const starscapesMode =", "globalThis.mode ="), sandbox);
+  const mode = sandbox.mode;
+  mode._canvas = canvas;
+  const recipe = { seed: 42, width: 200, height: 200, embed: true };
+  assert.equal(mode.generate(recipe), canvas);
+  const first = JSON.stringify(commands);
+  commands = [];
+  mode.generate(recipe);
+  assert.equal(JSON.stringify(commands), first);
+  commands = [];
+  mode.generate({ ...recipe, seed: 43 });
+  assert.notEqual(JSON.stringify(commands), first);
+  assert.equal(mode.exportCanvas(), canvas);
+  assert.equal(await mode.exportAsync(), "data:image/png;base64,seeded");
+});
+
+test("recipe links preserve browser hosting and select canvas Backgrounds in native links", async () => {
+  const { canonicalRecipeURL } = await import("../scripts/assets/spacejank-recipes.mjs");
+  const browser = { location: new URL("https://example.org/games/jankify/create/app/index.html#/ships") };
+  assert.equal(
+    canonicalRecipeURL("#/planets?seed=42", browser),
+    "https://example.org/games/jankify/create/app/index.html#/planets?seed=42",
+  );
+  assert.equal(
+    canonicalRecipeURL("#/starscapes?seed=42&embed=true", browser),
+    "https://example.org/games/jankify/create/app/index.html#/starscapes?seed=42&embed=false",
+  );
+  const native = {
+    location: new URL("https://appassets.androidplatform.net/assets/create/app/index.html"),
+    jankifyShell: { shareDataURL() {}, copyText() {} },
+  };
+  assert.equal(
+    canonicalRecipeURL("#/starscapes?seed=42", native),
+    "https://jankify.app/create/app/#/starscapes?seed=42&embed=false",
+  );
+  native.location = new URL("file:///bundle/Web/create/app/index.html");
+  assert.equal(canonicalRecipeURL("#/effects?seed=42", native), "https://jankify.app/create/app/#/effects?seed=42");
 });
 
 test("Create has all seven modes and no hosted executable dependencies", () => {
@@ -42,7 +101,10 @@ test("Create has all seven modes and no hosted executable dependencies", () => {
   for (const mode of modes) {
     assert.ok(fs.existsSync(path.join(iosRoot, `create/app/js/modes/${mode}.js`)), mode);
   }
-  assert.ok(fs.existsSync(path.join(iosRoot, "create/Starscapes/p5.min.js")));
+  assert.ok(!fs.existsSync(path.join(iosRoot, "create/Starscapes")));
+  const backgrounds = fs.readFileSync(path.join(iosRoot, "create/app/js/modes/starscapes.js"), "utf8");
+  assert.doesNotMatch(backgrounds, /iframe|postMessage|p5\.js/);
+  assert.match(backgrounds, /_preview\(state\)/);
   assert.ok(fs.existsSync(path.join(iosRoot, "create/SOURCE.json")));
 });
 
