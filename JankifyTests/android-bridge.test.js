@@ -163,6 +163,7 @@ test("Android page uses store-safe mode names and Android wording", () => {
   assert.doesNotMatch(visible, /Hasbro/);
   assert.doesNotMatch(visible, /Lite Brite/);
   assert.doesNotMatch(bundledHtml, /camera roll|⌘|your browser supports/);
+  assert.doesNotMatch(bundledHtml, />Upload<|uploaded GIF|Download \/ Copy|GIF download|Download ready/);
   assert.match(bundledHtml, /<option value="brite">Peg Board<\/option>/);
   assert.match(bundledHtml, /id="licenses-link" href="licenses\.html"/);
 });

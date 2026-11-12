@@ -596,7 +596,7 @@ input[type=file] {
   <div class="header-end">
   <label for="file-input" class="btn btn-primary hide-mobile-empty" id="upload-btn">
     <i class="fa-solid fa-upload" aria-hidden="true"></i>
-    <span id="upload-btn-label">Upload</span>
+    <span id="upload-btn-label">Open</span>
   </label>
   <input type="file" id="file-input" accept="image/*,video/*,.mp4,.mov,.m4v,.webm" aria-label="Choose a photo, animated GIF, or video from your device">
 
@@ -827,7 +827,7 @@ input[type=file] {
           <option value="json">JSON 2D array</option>
           <option value="text">Plain text (coords)</option>
         </select>
-        <div class="hint">Download / Copy uses this format. Canvas preview always available as PNG.</div>
+        <div class="hint">File and Copy use this format. Canvas preview always available as PNG.</div>
       </div>
 
       <div class="control">
@@ -1043,7 +1043,7 @@ input[type=file] {
           <span class="value" id="clip-seconds-value">6s</span>
         </label>
         <input type="range" id="clip-seconds" min="1" max="10" value="6" step="1">
-        <div class="hint">Uses the first seconds of an uploaded GIF or video. Trim it first to choose a different moment.</div>
+        <div class="hint">Uses the first seconds of the GIF or video. Trim it first to choose a different moment.</div>
       </div>
       <div class="control">
         <label class="field-label" for="animation-fps">
@@ -3573,7 +3573,7 @@ async function exportAnimation(kind) {
     const result = await runAnimatedPipeline(src, { floorMs, encodeGif: kind === "gif" });
     let note;
     if (kind === "gif") {
-      showLoading(true, "Preparing GIF download…", 99);
+      showLoading(true, "Preparing GIF…", 99);
       state.lastGifBytes = result.gifBytes;
       triggerGifDownload(result.gifBytes);
       note = `GIF ready · ${result.frameCount} frames · ${result.width}×${result.height}px`;
@@ -3582,7 +3582,7 @@ async function exportAnimation(kind) {
     } else {
       note = `Video ready · ${await downloadProcessedVideo(result)}`;
     }
-    showLoading(true, "Download ready", 100);
+    showLoading(true, "Ready to share", 100);
     if (result.notice) note += ` · ${result.notice}`;
     $("status").textContent = note;
   } catch (err) {

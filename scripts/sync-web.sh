@@ -55,6 +55,12 @@ android_wording() {
     swap(q{switch to Pixel, Lite Brite, ASCII, Emoji, Hatch, or Rough}, q{switch to Pixel, Peg Board, ASCII, Emoji, Hatch, or Rough});
     # The app has no drop target or keyboard paste, and media comes from the system file picker.
     swap(qq{      <p class="hint-line hint-desktop">or drop one anywhere here · paste with <kbd>⌘ V</kbd></p>\n      <p class="hint-line hint-mobile">photos, screenshots, GIFs, or videos from your camera roll</p>}, q{      <p class="hint-line">photos, screenshots, GIFs, or videos from your files</p>});
+    # Nothing is uploaded or downloaded in the app: media is opened, results are shared.
+    swap(q{<span id="upload-btn-label">Upload</span>}, q{<span id="upload-btn-label">Open</span>});
+    swap(q{Uses the first seconds of an uploaded GIF or video.}, q{Uses the first seconds of the GIF or video.});
+    swap(q{Download / Copy uses this format.}, q{File and Copy use this format.});
+    swap(q{"Preparing GIF download…"}, q{"Preparing GIF…"});
+    swap(q{"Download ready"}, q{"Ready to share"});
     swap(q{or a video when your browser supports recording.}, q{or a video when this device supports recording.});
     swap(q{Trim on your phone first to choose a different moment.}, q{Trim it first to choose a different moment.});
     # Bundled third-party code and its licenses, reachable from the controls.
