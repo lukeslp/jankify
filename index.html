@@ -500,7 +500,7 @@ input[type=range]::-moz-range-thumb {
   white-space: normal;
   word-spacing: 2px;
 }
-.placeholder .modes-line .dot { color: var(--accent); padding: 0 3px; }
+.placeholder .modes-line .dot { display: inline-block; color: var(--accent); padding: 0 3px; }
 @media (max-width: 800px) {
   .placeholder { padding: 32px 18px; }
   .placeholder .hint-desktop { display: none; }
@@ -2980,9 +2980,12 @@ function updateStatus() {
   msg += `  ·  seed ${state.seed}`;
   if (state.sourceAnimation) {
     const kind = state.sourceAnimation.kind === "video" ? "Video" : "GIF";
-    msg += ANIM.MODES.includes(state.mode)
-      ? `  ·  ${kind} source — export GIF, sheet, or video`
-      : `  ·  ${kind} source — switch mode to animate`;
+    const motionOff = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    msg += !ANIM.MODES.includes(state.mode)
+      ? `  ·  ${kind} source — switch mode to animate`
+      : motionOff
+        ? `  ·  ${kind} source — animated export is off while your system reduces motion`
+        : `  ·  ${kind} source — export GIF, sheet, or video`;
   }
   $("status").textContent = msg;
 }
