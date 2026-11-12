@@ -30,7 +30,7 @@ internal object BridgePolicy {
         "video/webm"
     )
 
-    private val rootAssets = setOf("index.html", "offline.css", "android-bridge.js")
+    private val rootAssets = setOf("index.html", "offline.css", "android-bridge.js", "licenses.html")
     private val createExtensions = setOf("html", "css", "js", "mjs", "json", "png", "txt")
 
     const val contentSecurityPolicy =

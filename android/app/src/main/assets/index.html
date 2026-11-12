@@ -580,7 +580,7 @@ input[type=file] {
     <label for="mode">Mode</label>
     <select id="mode" aria-label="Rendering mode">
       <option value="pixel" selected>Pixel</option>
-      <option value="brite">Lite Brite</option>
+      <option value="brite">Peg Board</option>
       <option value="ascii">ASCII</option>
       <option value="emoji">Emoji</option>
       <option value="hatch">Hatch</option>
@@ -840,13 +840,13 @@ input[type=file] {
 
     <!-- LITE BRITE -->
     <div class="mode-section" data-modes="brite" hidden>
-      <h3>Lite Brite</h3>
+      <h3>Peg Board</h3>
 
       <div class="control">
         <div class="checkbox-group">
           <label><input type="checkbox" id="brite-classic">Classic 9×12 board</label>
         </div>
-        <div class="hint">Locks output to authentic Hasbro 12:9 aspect (4:3 landscape, 3:4 portrait). Disables the sliders below.</div>
+        <div class="hint">Locks output to the classic 4:3 board shape (3:4 in portrait). Disables the sliders below.</div>
       </div>
 
       <div class="control">
@@ -878,8 +878,8 @@ input[type=file] {
 
       <div class="control">
         <span class="field-label" style="display:block">Palette</span>
-        <div id="brite-palette-swatches" style="display:flex;gap:4px;margin-top:6px" aria-label="Lite Brite palette colors"></div>
-        <div class="hint">Authentic 8-peg Hasbro set. Cells below the luminance floor render as empty holes.</div>
+        <div id="brite-palette-swatches" style="display:flex;gap:4px;margin-top:6px" aria-label="Peg Board palette colors"></div>
+        <div class="hint">A fixed set of eight peg colors. Cells below the luminance floor render as empty holes.</div>
       </div>
     </div>
 
@@ -1034,7 +1034,7 @@ input[type=file] {
       <div class="control">
         <div class="field-label"><span>Animation workshop</span></div>
         <div class="hint">
-          Preview shows the first frame. Tune it, then export a looping GIF, a game-ready PNG sprite sheet, or a video when your browser supports recording. Pixel, Lite Brite, ASCII, Emoji, Hatch, and Rough support animation.
+          Preview shows the first frame. Tune it, then export a looping GIF, a game-ready PNG sprite sheet, or a video when this device supports recording. Pixel, Peg Board, ASCII, Emoji, Hatch, and Rough support animation.
         </div>
       </div>
       <div class="control" id="clip-seconds-control">
@@ -1043,7 +1043,7 @@ input[type=file] {
           <span class="value" id="clip-seconds-value">6s</span>
         </label>
         <input type="range" id="clip-seconds" min="1" max="10" value="6" step="1">
-        <div class="hint">Uses the first seconds of an uploaded GIF or video. Trim on your phone first to choose a different moment.</div>
+        <div class="hint">Uses the first seconds of an uploaded GIF or video. Trim it first to choose a different moment.</div>
       </div>
       <div class="control">
         <label class="field-label" for="animation-fps">
@@ -1073,6 +1073,10 @@ input[type=file] {
       <div class="hint">Large images are downscaled before processing.</div>
     </div>
 
+    <div class="control licenses-line">
+      <div class="hint"><a id="licenses-link" href="licenses.html" style="display:inline-block;padding:12px 0;color:inherit">Open-source licenses</a></div>
+    </div>
+
   </aside>
 
   <div class="canvas-area" id="canvas-area">
@@ -1083,11 +1087,10 @@ input[type=file] {
         <i class="fa-solid fa-image" aria-hidden="true"></i>
         Choose media
       </span>
-      <p class="hint-line hint-desktop">or drop one anywhere here · paste with <kbd>⌘ V</kbd></p>
-      <p class="hint-line hint-mobile">photos, screenshots, GIFs, or videos from your camera roll</p>
+      <p class="hint-line">photos, screenshots, GIFs, or videos from your files</p>
       <p class="hint-line">Video or GIF in → animated GIF, sprite sheet, or video out</p>
       <p class="modes-line">
-        Pixel<span class="dot">·</span>Lite Brite<span class="dot">·</span>ASCII<span class="dot">·</span>Emoji<span class="dot">·</span>Hatch<span class="dot">·</span>Rough<span class="dot">·</span>Polygon<span class="dot">·</span>Voronoi
+        Pixel<span class="dot">·</span>Peg Board<span class="dot">·</span>ASCII<span class="dot">·</span>Emoji<span class="dot">·</span>Hatch<span class="dot">·</span>Rough<span class="dot">·</span>Polygon<span class="dot">·</span>Voronoi
       </p>
     </label>
     <div class="loading" id="loading" role="status" aria-live="polite">
@@ -3430,7 +3433,7 @@ function updateAnimAvailability() {
   if ($("clip-seconds-control")) $("clip-seconds-control").hidden = !hasAnimation;
   const btn = $("make-gif");
   if (!supported) {
-    btn.title = "Animation isn't available for " + state.mode + " mode — switch to Pixel, Lite Brite, ASCII, Emoji, Hatch, or Rough";
+    btn.title = "Animation isn't available for " + state.mode + " mode — switch to Pixel, Peg Board, ASCII, Emoji, Hatch, or Rough";
     btn.setAttribute("aria-label", "Make GIF unavailable in " + state.mode + " mode");
   } else if (reducedMotion?.matches) {
     btn.title = "Animation off — your system requests reduced motion";

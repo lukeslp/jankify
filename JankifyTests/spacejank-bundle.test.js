@@ -136,7 +136,16 @@ test("native adapter maps SpaceJank share and copy actions onto the iOS bridge",
 test("native adapter emits JSON for Android and rejects non-PNG data", async () => {
   const source = fs.readFileSync(path.join(androidRoot, "create/native-shell.js"), "utf8");
   const messages = [];
+  const appended = [];
+  const footer = { append: (...nodes) => appended.push(...nodes) };
+  const link = { style: {}, addEventListener() {} };
   const sandbox = {
+    document: {
+      readyState: "complete",
+      querySelector: selector => (selector === ".footer p" ? footer : null),
+      getElementById: () => null,
+      createElement: () => link,
+    },
     window: {
       JankifyAndroid: { postMessage: message => messages.push(JSON.parse(message)) },
       location: { hash: "#/ships?seed=42" },
@@ -144,10 +153,21 @@ test("native adapter emits JSON for Android and rejects non-PNG data", async () 
   };
   vm.runInNewContext(source, sandbox);
 
+  assert.equal(link.textContent, "Open-source licenses");
+  assert.equal(link.href, "../../licenses.html");
+  assert.deepEqual(appended, [" · ", link]);
+  assert.equal(sandbox.window.jankifyBack(), false);
+
   await sandbox.window.jankifyShell.copyText("recipe");
   assert.deepEqual(messages, [{ action: "copyText", payload: { text: "recipe" } }]);
   await assert.rejects(
     sandbox.window.jankifyShell.shareDataURL("data:text/plain;base64,SGk=", "bad.txt"),
     /Only PNG exports/,
   );
+});
+
+test("bundled native adapters match the template the import script copies", () => {
+  const template = fs.readFileSync("scripts/assets/spacejank-native-shell.js");
+  assert.deepEqual(fs.readFileSync(path.join(iosRoot, "create/native-shell.js")), template);
+  assert.deepEqual(fs.readFileSync(path.join(androidRoot, "create/native-shell.js")), template);
 });

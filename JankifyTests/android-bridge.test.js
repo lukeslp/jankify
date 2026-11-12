@@ -111,3 +111,66 @@ test("Animation downloads use native sharing with canonical video MIME types", a
   assert.equal(messages[0].payload.mimeType, "video/mp4");
   assert.equal(messages[0].payload.filename, "jankify.mp4");
 });
+
+test("Licenses link opens the bundled licenses page in a dialog", async () => {
+  const { messages, clickHandler, sandbox } = makeSandbox();
+  const created = [];
+  let shown = 0;
+  sandbox.document.getElementById = () => null;
+  sandbox.document.body = { appendChild() {} };
+  sandbox.document.createElement = tag => {
+    const element = {
+      tag, style: {}, open: false,
+      setAttribute() {}, addEventListener() {}, append() {},
+      showModal() { shown += 1; this.open = true; }
+    };
+    created.push(element);
+    return element;
+  };
+  await click(clickHandler, { id: "licenses-link", matches: () => false });
+  assert.equal(shown, 1);
+  assert.equal(created.find(element => element.tag === "iframe").src, "licenses.html");
+  assert.deepEqual(messages, []);
+});
+
+test("Android Back closes the animation warning before leaving the page", () => {
+  const { sandbox } = makeSandbox();
+  const warning = { hidden: false };
+  let closedWith;
+  sandbox.document.getElementById = () => null;
+  sandbox.$ = id => (id === "gif-warning" ? warning : null);
+  sandbox.closeGifWarning = value => { closedWith = value; warning.hidden = true; };
+  assert.equal(sandbox.window.jankifyBack(), true);
+  assert.equal(closedWith, null);
+  assert.equal(sandbox.window.jankifyBack(), false);
+});
+
+test("Android page uses store-safe mode names and Android wording", () => {
+  const visible = bundledHtml
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/^\s*\/\/.*$/gm, "");
+  assert.doesNotMatch(visible, /Hasbro/);
+  assert.doesNotMatch(visible, /Lite Brite/);
+  assert.doesNotMatch(bundledHtml, /camera roll|⌘|your browser supports/);
+  assert.match(bundledHtml, /<option value="brite">Peg Board<\/option>/);
+  assert.match(bundledHtml, /id="licenses-link" href="licenses\.html"/);
+});
+
+test("Licenses page is generated from the packaged notices and names each library", () => {
+  const { execFileSync } = require("node:child_process");
+  const page = "android/app/src/main/assets/licenses.html";
+  const committed = fs.readFileSync(page, "utf8");
+  execFileSync("python3", ["scripts/build-android-licenses.py"]);
+  assert.equal(fs.readFileSync(page, "utf8"), committed, "licenses.html is stale; run scripts/sync-web.sh");
+  for (const name of ["p5.js 1.1.9", "GNU LESSER GENERAL PUBLIC LICENSE", "Rough.js 4.6.6", "Deep-Fold", "Apache License"]) {
+    assert.ok(committed.includes(name), name);
+  }
+  assert.ok(!committed.includes("<script"), "the licenses page must not run code");
+});
+
+test("Offline icon fallbacks cover every icon the editor uses", () => {
+  const css = fs.readFileSync("android/app/src/main/assets/offline.css", "utf8");
+  const used = new Set(bundledHtml.match(/fa-[a-z-]+/g));
+  for (const skip of ["fa-solid", "fa-brands", "fa-android", "fa-mobile-screen-button"]) used.delete(skip);
+  for (const icon of used) assert.ok(css.includes(`.${icon}::before`), icon);
+});
