@@ -114,12 +114,15 @@
     if (!dialog.open) dialog.showModal();
   }
 
-  // Android Back closes an open dialog before it leaves the page. Returns true when it did.
+  // Android Back closes an open dialog or cancels a running animated export before it
+  // leaves the page. Returns true when it did.
   window.jankifyBack = () => {
     const licenses = document.getElementById("licenses-dialog");
     if (licenses?.open) { licenses.close(); return true; }
     const warning = $("gif-warning");
     if (warning && !warning.hidden) { closeGifWarning(null); return true; }
+    const cancel = $("cancel-anim");
+    if (cancel && !cancel.hidden) { cancel.click(); return true; }
     return false;
   };
 

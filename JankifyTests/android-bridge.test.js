@@ -145,6 +145,17 @@ test("Android Back closes the animation warning before leaving the page", () => 
   assert.equal(sandbox.window.jankifyBack(), false);
 });
 
+test("Android Back cancels a running animated export", () => {
+  const { sandbox } = makeSandbox();
+  let cancelled = 0;
+  const cancel = { hidden: false, click() { cancelled += 1; this.hidden = true; } };
+  sandbox.document.getElementById = () => null;
+  sandbox.$ = id => (id === "cancel-anim" ? cancel : null);
+  assert.equal(sandbox.window.jankifyBack(), true);
+  assert.equal(cancelled, 1);
+  assert.equal(sandbox.window.jankifyBack(), false);
+});
+
 test("Android page uses store-safe mode names and Android wording", () => {
   const visible = bundledHtml
     .replace(/<!--[\s\S]*?-->/g, "")
