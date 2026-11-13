@@ -7,6 +7,7 @@ writes android/app/src/main/assets/licenses.html.
 """
 import html
 import pathlib
+import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -61,8 +62,51 @@ h1 { font-size: 1.25rem; margin: 0 0 8px; }
 h2 { font-size: 1.05rem; margin: 28px 0 4px; padding-top: 16px; border-top: 1px solid var(--border); }
 p { margin: 0 0 10px; }
 .muted { color: var(--muted); }
-pre { margin: 0 0 14px; white-space: pre-wrap; font: 12px/1.45 ui-monospace, monospace; }
+pre { margin: 0 0 12px; white-space: pre-wrap; font: 12px/1.45 ui-monospace, monospace; }
+.license { margin: 0 0 12px; font-size: 13px; }
+.heading { font-weight: 600; }
 """
+
+
+def reflow(text: str) -> list[tuple[str, list[str]]]:
+    """Split a hard-wrapped license into blocks a narrow screen can wrap itself.
+
+    Returns (kind, lines): "p" is a paragraph whose lines are rejoined, "h" is a short
+    centered heading kept line by line, "pre" is a code comment kept exactly as written.
+    """
+    blocks = []
+    for raw in re.split(r"\n[ \t]*\n", text.strip("\n")):
+        lines = [line.rstrip() for line in raw.split("\n") if line.strip()]
+        if not lines:
+            continue
+        stripped = [line.strip() for line in lines]
+        if stripped[0].startswith("/*") or any(line.startswith("*") for line in stripped):
+            blocks.append(("pre", lines))
+        elif len(lines) <= 4 and all(len(l) - len(l.lstrip()) >= 8 and len(l.strip()) < 60 for l in lines):
+            blocks.append(("h", stripped))
+        else:
+            blocks.append(("p", [" ".join(stripped)]))
+    return blocks
+
+
+def check_words(name: str, text: str, blocks: list[tuple[str, list[str]]]) -> None:
+    """Fail the build if reflowing dropped, added or reordered a single word."""
+    before = text.split()
+    after = " ".join(line for _, lines in blocks for line in lines).split()
+    if before != after:
+        raise SystemExit(f"Reflowing {name} changed its words; refusing to write the page.")
+
+
+def render(blocks: list[tuple[str, list[str]]]) -> list[str]:
+    out = []
+    for kind, lines in blocks:
+        if kind == "pre":
+            out.append("<pre>" + html.escape("\n".join(lines)) + "</pre>")
+        elif kind == "h":
+            out.append('<p class="license heading">' + "<br>".join(html.escape(l) for l in lines) + "</p>")
+        else:
+            out.append('<p class="license">' + html.escape(lines[0]) + "</p>")
+    return out
 
 
 def main() -> int:
@@ -80,7 +124,8 @@ def main() -> int:
         "<body>",
         "<h1>Open-source licenses</h1>",
         '<p class="muted">Jankify includes the open-source code listed here. '
-        "Each license is printed in full. The same files are packaged in the app "
+        "Each license is printed in full, with its line breaks removed so it fits this screen. "
+        "The same files, unchanged, are packaged in the app "
         "under META-INF/jankify-notices.</p>",
     ]
     for heading, blurb, files in SECTIONS:
@@ -92,8 +137,10 @@ def main() -> int:
                 print(f"Missing notice file: {path}", file=sys.stderr)
                 return 1
             used.add(name)
-            text = path.read_text(encoding="utf-8").strip("\n")
-            parts.append(f"<pre>{html.escape(text)}</pre>")
+            text = path.read_text(encoding="utf-8")
+            blocks = reflow(text)
+            check_words(name, text, blocks)
+            parts.extend(render(blocks))
     unlisted = sorted(p.name for p in NOTICES.glob("*.txt") if p.name not in used)
     if unlisted:
         print(f"Notice files not shown on the licenses page: {unlisted}", file=sys.stderr)

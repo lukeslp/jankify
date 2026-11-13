@@ -64,7 +64,7 @@ android_wording() {
     swap(q{or a video when your browser supports recording.}, q{or a video when this device supports recording.});
     swap(q{Trim on your phone first to choose a different moment.}, q{Trim it first to choose a different moment.});
     # Bundled third-party code and its licenses, reachable from the controls.
-    swap(qq{\n  </aside>}, qq{\n    <div class="control licenses-line">\n      <div class="hint"><a id="licenses-link" href="licenses.html" style="display:inline-block;padding:12px 0;color:inherit">Open-source licenses</a></div>\n    </div>\n\n  </aside>});
+    swap(qq{\n  </aside>}, qq{\n    <div class="control licenses-line">\n      <div class="hint"><a id="licenses-link" href="licenses.html" style="display:inline-block;padding:16px 0;color:inherit">Open-source licenses</a></div>\n    </div>\n\n  </aside>});
   ' "$1"
 }
 

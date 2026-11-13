@@ -139,12 +139,15 @@ test("native adapter emits JSON for Android and rejects non-PNG data", async () 
   const appended = [];
   const footer = { append: (...nodes) => appended.push(...nodes) };
   const link = { style: {}, addEventListener() {} };
+  const style = {};
+  const headNodes = [];
   const sandbox = {
     document: {
       readyState: "complete",
       querySelector: selector => (selector === ".footer p" ? footer : null),
       getElementById: () => null,
-      createElement: () => link,
+      createElement: tag => (tag === "style" ? style : link),
+      head: { appendChild: node => { headNodes.push(node); } },
     },
     window: {
       JankifyAndroid: { postMessage: message => messages.push(JSON.parse(message)) },
@@ -157,6 +160,8 @@ test("native adapter emits JSON for Android and rejects non-PNG data", async () 
   assert.equal(link.href, "../../licenses.html");
   assert.deepEqual(appended, [" · ", link]);
   assert.equal(sandbox.window.jankifyBack(), false);
+  assert.deepEqual(headNodes, [style]);
+  assert.match(style.textContent, /\.mode-btn[^{]*\{ min-height: 48px; \}/);
 
   await sandbox.window.jankifyShell.copyText("recipe");
   assert.deepEqual(messages, [{ action: "copyText", payload: { text: "recipe" } }]);

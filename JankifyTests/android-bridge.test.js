@@ -26,6 +26,13 @@ test("Android bundle hides web-only store links before first paint", () => {
 function makeSandbox(mode = "hatch") {
   const messages = [];
   let clickHandler;
+  const fileInput = { attributes: {}, setAttribute(name, value) { this.attributes[name] = value; } };
+  const makeLabel = id => ({
+    id, attributes: {}, handlers: {},
+    setAttribute(name, value) { this.attributes[name] = value; },
+    addEventListener(name, handler) { this.handlers[name] = handler; }
+  });
+  const pickerLabels = [makeLabel("upload-btn"), makeLabel("placeholder")];
   const sandbox = {
     Blob,
     File: class {},
@@ -42,7 +49,9 @@ function makeSandbox(mode = "hatch") {
     svgHatch: () => "<svg>hatch</svg>",
     asciiText: () => "ASCII",
     document: {
-      addEventListener: (_name, handler) => { clickHandler = handler; }
+      addEventListener: (_name, handler) => { clickHandler = handler; },
+      getElementById: id => (id === "file-input" ? fileInput : null),
+      querySelectorAll: () => pickerLabels
     },
     window: {
       JankifyAndroid: {
@@ -67,7 +76,7 @@ function makeSandbox(mode = "hatch") {
     setTimeout: callback => callback()
   };
   vm.runInNewContext(bridgeSource, sandbox);
-  return { messages, clickHandler, sandbox };
+  return { messages, clickHandler, sandbox, fileInput, pickerLabels };
 }
 
 async function click(clickHandler, target) {
@@ -180,9 +189,44 @@ test("Licenses page is generated from the packaged notices and names each librar
   assert.ok(!committed.includes("<script"), "the licenses page must not run code");
 });
 
+test("Licenses page keeps every word of every notice, in order", () => {
+  const unescape = text => text
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"')
+    .replace(/&#x27;/g, "'").replace(/&amp;/g, "&");
+  const page = unescape(
+    fs.readFileSync("android/app/src/main/assets/licenses.html", "utf8").replace(/<[^>]+>/g, " ")
+  ).split(/\s+/).filter(Boolean).join(" ");
+  const notices = "android/app/src/main/resources/META-INF/jankify-notices";
+  const files = fs.readdirSync(notices).filter(name => name.endsWith(".txt"));
+  assert.equal(files.length, 7);
+  for (const name of files) {
+    const words = fs.readFileSync(`${notices}/${name}`, "utf8").split(/\s+/).filter(Boolean).join(" ");
+    assert.ok(page.includes(words), `${name} is not printed word for word`);
+  }
+});
+
+test("Licenses page lets the screen wrap prose instead of keeping 80-column lines", () => {
+  const page = fs.readFileSync("android/app/src/main/assets/licenses.html", "utf8");
+  assert.match(page, /<p class="license">Permission is hereby granted, free of charge, to any person obtaining a copy of this software/);
+});
+
 test("Offline icon fallbacks cover every icon the editor uses", () => {
   const css = fs.readFileSync("android/app/src/main/assets/offline.css", "utf8");
   const used = new Set(bundledHtml.match(/fa-[a-z-]+/g));
   for (const skip of ["fa-solid", "fa-brands", "fa-android", "fa-mobile-screen-button"]) used.delete(skip);
   for (const icon of used) assert.ok(css.includes(`.${icon}::before`), icon);
+});
+
+test("Screen readers get two picker buttons and no dead file input", () => {
+  const { messages, fileInput, pickerLabels } = makeSandbox();
+  assert.equal(fileInput.attributes["aria-hidden"], "true");
+  assert.equal(fileInput.tabIndex, -1);
+  for (const label of pickerLabels) {
+    assert.equal(label.attributes.role, "button");
+    assert.equal(label.tabIndex, 0);
+  }
+  assert.match(pickerLabels[1].attributes["aria-label"], /^Choose media/);
+  pickerLabels[0].handlers.keydown({ key: "Enter", preventDefault() {} });
+  pickerLabels[0].handlers.keydown({ key: "a", preventDefault() {} });
+  assert.deepEqual(messages, [{ action: "pickImage" }]);
 });

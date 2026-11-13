@@ -60,13 +60,15 @@
 
   // The Android app lists its bundled open-source code from the Create footer.
   function addLicensesLink() {
+    // The piece is drawn on a canvas, which a screen reader cannot see; name its region.
+    document.getElementById("stage-host")?.setAttribute("aria-label", "Generated piece");
     const footer = document.querySelector(".footer p");
     if (!footer || document.getElementById("licenses-link")) return;
     const link = document.createElement("a");
     link.id = "licenses-link";
     link.href = "../../licenses.html";
     link.textContent = "Open-source licenses";
-    link.style.cssText = "display:inline-block;padding:12px 0;color:inherit;";
+    link.style.cssText = "display:inline-block;padding:16px 0;color:inherit;";
     link.addEventListener("click", event => {
       event.preventDefault();
       openLicenses(link.href);
@@ -74,7 +76,23 @@
     footer.append(" · ", link);
   }
 
+  // Android: every Create control is at least 48 dp tall, the platform's minimum touch target.
+  function addTouchTargets() {
+    if (document.getElementById("android-touch-targets")) return;
+    const style = document.createElement("style");
+    style.id = "android-touch-targets";
+    style.textContent = [
+      ".btn, .mode-btn, .ctrl-row, .ctrl-row select, .ctrl-row input[type=number] { min-height: 48px; }",
+      ".workspace-switcher a, .workspace-switcher [aria-current=page] { display: inline-flex; align-items: center; min-height: 48px; }",
+      ".ctrl-row input[type=color] { min-width: 48px; height: 48px; }",
+      ".ctrl-row input[type=checkbox] { width: 24px; height: 24px; }",
+      ".btn.tiny { min-width: 48px; }"
+    ].join("\n");
+    document.head.appendChild(style);
+  }
+
   if (androidHandler?.postMessage) {
+    addTouchTargets();
     window.jankifyBack = () => {
       const licenses = document.getElementById("licenses-dialog");
       if (licenses?.open) { licenses.close(); return true; }

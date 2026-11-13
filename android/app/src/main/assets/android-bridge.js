@@ -14,6 +14,24 @@
     handler.postMessage(JSON.stringify({ action, payload }));
   };
 
+  // Screen readers: the page's file input does nothing here (the native picker opens instead),
+  // so hide it and present its two labels as the buttons they act as.
+  const fileInput = document.getElementById("file-input");
+  if (fileInput) {
+    fileInput.setAttribute("aria-hidden", "true");
+    fileInput.tabIndex = -1;
+  }
+  for (const label of document.querySelectorAll('label[for="file-input"]')) {
+    label.setAttribute("role", "button");
+    label.tabIndex = 0;
+    if (label.id === "placeholder") label.setAttribute("aria-label", "Choose media: add a photo, GIF or video");
+    label.addEventListener("keydown", event => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      post("pickImage");
+    });
+  }
+
   window.jankifyReceiveImage = async (base64, mimeType) => {
     const binary = atob(base64);
     const bytes = new Uint8Array(binary.length);
