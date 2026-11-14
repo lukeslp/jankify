@@ -4,6 +4,13 @@
 
 ### Fixed
 
+- The flashing check before animated exports now follows the WCAG 2.3.1
+  definition (a pair of opposing luminance changes, darker frame below 0.80).
+- The Random, Sheet and Video buttons show their icons in the iOS and Android
+  apps. The bundled icon fallbacks had no entry for them, so each button had a
+  blank gap. The empty editor's mode list wraps between names, and the status
+  line says when the system's reduced-motion setting turns animated export off.
+- The Background checkbox has a name for screen readers.
 - Removed the ineffective direct-download update checker from Android. The app
   intentionally requests no Internet permission, so the checker could never
   complete and does not belong in an Amazon or Play build.

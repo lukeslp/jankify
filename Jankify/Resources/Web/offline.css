@@ -17,3 +17,6 @@
 .fa-shuffle::before { content: "\21c4"; }
 .fa-check::before { content: "\2713"; }
 .fa-film::before { content: "\25a6"; }
+.fa-dice::before { content: "\2684"; }
+.fa-border-all::before { content: "\229e"; }
+.fa-video::before { content: "\25b7"; }
