@@ -12,6 +12,7 @@
 		15780366C7DF7435A56D0837 /* JankifyLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A684B9271A4C20152F59673 /* JankifyLaunchTests.swift */; };
 		16F94E438BF47EB9FE2CE519 /* Web in Resources */ = {isa = PBXBuildFile; fileRef = 8BE8D52AC55E9D49A9C163FD /* Web */; };
 		1A3EEA29433EAAAE43E1DB14 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7A1B139A5D1193A4975CB834 /* PrivacyInfo.xcprivacy */; };
+		1CA4ED3DB9DB8C278C73DAF7 /* DuoBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4CCF80D337A5169F7D1C2F0 /* DuoBridge.swift */; };
 		1F099D7DA1DAAE84566A8EEC /* BundleResourceResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E373352B544EE78C01A492B9 /* BundleResourceResolverTests.swift */; };
 		1F634EAE80702FD505D06CBD /* ReviewPromptPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C5E8B1D77E553BB2C814A9C /* ReviewPromptPolicy.swift */; };
 		22F6B900844D8E21147DB118 /* BridgeController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72602A0B0B31EF37DBF5FCC7 /* BridgeController.swift */; };
@@ -21,6 +22,7 @@
 		7EF7301D066A0FCA6455EF40 /* BridgeMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 942E5D9DE0CEC940134DA164 /* BridgeMessage.swift */; };
 		8D3B995613E7B156CE8F8AB1 /* JankifyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2130B3009F48E20CA3B6F5C6 /* JankifyApp.swift */; };
 		9613A47765F5D663CE8EBF88 /* JankifyWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5166A5A443C7CCFF4D829D61 /* JankifyWebView.swift */; };
+		9EA59FF19A65F205D6077F62 /* duo-fold.js in Resources */ = {isa = PBXBuildFile; fileRef = 7034C97C555FBA7C6D6C142F /* duo-fold.js */; };
 		B0F0BFE42F5B82CB97126ADE /* BundleContentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 889993F79861DB410EFB3934 /* BundleContentTests.swift */; };
 		BB59E8CEB20727FB2B7FD218 /* BundleResourceResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ED867FE3A117753228526A2 /* BundleResourceResolver.swift */; };
 		C22D75F2B8ED75F9B74F7487 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C0093D0BAD33913D88C8175D /* Assets.xcassets */; };
@@ -57,6 +59,7 @@
 		6A1266DF779C2F0927660463 /* JankifyUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = JankifyUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		6A684B9271A4C20152F59673 /* JankifyLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JankifyLaunchTests.swift; sourceTree = "<group>"; };
 		6E8793D50BEDF75B626E7DD5 /* ReviewPromptPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewPromptPolicyTests.swift; sourceTree = "<group>"; };
+		7034C97C555FBA7C6D6C142F /* duo-fold.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "duo-fold.js"; sourceTree = "<group>"; };
 		72602A0B0B31EF37DBF5FCC7 /* BridgeController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeController.swift; sourceTree = "<group>"; };
 		7A1B139A5D1193A4975CB834 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		7A2168EAF7D7BF6E2EAA26BA /* BridgeControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeControllerTests.swift; sourceTree = "<group>"; };
@@ -64,6 +67,7 @@
 		8BE8D52AC55E9D49A9C163FD /* Web */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Web; path = Jankify/Resources/Web; sourceTree = SOURCE_ROOT; };
 		942E5D9DE0CEC940134DA164 /* BridgeMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeMessage.swift; sourceTree = "<group>"; };
 		9ED867FE3A117753228526A2 /* BundleResourceResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundleResourceResolver.swift; sourceTree = "<group>"; };
+		A4CCF80D337A5169F7D1C2F0 /* DuoBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuoBridge.swift; sourceTree = "<group>"; };
 		B0A2CF9F08500606B776AC14 /* load-functions.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "load-functions.js"; sourceTree = "<group>"; };
 		BA0FC0D4D8AA8AF639D1A48B /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		C0093D0BAD33913D88C8175D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -93,6 +97,8 @@
 				33E71E9CFAEFB9F0303BCFE6 /* BundleContent.swift */,
 				9ED867FE3A117753228526A2 /* BundleResourceResolver.swift */,
 				BA0FC0D4D8AA8AF639D1A48B /* ContentView.swift */,
+				7034C97C555FBA7C6D6C142F /* duo-fold.js */,
+				A4CCF80D337A5169F7D1C2F0 /* DuoBridge.swift */,
 				EF85C574843E75E19AC24295 /* Info.plist */,
 				2130B3009F48E20CA3B6F5C6 /* JankifyApp.swift */,
 				5166A5A443C7CCFF4D829D61 /* JankifyWebView.swift */,
@@ -288,6 +294,7 @@
 				C22D75F2B8ED75F9B74F7487 /* Assets.xcassets in Resources */,
 				1A3EEA29433EAAAE43E1DB14 /* PrivacyInfo.xcprivacy in Resources */,
 				16F94E438BF47EB9FE2CE519 /* Web in Resources */,
+				9EA59FF19A65F205D6077F62 /* duo-fold.js in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -324,6 +331,7 @@
 				58997609743BE7BEE168E014 /* BundleContent.swift in Sources */,
 				BB59E8CEB20727FB2B7FD218 /* BundleResourceResolver.swift in Sources */,
 				490E6A2E7EC832F513D71286 /* ContentView.swift in Sources */,
+				1CA4ED3DB9DB8C278C73DAF7 /* DuoBridge.swift in Sources */,
 				8D3B995613E7B156CE8F8AB1 /* JankifyApp.swift in Sources */,
 				9613A47765F5D663CE8EBF88 /* JankifyWebView.swift in Sources */,
 				1F634EAE80702FD505D06CBD /* ReviewPromptPolicy.swift in Sources */,

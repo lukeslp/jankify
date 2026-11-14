@@ -15,6 +15,10 @@
 
 ### Added
 
+- iPhone Duo book pose: with the inner screen half open and the fold running
+  down the middle, the editor's controls take the left page and the canvas
+  takes the right, with nothing tappable on the fold. Flat-open and the folded
+  outer screen keep their existing layouts.
 - A signed Fire-tablet candidate, required-touchscreen manifest filter,
   Fire-native Amazon listing pack, and three 1280×800 device screenshots.
 - Android's fully-drawn signal after the bundled editor is ready, with repeated

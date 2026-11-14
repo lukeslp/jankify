@@ -147,6 +147,7 @@ header h1 {
 }
 header h1 .accent { color: var(--accent); }
 header .spacer { flex: 1; }
+.header-start, .header-end { display: contents; }
 
 .workspace-switcher {
   display: inline-flex;
@@ -246,6 +247,42 @@ main {
   /* Hide the redundant header Upload button on mobile while no image is loaded —
      the placeholder is now the primary affordance. JS re-shows it after upload. */
   header label[for="file-input"].hide-mobile-empty { display: none; }
+}
+/* iPhone Duo book pose: controls on the left page, canvas on the right, nothing in the fold */
+@media (min-width: 801px) {
+  html[data-duo-pose="book"] body {
+    grid-template-columns: var(--duo-fold-left) var(--duo-fold-width) minmax(0, 1fr);
+  }
+  html[data-duo-pose="book"] header {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: var(--duo-fold-left) var(--duo-fold-width) minmax(0, 1fr);
+    align-items: start;
+    padding-left: 0;
+    padding-right: 0;
+  }
+  html[data-duo-pose="book"] .header-start,
+  html[data-duo-pose="book"] .header-end {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 0 20px;
+  }
+  html[data-duo-pose="book"] .header-start { grid-column: 1; }
+  html[data-duo-pose="book"] .header-end { grid-column: 3; }
+  html[data-duo-pose="book"] header .spacer { display: none; }
+  html[data-duo-pose="book"] main {
+    grid-column: 1 / -1;
+    grid-row: 2 / 4;
+    grid-template-columns: var(--duo-fold-left) var(--duo-fold-width) minmax(0, 1fr);
+    grid-template-rows: subgrid;
+  }
+  html[data-duo-pose="book"] aside { grid-column: 1; grid-row: 1; }
+  html[data-duo-pose="book"] .canvas-area { grid-column: 3; grid-row: 1 / 3; min-height: 0; }
+  html[data-duo-pose="book"] .canvas-area canvas { max-height: 100%; }
+  html[data-duo-pose="book"] .status { grid-column: 1; grid-row: 3; white-space: normal; }
+  html[data-duo-pose="book"] #gif-warning:not([hidden]) { padding-left: var(--duo-fold-right); }
 }
 
 aside {
@@ -525,6 +562,7 @@ input[type=file] {
 <body>
 
 <header>
+  <div class="header-start">
   <h1><span class="accent">▲</span> Jankify</h1>
 
   <nav class="workspace-switcher" aria-label="Jankify workspace">
@@ -554,9 +592,11 @@ input[type=file] {
       <option value="voronoi">Voronoi</option>
     </select>
   </div>
+  </div>
 
   <div class="spacer"></div>
 
+  <div class="header-end">
   <label for="file-input" class="btn btn-primary hide-mobile-empty" id="upload-btn">
     <i class="fa-solid fa-upload" aria-hidden="true"></i>
     <span id="upload-btn-label">Upload</span>
@@ -602,6 +642,7 @@ input[type=file] {
     <i class="fa-solid fa-clipboard" aria-hidden="true"></i>
     Copy
   </button>
+  </div>
 </header>
 
 <main>

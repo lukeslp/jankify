@@ -67,6 +67,7 @@ Shared primitives worth knowing before editing:
 - `BridgeController` validates picker, share, and clipboard messages. `ios-bridge.js` maps web controls to those native actions.
 - Android's `MainActivity` hosts the generated asset bundle, applies the same image/video import and export policy, and routes shares through `android-bridge.js`.
 - Keep browser-specific behavior in `index.html` and app-only behavior in `Jankify/Resources/Web/ios-bridge.js`.
+- `DuoBridge.swift` + `duo-fold.js` give the page iPhone Duo's fold (`data-duo-pose`, `--duo-fold-*`). They are vendored byte-for-byte from `lukeslp/snippets`; see `docs/iphone-duo.md` before changing the book-pose CSS or either file.
 - When a web mode adds an export type, update both native bridges and extend their JavaScript and native policy tests.
 
 ## Repository hygiene
