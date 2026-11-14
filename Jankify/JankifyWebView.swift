@@ -29,7 +29,11 @@ struct JankifyWebView: UIViewRepresentable {
             controller.report(error)
         }
 
-        let webView = WKWebView(frame: .zero, configuration: configuration)
+        let duo = DuoBridge(configuration: configuration)
+        let webView = LayoutReportingWebView(frame: .zero, configuration: configuration)
+        duo.attach(to: webView)
+        webView.onLayout = { [weak duo] in duo?.refresh() }
+        context.coordinator.duo = duo
         webView.navigationDelegate = context.coordinator
         webView.isOpaque = false
         webView.backgroundColor = .clear
@@ -59,6 +63,7 @@ struct JankifyWebView: UIViewRepresentable {
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         controller.webView = webView
+        context.coordinator.duo?.refresh()
     }
 
     static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
@@ -71,6 +76,7 @@ struct JankifyWebView: UIViewRepresentable {
     final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         private let controller: BridgeController
         private let navigationPolicy = AppNavigationPolicy()
+        var duo: DuoBridge?
 
         init(controller: BridgeController) {
             self.controller = controller
@@ -106,5 +112,20 @@ struct JankifyWebView: UIViewRepresentable {
             }
             return .cancel
         }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            duo?.resend()
+        }
+    }
+}
+
+/// Reports layout passes so the iPhone Duo fold position is re-read after rotation
+/// or a size change, which do not always reach `updateUIView`.
+final class LayoutReportingWebView: WKWebView {
+    var onLayout: (() -> Void)?
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        onLayout?()
     }
 }
