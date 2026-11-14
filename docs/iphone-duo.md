@@ -51,6 +51,23 @@ action buttons and the canvas, which runs the full page height.
 - `xcodebuild test` (iPhone 17 Pro, iOS 27.2), `node --test JankifyTests/*.test.js`,
   and Android `:app:testDebugUnitTest` pass.
 
+## Screenshots
+
+`scripts/capture-duo.sh <udid> <outer|inner> <outdir> [path/to/Jankify.app]`
+captures the App Store screens without taps. It needs a Debug build, because
+the screens come from Debug-only launch arguments (`CaptureFixture` in
+`Jankify/JankifyWebView.swift`). It refuses a capture that is the wrong size,
+black, or the same as the screen before it, and flattens alpha.
+
+- Outer (folded) screen: `--display=1`, 1398×2034. The set for 1.1.4 is in
+  `fastlane/screenshots/en-US/iphone-duo-outer/`.
+- Inner screen: unfold the simulator in Device Hub first, then run with
+  `inner` (`--display=LCD-1`, 2853×2007 landscape or 2007×2853 portrait). Flat
+  open shows the flat layout; Partially Open plus landscape shows book pose.
+
+`fastlane deliver` reads only the files directly in `en-US/`, so it skips
+these folders; upload them as iPhone Duo screenshots separately.
+
 ## Limits
 
 - The simulator can't fold from the command line, so book pose has not been
