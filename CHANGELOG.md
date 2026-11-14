@@ -19,6 +19,8 @@
   down the middle, the editor's controls take the left page and the canvas
   takes the right, with nothing tappable on the fold. Flat-open and the folded
   outer screen keep their existing layouts.
+- `scripts/capture-duo.sh` captures iPhone Duo App Store screenshots without
+  taps, using Debug-only launch arguments that open a bundled sample image.
 - A signed Fire-tablet candidate, required-touchscreen manifest filter,
   Fire-native Amazon listing pack, and three 1280×800 device screenshots.
 - Android's fully-drawn signal after the bundled editor is ready, with repeated

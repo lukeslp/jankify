@@ -77,6 +77,9 @@ struct JankifyWebView: UIViewRepresentable {
         private let controller: BridgeController
         private let navigationPolicy = AppNavigationPolicy()
         var duo: DuoBridge?
+        #if DEBUG
+        private let capture = CaptureFixture(arguments: ProcessInfo.processInfo.arguments)
+        #endif
 
         init(controller: BridgeController) {
             self.controller = controller
@@ -115,9 +118,98 @@ struct JankifyWebView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             duo?.resend()
+            #if DEBUG
+            capture.apply(to: webView, controller: controller)
+            #endif
         }
     }
 }
+
+#if DEBUG
+/// Debug builds only: launch arguments that open a bundled image and set controls, so
+/// screenshots need no taps. `scripts/capture-duo.sh` passes them through `simctl launch`.
+///
+///     -JankifyCaptureSample create/icon.png        a file inside the bundled Web folder
+///     -JankifyCaptureControls "mode=emoji;emoji-window=5"   element id=value, in order
+///     -JankifyCaptureScroll aside                  CSS selector to scroll to the top
+///     -JankifyCaptureRoute "create/app/index.html#/effects"   open this page instead of Edit
+@MainActor
+final class CaptureFixture {
+    private let sample: String?
+    private let controls: [[String]]
+    private let scroll: String?
+    private var route: String?
+    private var applied = false
+
+    init(arguments: [String]) {
+        func value(_ flag: String) -> String? {
+            guard let index = arguments.firstIndex(of: flag), index + 1 < arguments.count else {
+                return nil
+            }
+            return arguments[index + 1]
+        }
+        sample = value("-JankifyCaptureSample")
+        controls = (value("-JankifyCaptureControls") ?? "")
+            .split(separator: ";")
+            .map { $0.split(separator: "=", maxSplits: 1).map(String.init) }
+            .filter { $0.count == 2 }
+        scroll = value("-JankifyCaptureScroll")
+        route = value("-JankifyCaptureRoute")
+    }
+
+    func apply(to webView: WKWebView, controller: BridgeController) {
+        if let route {
+            self.route = nil
+            if let url = URL(string: route, relativeTo: BundleContent.appURL)?.absoluteURL {
+                webView.load(URLRequest(url: url))
+                return
+            }
+        }
+        guard !applied, webView.url?.path == BundleContent.appURL.path else { return }
+        guard sample != nil || !controls.isEmpty || scroll != nil else { return }
+        applied = true
+        Task { await applyToEdit(webView, controller: controller) }
+    }
+
+    private func applyToEdit(_ webView: WKWebView, controller: BridgeController) async {
+        do {
+            if let sample {
+                let root = try BundleContent.webDirectoryURL(in: .main).standardizedFileURL
+                let file = root.appendingPathComponent(sample).standardizedFileURL
+                guard file.path.hasPrefix(root.path + "/") else { return }
+                let data = try Data(contentsOf: file)
+                let mimeType = ImageMIMETypeSniffer.mimeType(for: data) ?? "image/png"
+                try await controller.sendMedia(data, mimeType: mimeType)
+            }
+            _ = try await webView.callAsyncJavaScript(
+                """
+                for (const [id, value] of controls) {
+                  const el = document.getElementById(id);
+                  if (!el) continue;
+                  if (el.type === "checkbox") el.checked = value === "true"; else el.value = value;
+                  el.dispatchEvent(new Event("input", { bubbles: true }));
+                  el.dispatchEvent(new Event("change", { bubbles: true }));
+                }
+                """,
+                arguments: ["controls": controls],
+                in: nil,
+                contentWorld: .page
+            )
+            if let scroll {
+                try await Task.sleep(for: .milliseconds(800))
+                _ = try await webView.callAsyncJavaScript(
+                    "document.querySelector(selector)?.scrollIntoView({ block: \"start\" });",
+                    arguments: ["selector": scroll],
+                    in: nil,
+                    contentWorld: .page
+                )
+            }
+        } catch {
+            print("Jankify capture fixture: \(error)")
+        }
+    }
+}
+#endif
 
 /// Reports layout passes so the iPhone Duo fold position is re-read after rotation
 /// or a size change, which do not always reach `updateUIView`.
