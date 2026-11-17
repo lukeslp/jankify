@@ -2933,6 +2933,8 @@ function ensureCanvas(w, h) {
   let canvas = area.querySelector("canvas");
   if (!canvas) {
     canvas = document.createElement("canvas");
+    canvas.setAttribute("role", "img");
+    canvas.setAttribute("aria-label", "Preview of your media in the current look");
     area.appendChild(canvas);
     const ph = $("placeholder");
     if (ph) ph.remove();

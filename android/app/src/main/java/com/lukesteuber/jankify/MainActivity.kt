@@ -11,6 +11,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
 import android.os.Build
@@ -68,7 +69,7 @@ class MainActivity : Activity() {
                 builtInZoomControls = true
                 displayZoomControls = false
                 mediaPlaybackRequiresUserGesture = true
-                textZoom = (resources.configuration.fontScale * 100).toInt().coerceIn(100, 200)
+                textZoom = textZoomFor(resources.configuration)
                 userAgentString = "$userAgentString JankifyAndroid/${BuildConfig.VERSION_NAME}"
             }
             webViewClient = OfflineWebViewClient()
@@ -145,6 +146,15 @@ class MainActivity : Activity() {
         }
     }
 
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // A new system font size applies in place, so loaded media is not lost to a restart.
+        webView.settings.textZoom = textZoomFor(newConfig)
+    }
+
+    private fun textZoomFor(configuration: Configuration): Int =
+        (configuration.fontScale * 100).toInt().coerceIn(100, 200)
+
     @Deprecated("Framework fallback for Android 12 and older")
     @SuppressLint("GestureBackNavigation")
     override fun onBackPressed() {
@@ -163,7 +173,11 @@ class MainActivity : Activity() {
     }
 
     private fun handleBack() {
-        if (webView.canGoBack()) webView.goBack() else finish()
+        // Let the page close an open dialog first; otherwise go back or leave.
+        webView.evaluateJavascript(BACK_SCRIPT) { handled ->
+            if (handled == "true" || isFinishing || isDestroyed) return@evaluateJavascript
+            if (webView.canGoBack()) webView.goBack() else finish()
+        }
     }
 
     private fun reportReadyToUse() {
@@ -332,6 +346,8 @@ class MainActivity : Activity() {
 
     private companion object {
         const val BRIDGE_NAME = "JankifyAndroid"
+        const val BACK_SCRIPT =
+            "(function(){try{return !!(window.jankifyBack&&window.jankifyBack())}catch(e){return false}})()"
         const val PICK_IMAGE_REQUEST = 1001
         const val FILE_CHOOSER_REQUEST = 1002
     }

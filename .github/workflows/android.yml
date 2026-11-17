@@ -1,0 +1,40 @@
+name: Android
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - name: Bundled pages are in step with their sources
+        run: |
+          sh scripts/sync-web.sh
+          git diff --exit-code
+      - name: JavaScript tests
+        run: node --test JankifyTests/*.test.js
+      # The unsigned release APK, built the way F-Droid would build it.
+      - name: Android tests and unsigned release build
+        working-directory: android
+        run: |
+          ./gradlew --no-daemon --console=plain :app:testDebugUnitTest :app:assembleRelease
+          sha256sum app/build/outputs/apk/release/app-release-unsigned.apk

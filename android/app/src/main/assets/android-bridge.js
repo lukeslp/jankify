@@ -1,6 +1,7 @@
 /*
  * File Purpose: Adapt Jankify's canonical web controls to the trusted Android bridge.
- * Primary Functions: Native media picking, export sharing, animation sharing, and clipboard writes.
+ * Primary Functions: Native media picking, export sharing, animation sharing, clipboard writes,
+ *   the licenses dialog, and Back handling for dialogs.
  * Inputs/Outputs: Receives DOM actions and native media callbacks; emits JSON bridge messages.
  */
 (() => {
@@ -12,6 +13,24 @@
   const post = (action, payload) => {
     handler.postMessage(JSON.stringify({ action, payload }));
   };
+
+  // Screen readers: the page's file input does nothing here (the native picker opens instead),
+  // so hide it and present its two labels as the buttons they act as.
+  const fileInput = document.getElementById("file-input");
+  if (fileInput) {
+    fileInput.setAttribute("aria-hidden", "true");
+    fileInput.tabIndex = -1;
+  }
+  for (const label of document.querySelectorAll('label[for="file-input"]')) {
+    label.setAttribute("role", "button");
+    label.tabIndex = 0;
+    if (label.id === "placeholder") label.setAttribute("aria-label", "Choose media: add a photo, GIF or video");
+    label.addEventListener("keydown", event => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      post("pickImage");
+    });
+  }
 
   window.jankifyReceiveImage = async (base64, mimeType) => {
     const binary = atob(base64);
@@ -88,6 +107,43 @@
     }, 1200);
   }
 
+  // Open-source licenses: a dialog over the current page, so nothing in progress is lost.
+  function openLicenses(source) {
+    let dialog = document.getElementById("licenses-dialog");
+    if (!dialog) {
+      dialog = document.createElement("dialog");
+      dialog.id = "licenses-dialog";
+      dialog.setAttribute("aria-label", "Open-source licenses");
+      dialog.style.cssText = "width:min(720px,94vw);height:88vh;max-width:none;max-height:none;padding:0;"
+        + "border:1px solid #6b6862;border-radius:6px;background:#fafaf7;color:#1a1a1a;";
+      const close = document.createElement("button");
+      close.type = "button";
+      close.textContent = "Close";
+      close.style.cssText = "display:block;width:100%;min-height:48px;border:0;border-bottom:1px solid #6b6862;"
+        + "background:#1a1a1a;color:#fafaf7;font:600 16px system-ui,sans-serif;";
+      close.addEventListener("click", () => dialog.close());
+      const frame = document.createElement("iframe");
+      frame.title = "Open-source licenses";
+      frame.src = source;
+      frame.style.cssText = "display:block;width:100%;height:calc(100% - 49px);border:0;";
+      dialog.append(close, frame);
+      document.body.appendChild(dialog);
+    }
+    if (!dialog.open) dialog.showModal();
+  }
+
+  // Android Back closes an open dialog or cancels a running animated export before it
+  // leaves the page. Returns true when it did.
+  window.jankifyBack = () => {
+    const licenses = document.getElementById("licenses-dialog");
+    if (licenses?.open) { licenses.close(); return true; }
+    const warning = $("gif-warning");
+    if (warning && !warning.hidden) { closeGifWarning(null); return true; }
+    const cancel = $("cancel-anim");
+    if (cancel && !cancel.hidden) { cancel.click(); return true; }
+    return false;
+  };
+
   window.triggerGifDownload = async function(bytes) {
     const blob = new Blob([bytes], { type: "image/gif" });
     await shareBlob(blob, `jankify-${state.mode}-${state.seed}.gif`);
@@ -95,7 +151,7 @@
 
   document.addEventListener("click", async event => {
     const target = event.target.closest(
-      'label[for="file-input"], #file-input, #download-png, #download-vector, #copy-output'
+      'label[for="file-input"], #file-input, #download-png, #download-vector, #copy-output, #licenses-link'
     );
     if (!target) return;
 
@@ -103,7 +159,9 @@
     event.stopImmediatePropagation();
 
     try {
-      if (target.matches('label[for="file-input"], #file-input')) {
+      if (target.id === "licenses-link") {
+        openLicenses("licenses.html");
+      } else if (target.matches('label[for="file-input"], #file-input')) {
         post("pickImage");
       } else if (target.id === "download-png") {
         const canvas = $("canvas-area").querySelector("canvas");

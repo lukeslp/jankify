@@ -20,3 +20,19 @@
 .fa-dice::before { content: "\2684"; }
 .fa-border-all::before { content: "\229e"; }
 .fa-video::before { content: "\25b7"; }
+
+/* Android: every control is at least 48 dp tall, the platform's minimum touch target. */
+html[data-native="android"] .btn,
+html[data-native="android"] .mode-select,
+html[data-native="android"] select,
+html[data-native="android"] .radio-group label,
+html[data-native="android"] .checkbox-group label { min-height: 48px; }
+html[data-native="android"] .workspace-switcher a,
+html[data-native="android"] .workspace-switcher [aria-current="page"] {
+  display: inline-flex; align-items: center; min-height: 48px; padding: 4px 12px;
+}
+html[data-native="android"] .mode-select select { min-height: 44px; }
+html[data-native="android"] input[type=range] { height: 48px; }
+html[data-native="android"] .row input[type=color] { width: 48px; height: 48px; }
+html[data-native="android"] .row input[type=checkbox] { width: 24px; height: 24px; margin: 12px; }
+html[data-native="android"] .row label { display: inline-flex; align-items: center; min-height: 48px; }

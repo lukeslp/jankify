@@ -84,4 +84,12 @@ class BridgePolicyTest {
         )
         assertFalse(BridgePolicy.isAllowedMainDocumentUrl("https://jankify.app/create/app/"))
     }
+
+    @Test
+    fun licensesPageLoadsOnlyAsAnEmbeddedAsset() {
+        val url = "https://appassets.androidplatform.net/assets/licenses.html"
+        assertEquals("licenses.html", BridgePolicy.assetPathForUrl(url))
+        assertEquals("text/html", BridgePolicy.mimeTypeForAsset("licenses.html"))
+        assertFalse(BridgePolicy.isAllowedMainDocumentUrl(url))
+    }
 }
