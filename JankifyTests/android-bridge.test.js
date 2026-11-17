@@ -183,7 +183,7 @@ test("Licenses page is generated from the packaged notices and names each librar
   const committed = fs.readFileSync(page, "utf8");
   execFileSync("python3", ["scripts/build-android-licenses.py"]);
   assert.equal(fs.readFileSync(page, "utf8"), committed, "licenses.html is stale; run scripts/sync-web.sh");
-  for (const name of ["p5.js 1.1.9", "GNU LESSER GENERAL PUBLIC LICENSE", "Rough.js 4.6.6", "Deep-Fold", "Apache License"]) {
+  for (const name of ["Rough.js 4.6.6", "Deep-Fold", "Apache License"]) {
     assert.ok(committed.includes(name), name);
   }
   assert.ok(!committed.includes("<script"), "the licenses page must not run code");
@@ -196,11 +196,16 @@ test("Licenses page keeps every word of every notice, in order", () => {
   const page = unescape(
     fs.readFileSync("android/app/src/main/assets/licenses.html", "utf8").replace(/<[^>]+>/g, " ")
   ).split(/\s+/).filter(Boolean).join(" ");
-  const notices = "android/app/src/main/resources/META-INF/jankify-notices";
-  const files = fs.readdirSync(notices).filter(name => name.endsWith(".txt"));
-  assert.equal(files.length, 7);
+  const files = [
+    "LICENSE",
+    "licenses/Rough-MIT.txt",
+    "Jankify/Resources/Web/create/LICENSE.txt",
+    "licenses/Deep-Fold-PixelPlanets-MIT.txt",
+    "licenses/Deep-Fold-SpriteGenerator-MIT.txt",
+    "licenses/Apache-2.0.txt",
+  ];
   for (const name of files) {
-    const words = fs.readFileSync(`${notices}/${name}`, "utf8").split(/\s+/).filter(Boolean).join(" ");
+    const words = fs.readFileSync(name, "utf8").split(/\s+/).filter(Boolean).join(" ");
     assert.ok(page.includes(words), `${name} is not printed word for word`);
   }
 });

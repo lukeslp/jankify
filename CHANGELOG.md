@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Android 1.0.14 (21)
+
+- A licenses page for the bundled open-source code, linked from the controls.
+- Back closes dialogs and cancels a running animated export before it leaves
+  the app.
+- 48 dp touch targets and names for screen readers.
+- The Android page says Open, File and share where the web page says upload
+  and download, and calls the peg mode Peg Board.
+- The release APK leaves out the version-control file and the dependency
+  metadata block, so a clean clone builds the same bytes. See
+  [docs/FDROID.md](docs/FDROID.md).
+
 ### Fixed
 
 - The flashing check before animated exports now follows the WCAG 2.3.1

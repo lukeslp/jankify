@@ -1,0 +1,1 @@
+A licenses page for the bundled open-source code, linked from the controls. Back closes dialogs and cancels a running animated export before it leaves the app. Larger touch targets and names for screen readers. The Random, Sheet and Video buttons show their icons, and the flashing check before animated exports follows WCAG 2.3.1.

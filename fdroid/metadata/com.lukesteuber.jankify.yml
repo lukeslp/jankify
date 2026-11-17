@@ -1,0 +1,29 @@
+Categories:
+  - Graphics
+License: MIT
+AuthorName: Luke Steuber
+AuthorWebSite: https://lukesteuber.com/
+WebSite: https://jankify.app/
+SourceCode: https://github.com/lukeslp/jankify
+IssueTracker: https://github.com/lukeslp/jankify/issues
+
+AutoName: Jankify
+
+RepoType: git
+Repo: https://github.com/lukeslp/jankify.git
+Binaries: https://github.com/lukeslp/jankify/releases/download/android-v%v/jankify-%v.apk
+
+Builds:
+  - versionName: 1.0.14
+    versionCode: 21
+    commit: 0000000000000000000000000000000000000000
+    subdir: android/app
+    gradle:
+      - yes
+
+AllowedAPKSigningKeys: 0000000000000000000000000000000000000000000000000000000000000000
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags ^android-v[0-9.]+$
+CurrentVersion: 1.0.14
+CurrentVersionCode: 21

@@ -2,7 +2,7 @@
 """
 File Purpose: Generate the in-app open-source licenses page for Android.
 Primary Functions: Join the packaged notice files into one static, offline HTML page.
-Inputs/Outputs: Reads android/app/src/main/resources/META-INF/jankify-notices/*.txt;
+Inputs/Outputs: Reads LICENSE, licenses/*.txt and the Create bundle's license;
 writes android/app/src/main/assets/licenses.html.
 """
 import html
@@ -11,42 +11,38 @@ import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-NOTICES = ROOT / "android/app/src/main/resources/META-INF/jankify-notices"
+LICENSES = ROOT / "licenses"
 OUTPUT = ROOT / "android/app/src/main/assets/licenses.html"
+# Notice files in licenses/ that cover build tools, not code inside the app.
+NOT_IN_APP = {"Gradle-LICENSE.txt"}
 
-# (heading, where it is used, notice files in order)
+# (heading, where it is used, notice files in order, relative to the repository root)
 SECTIONS = [
     (
         "Jankify",
-        "The editor, the Create workspace shell and this Android app. MIT License.",
-        ["Jankify-MIT.txt"],
-    ),
-    (
-        "p5.js 1.1.9",
-        "Draws the Backgrounds generator in Create. The library is the unmodified file "
-        "create/Starscapes/p5.min.js inside this app. It is free software under the "
-        "GNU Lesser General Public License, version 2.1, printed below. Its source code is "
-        "published at github.com/processing/p5.js (tag 1.1.9, commit "
-        "d35bef5faa75fe33741632e2127d1d19396327e8) and in the npm package p5@1.1.9. "
-        "Notices for the code p5.js itself bundles follow the license.",
-        ["p5-1.1.9-LICENSE.txt", "p5-1.1.9-embedded-notice-extracts.txt"],
+        "The editor, the Create workspace and this Android app. MIT License.",
+        ["LICENSE"],
     ),
     (
         "Rough.js 4.6.6",
         "Draws the Rough look in Edit. MIT License.",
-        ["roughjs-4.6.6-LICENSE.txt"],
+        ["licenses/Rough-MIT.txt"],
     ),
     (
-        "Pixel Planets and Pixel Space by Deep-Fold",
+        "Pixel Space, Pixel Planets and Sprite Generator by Deep-Fold",
         "The Create generators build on these projects. MIT License.",
-        ["Deep-Fold-PixelPlanets-MIT.txt", "Deep-Fold-PixelSpace-MIT.txt"],
+        [
+            "Jankify/Resources/Web/create/LICENSE.txt",
+            "licenses/Deep-Fold-PixelPlanets-MIT.txt",
+            "licenses/Deep-Fold-SpriteGenerator-MIT.txt",
+        ],
     ),
     (
         "AndroidX, Kotlin and kotlinx.coroutines",
         "Android support libraries (androidx.core and the libraries it depends on), the "
         "Kotlin standard library and kotlinx.coroutines. Apache License 2.0. "
         "Copyright The Android Open Source Project and JetBrains s.r.o. and contributors.",
-        ["Apache-2.0.txt"],
+        ["licenses/Apache-2.0.txt"],
     ),
 ]
 
@@ -125,14 +121,14 @@ def main() -> int:
         "<h1>Open-source licenses</h1>",
         '<p class="muted">Jankify includes the open-source code listed here. '
         "Each license is printed in full, with its line breaks removed so it fits this screen. "
-        "The same files, unchanged, are packaged in the app "
-        "under META-INF/jankify-notices.</p>",
+        "The same files, unchanged, are in the app's licenses folder and in its "
+        "source repository.</p>",
     ]
     for heading, blurb, files in SECTIONS:
         parts.append(f"<h2>{html.escape(heading)}</h2>")
         parts.append(f"<p>{html.escape(blurb)}</p>")
         for name in files:
-            path = NOTICES / name
+            path = ROOT / name
             if not path.is_file():
                 print(f"Missing notice file: {path}", file=sys.stderr)
                 return 1
@@ -141,7 +137,10 @@ def main() -> int:
             blocks = reflow(text)
             check_words(name, text, blocks)
             parts.extend(render(blocks))
-    unlisted = sorted(p.name for p in NOTICES.glob("*.txt") if p.name not in used)
+    shown = {pathlib.PurePosixPath(name).name for name in used}
+    unlisted = sorted(
+        p.name for p in LICENSES.glob("*.txt") if p.name not in shown and p.name not in NOT_IN_APP
+    )
     if unlisted:
         print(f"Notice files not shown on the licenses page: {unlisted}", file=sys.stderr)
         return 1

@@ -24,8 +24,8 @@ android {
         applicationId = "com.lukesteuber.jankify"
         minSdk = 26
         targetSdk = 36
-        versionCode = 20
-        versionName = "1.0.13"
+        versionCode = 21
+        versionName = "1.0.14"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -46,12 +46,21 @@ android {
             versionNameSuffix = "-debug"
         }
         release {
+            // Gradle's root is android/, below the repository's .git, so this file
+            // would only record that no repository was found. Leaving it out keeps
+            // release bytes independent of how the source was checked out.
+            vcsInfo.include = false
             isMinifyEnabled = false
             isShrinkResources = false
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
             }
         }
+    }
+
+    // F-Droid's scanner rejects the Play dependency-metadata signing block in an APK.
+    dependenciesInfo {
+        includeInApk = false
     }
 
     compileOptions {
